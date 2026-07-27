@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘 나가도 되나 — 디자인 프레임</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{
+    --brand:#0E9F6E; --brand-sub:#0B7A54;
+    --lv1:#0E9F6E; --lv2:#A3C13A; --lv3:#F5A524; --lv4:#F2711C; --lv5:#E03131;
+    --g900:#191F28; --g700:#4E5968; --g500:#8B95A1; --g300:#B0B8C1;
+    --g200:#E5E8EB; --g100:#F2F4F6; --g50:#F9FAFB; --white:#fff;
+    --r-card:16px; --r-btn:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+  body{
+    font-family:'Pretendard Variable',Pretendard,-apple-system,sans-serif;
+    background:#1C1F23; color:var(--g900);
+    padding:56px 32px 80px;
+  }
+  .page-head{max-width:1400px;margin:0 auto 56px;color:#fff}
+  .page-head .eyebrow{font-size:12px;letter-spacing:.12em;color:#7A8290;font-weight:600;margin-bottom:12px}
+  .page-head h1{font-size:34px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
+  .page-head p{font-size:14px;color:#9BA3AF;line-height:1.7;max-width:640px}
+  .specbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .chip{font-size:11.5px;font-weight:600;color:#C6CCD4;background:#292D33;border:1px solid #363B42;padding:6px 11px;border-radius:99px}
+  .chip b{color:#fff;font-weight:700}
+  .sw{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+  .grid{max-width:1400px;margin:0 auto;display:flex;flex-wrap:wrap;gap:56px 44px;justify-content:flex-start}
+  .cell{width:375px}
+  .cell-head{color:#fff;margin-bottom:14px}
+  .cell-head .no{font-size:11px;font-weight:700;color:var(--brand);letter-spacing:.1em}
+  .cell-head h2{font-size:16px;font-weight:700;margin:4px 0 5px}
+  .cell-head p{font-size:12.5px;color:#8A929E;line-height:1.6}
+
+  /* phone */
+  .phone{
+    width:375px;height:812px;background:var(--white);border-radius:34px;overflow:hidden;
+    position:relative;display:flex;flex-direction:column;
+    box-shadow:0 20px 50px rgba(0,0,0,.45);
+  }
+  .status{height:44px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 22px 6px;font-size:12.5px;font-weight:700;color:var(--g900);flex-shrink:0}
+  .status .dots{display:flex;gap:4px;align-items:center;font-size:11px;color:var(--g700)}
+  /* 앱인토스 비게임 내비게이션 바 */
+  .nav{height:52px;display:flex;align-items:center;padding:0 8px 0 6px;flex-shrink:0;border-bottom:1px solid transparent}
+  .nav .ic{width:40px;height:40px;display:grid;place-items:center;color:var(--g900)}
+  .nav .brand{flex:1;display:flex;align-items:center;gap:7px;justify-content:center}
+  .nav .logo{width:20px;height:20px;border-radius:5px;background:var(--brand);display:grid;place-items:center;color:#fff;font-size:10px;font-weight:800}
+  .nav .brand span{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .body{flex:1;overflow:hidden;position:relative}
+  .scroll{height:100%;overflow:hidden;padding:0 20px}
+
+  /* shared */
+  .prof-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 0 14px}
+  .prof{display:flex;align-items:center;gap:6px;background:var(--g100);border-radius:99px;padding:7px 12px;font-size:13.5px;font-weight:700;color:var(--g900)}
+  .loc{display:flex;align-items:center;gap:3px;font-size:13.5px;font-weight:600;color:var(--g700)}
+  .caret{font-size:9px;color:var(--g500)}
+
+  .verdict{padding:10px 0 22px}
+  .verdict .now{font-size:15px;font-weight:600;color:var(--g500);margin-bottom:6px}
+  .verdict h3{font-size:32px;font-weight:800;letter-spacing:-.035em;line-height:1.22}
+  .verdict .why{margin-top:12px;font-size:15px;line-height:1.55;color:var(--g700);font-weight:500}
+
+  .window-cta{margin-top:18px;border-radius:var(--r-card);padding:15px 16px;display:flex;align-items:center;gap:11px}
+  .window-cta .t{font-size:15px;font-weight:700}
+  .window-cta .s{font-size:12.5px;font-weight:500;opacity:.8;margin-top:2px}
+
+  .sect-h{font-size:13px;font-weight:700;color:var(--g500);margin:24px 0 10px}
+
+  .metric{display:flex;align-items:center;gap:13px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r-card);padding:14px 15px;margin-bottom:8px}
+  .metric .icn{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+  .metric .lbl{font-size:13px;font-weight:600;color:var(--g500)}
+  .metric .val{font-size:20px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:1px}
+  .metric .sub{font-size:12px;color:var(--g500);font-weight:500;margin-top:3px}
+  .metric .arrow{margin-left:auto;color:var(--g300);font-size:15px}
+  .badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:var(--g200);color:var(--g700);margin-left:6px;vertical-align:2px}
+
+  .metric.hero{background:#FFF8EC;border-color:#FCE3B4;padding:18px 16px}
+  .metric.hero .val{font-size:30px}
+  .metric.hero .icn{width:46px;height:46px;font-size:22px}
+
+  /* timeline strip */
+  .strip-wrap{background:var(--g50);border:1px solid var(--g200);border-radius:var(--r-card);padding:16px 15px}
+  .strip-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .strip-top .t{font-size:14px;font-weight:700}
+  .strip-top .s{font-size:12px;color:var(--brand);font-weight:700}
+  .strip{display:flex;gap:2.5px;height:44px;align-items:flex-end}
+  .strip i{flex:1;border-radius:3px;display:block;position:relative}
+  .strip i.nowmark{outline:2.5px solid var(--g900);outline-offset:1.5px;border-radius:4px}
+  .strip-ax{display:flex;justify-content:space-between;margin-top:8px;font-size:10.5px;color:var(--g500);font-weight:600}
+  .goodband{margin-top:11px;display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--g700)}
+  .goodband em{display:inline-block;width:26px;height:4px;border-radius:2px;background:var(--lv1)}
+
+  .tips{margin-top:8px}
+  .tip{display:flex;gap:10px;padding:12px 2px;border-bottom:1px solid var(--g100);font-size:14px;color:var(--g700);line-height:1.5;font-weight:500}
+  .tip b{color:var(--g900);font-weight:700}
+  .tip .n{color:var(--brand);font-weight:800;flex-shrink:0}
+
+  .adbox{margin-top:20px;height:64px;border-radius:10px;background:var(--g100);border:1px dashed var(--g300);display:grid;place-items:center;font-size:11.5px;color:var(--g500);font-weight:600}
+
+  .src{margin-top:14px;font-size:11.5px;color:var(--g500);font-weight:500;line-height:1.6}
+
+  /* F1 onboarding */
+  .ob-h{padding:30px 0 26px}
+  .ob-h h3{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.32}
+  .ob-h p{margin-top:11px;font-size:14.5px;color:var(--g700);line-height:1.6;font-weight:500}
+  .pick{display:flex;align-items:center;gap:14px;border:1.5px solid var(--g200);border-radius:var(--r-card);padding:17px 16px;margin-bottom:10px}
+  .pick.on{border-color:var(--brand);background:#F1FBF6}
+  .pick .em{width:44px;height:44px;border-radius:13px;background:var(--g100);display:grid;place-items:center;font-size:21px}
+  .pick.on .em{background:#DDF3E9}
+  .pick .t{font-size:16px;font-weight:700}
+  .pick .s{font-size:12.5px;color:var(--g500);margin-top:3px;font-weight:500}
+  .pick .rd{margin-left:auto;width:21px;height:21px;border-radius:50%;border:1.5px solid var(--g200)}
+  .pick.on .rd{border:none;background:var(--brand);display:grid;place-items:center;color:#fff;font-size:11px;font-weight:800}
+
+  .permnote{margin-top:22px;background:var(--g50);border-radius:12px;padding:14px 15px;font-size:12.5px;color:var(--g700);line-height:1.65;font-weight:500}
+  .permnote b{color:var(--g900)}
+
+  .bottomcta{position:absolute;left:0;right:0;bottom:0;padding:14px 20px 30px;background:linear-gradient(180deg,rgba(255,255,255,0) 0%,#fff 22%)}
+  .btn{height:54px;border-radius:14px;background:var(--brand);color:#fff;font-size:16.5px;font-weight:700;display:grid;place-items:center}
+  .btn.ghost{background:transparent;color:var(--g700);height:46px;font-size:14.5px;font-weight:600}
+
+  /* F4 detail rows */
+  .hour{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--g100)}
+  .hour .hh{font-size:14px;font-weight:700;width:46px;font-variant-numeric:tabular-nums;color:var(--g900)}
+  .hour .bar{flex:1;height:8px;border-radius:4px;background:var(--g100);overflow:hidden}
+  .hour .bar i{display:block;height:100%;border-radius:4px}
+  .hour .tag{font-size:12px;font-weight:700;width:58px;text-align:right}
+  .hour.on{background:#F1FBF6;margin:0 -10px;padding:13px 10px;border-radius:10px;border-bottom:none}
+
+  /* F5 evidence */
+  .calc{background:var(--g50);border:1px solid var(--g200);border-radius:var(--r-card);padding:16px}
+  .calcrow{display:flex;justify-content:space-between;font-size:13.5px;padding:8px 0;color:var(--g700);font-weight:500}
+  .calcrow b{color:var(--g900);font-weight:700;font-variant-numeric:tabular-nums}
+  .calcrow.tot{border-top:1px solid var(--g200);margin-top:6px;padding-top:12px;font-size:15px}
+  .calcrow.tot b{font-size:19px;color:var(--lv4)}
+  .surf{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:13.5px;font-weight:600}
+  .surf .nm{width:76px;color:var(--g700)}
+  .surf .tr{flex:1;height:22px;background:var(--g100);border-radius:6px;overflow:hidden}
+  .surf .tr i{display:block;height:100%;border-radius:6px}
+  .surf .dg{width:46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--g900);font-weight:800}
+  .notice{margin-top:16px;background:#FFF8EC;border:1px solid #FCE3B4;border-radius:12px;padding:14px;font-size:13px;line-height:1.6;color:#8A5A0B;font-weight:500}
+  .notice b{color:#6B4507}
+
+  /* F6 empty */
+  .empty{padding:52px 0 0;text-align:center}
+  .empty .em{width:74px;height:74px;border-radius:22px;background:var(--g100);display:grid;place-items:center;font-size:32px;margin:0 auto 22px}
+  .empty h3{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.4}
+  .empty p{margin-top:11px;font-size:14.5px;color:var(--g700);line-height:1.65;font-weight:500}
+  .regions{margin-top:28px;text-align:left}
+  .region{display:flex;align-items:center;gap:11px;padding:15px 4px;border-bottom:1px solid var(--g100);font-size:15.5px;font-weight:600}
+  .region .p{margin-left:auto;font-size:12.5px;color:var(--g500);font-weight:600}
+
+  .anno{margin-top:16px;background:#232830;border:1px solid #333941;border-radius:12px;padding:14px 15px}
+  .anno div{font-size:12px;color:#A8B0BB;line-height:1.75;font-weight:500;padding-left:14px;position:relative}
+  .anno div::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--brand)}
+  .anno div + div{margin-top:7px}
+  .anno b{color:#E6EAF0;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div class="eyebrow">APPS IN TOSS · 비게임 미니앱 · 디자인 프레임 v1</div>
+  <h1>오늘 나가도 되나</h1>
+  <p>체감온도·자외선·노면온도를 하나의 판정으로 합쳐, 지금 나가도 되는지 한 줄로 알려주는 미니앱. 논리 해상도 375×812 기준으로 설계했고, 앱인토스 비게임 출시 가이드와 UX 라이팅 규칙을 그대로 적용했어요.</p>
+  <div class="specbar">
+    <span class="chip">논리 해상도 <b>375 × 812</b></span>
+    <span class="chip">테마 <b>라이트 모드 전용</b></span>
+    <span class="chip"><span class="sw" style="background:#0E9F6E"></span>brand <b>#0E9F6E</b></span>
+    <span class="chip"><span class="sw" style="background:#0E9F6E"></span>좋음</span>
+    <span class="chip"><span class="sw" style="background:#A3C13A"></span>보통</span>
+    <span class="chip"><span class="sw" style="background:#F5A524"></span>주의</span>
+    <span class="chip"><span class="sw" style="background:#F2711C"></span>위험</span>
+    <span class="chip"><span class="sw" style="background:#E03131"></span>매우 위험</span>
+    <span class="chip">탭바 <b>미사용</b></span>
+    <span class="chip">진입 바텀시트 <b>없음</b></span>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- ============ F1 ============ -->
+  <div class="cell">
+    <div class="cell-head">
+      <div class="no">F1</div>
+      <h2>진입 · 프로필 선택</h2>
+      <p>최초 1회만 노출. 바텀시트가 아니라 인라인 전체 화면으로 구현해 진입 즉시 인터럽트가 뜨지 않게 했어요.</p>
+    </div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
+      <div class="nav">
+        <div class="ic">✕</div>
+        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
+        <div class="ic" style="opacity:.35">⋯</div>
+      </div>
+      <div class="body"><div class="scroll">
+        <div class="ob-h">
+          <h3>누구의 기준으로<br>알려드릴까요?</h3>
+          <p>같은 32℃도 뛰는 사람, 일하는 사람,<br>맨발로 걷는 강아지에게 다르게 느껴져요.</p>
+        </div>
+
+        <div class="pick">
+          <div class="em">🏃</div>
+          <div><div class="t">러닝·운동</div><div class="s">체감온도와 자외선을 먼저 봐요</div></div>
+          <div class="rd"></div>
+        </div>
+        <div class="pick on">
+          <div class="em">🐕</div>
+          <div><div class="t">반려견 산책</div><div class="s">바닥 온도를 가장 먼저 봐요</div></div>
+          <div class="rd">✓</div>
+        </div>
+        <div class="pick">
+          <div class="em">🦺</div>
+          <div><div class="t">야외 작업</div><div class="s">체감온도와 휴식 시점을 알려줘요</div></div>
+          <div class="rd"></div>
+        </div>
+
+        <div class="permnote">
+          <b>위치를 왜 물어보나요?</b><br>
+          동네마다 햇빛과 바람이 달라서, 위치를 알면 우리 동네 바닥 온도까지 계산할 수 있어요. 위치를 안 알려줘도 지역을 직접 고르면 똑같이 볼 수 있어요.
+        </div>
+      </div></div>
+      <div class="bottomcta">
+        <div class="btn">내 위치로 시작하기</div>
+        <div class="btn ghost">지역 직접 고르기</div>
+      </div>
+    </div>
+    <div class="anno">
+      <div><b>정책</b> 진입 직후 바텀시트 금지 — 알림 동의 바텀시트도 포함돼요. 온보딩은 전체 화면으로.</div>
+      <div><b>정책</b> 권한 요청 전에 사유를 먼저 설명하고, 거부해도 전 기능이 동작하는 대안을 같은 화면에 둬요.</div>
+      <div><b>라이팅</b> CTA만 보고 다음 행동이 예측돼요. "시작하기"가 아니라 "내 위치로 시작하기".</div>
+    </div>
+  </div>
+
+  <!-- ============ F2 ============ -->
+  <div class="cell">
+    <div class="cell-head">
+      <div class="no">F2</div>
+      <h2>홈 — 반려견 프로필 · 주의</h2>
+      <p>스크롤 없이 결론이 끝나요. 노면온도 카드가 맨 위로 올라오고 크기도 커져요.</p>
+    </div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
+      <div class="nav">
+        <div class="ic">‹</div>
+        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
+        <div class="ic">⚙</div>
+      </div>
+      <div class="body"><div class="scroll">
+        <div class="prof-bar">
+          <div class="prof">🐕 반려견 산책 <span class="caret">▼</span></div>
+          <div class="loc">일산동구 <span class="caret">▼</span></div>
+        </div>
+
+        <div class="verdict">
+          <div class="now">오후 1시 20분</div>
+          <h3 style="color:var(--lv3)">지금은 잠깐만<br>다녀오는 게 좋아요</h3>
+          <div class="why">아스팔트가 51℃까지 올라서<br>발바닥에 무리가 갈 수 있어요.</div>
+        </div>
+
+        <div class="window-cta" style="background:#F1FBF6">
+          <div style="width:34px;height:34px;border-radius:10px;background:var(--lv1);display:grid;place-items:center;color:#fff;font-size:16px">🌙</div>
+          <div>
+            <div class="t" style="color:var(--brand-sub)">저녁 7시 30분부터 좋아요</div>
+            <div class="s" style="color:var(--brand-sub)">그때 바닥은 34℃로 내려가요</div>
+          </div>
+        </div>
+
+        <div class="sect-h">지금 바깥 상태</div>
+
+        <div class="metric hero">
+          <div class="icn" style="background:#FCE3B4">🛣</div>
+          <div>
+            <div class="lbl">아스팔트 온도 <span class="badge">추정</span></div>
+            <div class="val" style="color:var(--lv3)">51℃</div>
+            <div class="sub">잔디 39℃ · 흙길 38℃</div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+
+        <div class="metric">
+          <div class="icn" style="background:#FFE9E9">🌡</div>
+          <div>
+            <div class="lbl">체감온도 · 지면 높이</div>
+            <div class="val">38℃</div>
+            <div class="sub">기온 32℃ · 습도 68%</div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+
+        <div class="metric">
+          <div class="icn" style="background:#FFF1D6">☀️</div>
+          <div>
+            <div class="lbl">자외선</div>
+            <div class="val">8 <span style="font-size:14px;color:var(--g700)">매우높음</span></div>
+            <div class="sub">자외선지수</div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+      </div></div>
+    </div>
+    <div class="anno">
+      <div><b>설계</b> 프로필에 따라 지표 <b>순서와 크기가 바뀌어요</b>. 반려견은 노면이 히어로 카드.</div>
+      <div><b>정책</b> 추정값에는 반드시 <b>추정 배지</b>를 붙여요.</div>
+      <div><b>라이팅</b> 긍정형 우선 — "나가지 마세요"가 아니라 "7시 30분부터 좋아요".</div>
+    </div>
+  </div>
+
+  <!-- ============ F3 ============ -->
+  <div class="cell">
+    <div class="cell-head">
+      <div class="no">F3</div>
+      <h2>홈 — 야외 작업 프로필 · 위험</h2>
+      <p>같은 시각, 같은 위치. 프로필만 바꿔도 위계와 문장이 전부 달라져요.</p>
+    </div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
+      <div class="nav">
+        <div class="ic">‹</div>
+        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
+        <div class="ic">⚙</div>
+      </div>
+      <div class="body"><div class="scroll">
+        <div class="prof-bar">
+          <div class="prof">🦺 야외 작업 <span class="caret">▼</span></div>
+          <div class="loc">일산동구 <span class="caret">▼</span></div>
+        </div>
+
+        <div class="verdict">
+          <div class="now">오후 1시 20분</div>
+          <h3 style="color:var(--lv4)">2시간마다<br>20분씩 쉬어요</h3>
+          <div class="why">체감온도가 34℃예요. 폭염작업 휴식<br>기준인 33℃를 넘었어요.</div>
+        </div>
+
+        <div class="window-cta" style="background:#FFF3EC">
+          <div style="width:34px;height:34px;border-radius:10px;background:var(--lv4);display:grid;place-items:center;color:#fff;font-size:15px">⏱</div>
+          <div>
+            <div class="t" style="color:#A8410B">다음 휴식은 오후 2시 10분</div>
+            <div class="s" style="color:#A8410B">그늘이나 냉방 공간에서 20분 이상</div>
+          </div>
+        </div>
+
+        <div class="sect-h">지금 바깥 상태</div>
+
+        <div class="metric hero" style="background:#FFF3EC;border-color:#FBD3BC">
+          <div class="icn" style="background:#FBD3BC">🌡</div>
+          <div>
+            <div class="lbl">체감온도</div>
+            <div class="val" style="color:var(--lv4)">34℃</div>
+            <div class="sub">기온 32℃ · 습도 68% · 바람 1.2m/s</div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+
+        <div class="metric">
+          <div class="icn" style="background:#FFF1D6">☀️</div>
+          <div>
+            <div class="lbl">자외선</div>
+            <div class="val">8 <span style="font-size:14px;color:var(--g700)">매우높음</span></div>
+            <div class="sub">긴팔과 챙 넓은 모자를 써요</div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+
+        <div class="metric">
+          <div class="icn" style="background:#EEF1F4">🛣</div>
+          <div>
+            <div class="lbl">지면 온도 <span class="badge">추정</span></div>
+            <div class="val">51℃</div>
+            <div class="sub">복사열이 더해져요</div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+
+        <div class="src">참고용 기상정보 안내예요. 안전 진단이나 의학적 판단을 대신하지 않아요.<br>출처 · 기상청</div>
+        <div class="adbox">앱인토스 배너 광고 (스크롤 영역 안)</div>
+      </div></div>
+    </div>
+    <div class="anno">
+      <div><b>설계</b> 임계값이 <b>법정 기준(31℃ / 33℃)</b>에 정렬돼 있어 문장이 그대로 행동 지침이 돼요.</div>
+      <div><b>정책</b> 의료 서비스로 오인되지 않도록 <b>참고용 안내 고지</b>와 출처를 함께 표기해요.</div>
+      <div><b>정책</b> 배너는 스크롤 가능한 화면 하단에만. 인트로·로딩·모달에는 넣지 않아요.</div>
+    </div>
+  </div>
+
+  <!-- ============ F4 ============ -->
+  <div class="cell">
+    <div class="cell-head">
+      <div class="no">F4</div>
+      <h2>시간창 — 오늘 언제 나가나</h2>
+      <p>18칸 컬러 스트립으로 하루를 한눈에. '보통 이하'가 90분 이상 이어지는 구간을 최적 창으로 뽑아요.</p>
+    </div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
+      <div class="nav">
+        <div class="ic">‹</div>
+        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
+        <div class="ic" style="opacity:.35">⋯</div>
+      </div>
+      <div class="body"><div class="scroll">
+        <div style="padding:14px 0 18px">
+          <div style="font-size:13px;font-weight:700;color:var(--g500)">🐕 반려견 산책 · 일산동구</div>
+          <div style="font-size:24px;font-weight:800;letter-spacing:-.03em;margin-top:7px">오늘 산책하기 좋은<br>시간이에요</div>
+        </div>
+
+        <div class="strip-wrap">
+          <div class="strip-top">
+            <div class="t">6시 → 24시</div>
+            <div class="s">지금 오후 1시</div>
+          </div>
+          <div class="strip">
+            <i style="background:var(--lv1);height:30%"></i>
+            <i style="background:var(--lv1);height:32%"></i>
+            <i style="background:var(--lv2);height:44%"></i>
+            <i style="background:var(--lv2);height:52%"></i>
+            <i style="background:var(--lv3);height:64%"></i>
+            <i style="background:var(--lv3);height:72%"></i>
+            <i style="background:var(--lv4);height:84%"></i>
+            <i class="nowmark" style="background:var(--lv4);height:92%"></i>
+            <i style="background:var(--lv4);height:100%"></i>
+            <i style="background:var(--lv4);height:96%"></i>
+            <i style="background:var(--lv3);height:80%"></i>
+            <i style="background:var(--lv3);height:66%"></i>
+            <i style="background:var(--lv2);height:52%"></i>
+            <i style="background:var(--lv1);height:40%"></i>
+            <i style="background:var(--lv1);height:34%"></i>
+            <i style="background:var(--lv1);height:30%"></i>
+            <i style="background:var(--lv1);height:26%"></i>
+            <i style="background:var(--lv1);height:24%"></i>
+          </div>
+          <div class="strip-ax"><span>6시</span><span>10시</span><span>14시</span><span>18시</span><span>24시</span></div>
+          <div class="goodband"><em></em> 오전 6~8시 · 저녁 7시 30분 이후가 좋아요</div>
+        </div>
+
+        <div class="sect-h">시간별로 보기</div>
+
+        <div class="hour"><div class="hh">12시</div><div class="bar"><i style="width:74%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">위험</div></div>
+        <div class="hour on"><div class="hh">13시</div><div class="bar"><i style="width:82%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">지금</div></div>
+        <div class="hour"><div class="hh">14시</div><div class="bar"><i style="width:88%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">위험</div></div>
+        <div class="hour"><div class="hh">16시</div><div class="bar"><i style="width:62%;background:var(--lv3)"></i></div><div class="tag" style="color:var(--lv3)">주의</div></div>
+        <div class="hour"><div class="hh">18시</div><div class="bar"><i style="width:42%;background:var(--lv2)"></i></div><div class="tag" style="color:#7A9420">보통</div></div>
+        <div class="hour"><div class="hh">20시</div><div class="bar"><i style="width:24%;background:var(--lv1)"></i></div><div class="tag" style="color:var(--lv1)">좋음</div></div>
+        <div class="hour"><div class="hh">22시</div><div class="bar"><i style="width:19%;background:var(--lv1)"></i></div><div class="tag" style="color:var(--lv1)">좋음</div></div>
+
+        <div class="src">3시간마다 새로 계산해요 · 출처 · 기상청 단기예보</div>
+      </div></div>
+    </div>
+    <div class="anno">
+      <div><b>설계</b> 막대 <b>높이 + 색</b> 두 채널로 위험도를 표현해 색각 이상에서도 읽혀요.</div>
+      <div><b>설계</b> 현재 시각은 검은 아웃라인으로만 표시해요. 컬러를 하나 더 쓰면 램프가 무너져요.</div>
+      <div><b>정책</b> 인터랙션 반응이 2초를 넘지 않도록 캐시 우선 렌더 후 백그라운드 갱신.</div>
+    </div>
+  </div>
+
+  <!-- ============ F5 ============ -->
+  <div class="cell">
+    <div class="cell-head">
+      <div class="no">F5</div>
+      <h2>지표 상세 — 왜 이 판정인가</h2>
+      <p>추정 모델을 숨기지 않고 전부 공개해요. 이 앱의 신뢰가 여기서 갈려요.</p>
+    </div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
+      <div class="nav">
+        <div class="ic">‹</div>
+        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
+        <div class="ic" style="opacity:.35">⋯</div>
+      </div>
+      <div class="body"><div class="scroll">
+        <div style="padding:16px 0 18px">
+          <div style="font-size:13px;font-weight:700;color:var(--g500)">바닥 온도</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">
+            <div style="font-size:42px;font-weight:800;letter-spacing:-.04em;color:var(--lv3);font-variant-numeric:tabular-nums">51℃</div>
+            <div class="badge" style="font-size:11px;padding:3px 8px">추정</div>
+          </div>
+          <div style="font-size:14.5px;color:var(--g700);margin-top:7px;font-weight:500">아스팔트 기준이에요</div>
+        </div>
+
+        <div class="sect-h">이렇게 계산했어요</div>
+        <div class="calc">
+          <div class="calcrow"><span>지금 기온</span><b>32.0℃</b></div>
+          <div class="calcrow"><span>햇빛 세기</span><b>강함 · +19.4℃</b></div>
+          <div class="calcrow"><span>바람 1.2m/s</span><b>−0.4℃</b></div>
+          <div class="calcrow tot"><span>아스팔트 표면</span><b>51.0℃</b></div>
+        </div>
+
+        <div class="sect-h">바닥 재질에 따라 달라져요</div>
+        <div class="surf"><div class="nm">아스팔트</div><div class="tr"><i style="width:96%;background:var(--lv3)"></i></div><div class="dg">51℃</div></div>
+        <div class="surf"><div class="nm">보도블록</div><div class="tr"><i style="width:84%;background:var(--lv3)"></i></div><div class="dg">46℃</div></div>
+        <div class="surf"><div class="nm">우레탄</div><div class="tr"><i style="width:76%;background:var(--lv2)"></i></div><div class="dg">43℃</div></div>
+        <div class="surf"><div class="nm">잔디</div><div class="tr"><i style="width:60%;background:var(--lv1)"></i></div><div class="dg">39℃</div></div>
+        <div class="surf"><div class="nm">흙길</div><div class="tr"><i style="width:57%;background:var(--lv1)"></i></div><div class="dg">38℃</div></div>
+
+        <div class="notice">
+          <b>직접 한 번 확인해요</b><br>
+          손등을 바닥에 7초 대보고 뜨거우면 강아지 발에도 뜨거워요. 그때는 흙길이나 잔디로 돌아가요.
+        </div>
+
+        <div class="src">
+          바닥 온도는 기온·햇빛·바람으로 계산한 추정값이라 실제와 다를 수 있어요.<br>
+          출처 · 기상청 단기예보, 생활기상지수, 종관기상관측(ASOS)
+        </div>
+      </div></div>
+    </div>
+    <div class="anno">
+      <div><b>신뢰</b> 계산 과정을 그대로 노출해요. 블랙박스로 두면 한 번 틀렸을 때 회복이 안 돼요.</div>
+      <div><b>신뢰</b> 손등 7초 테스트를 넣어 <b>앱을 맹신하지 않도록</b> 유도해요.</div>
+      <div><b>정책</b> 공공데이터 기반 서비스는 데이터 출처를 명시해야 해요.</div>
+    </div>
+  </div>
+
+  <!-- ============ F6 ============ -->
+  <div class="cell">
+    <div class="cell-head">
+      <div class="no">F6</div>
+      <h2>위치 권한 거부 · 지역 직접 고르기</h2>
+      <p>권한을 안 줘도 기능이 100% 같아요. 재요청은 조용한 텍스트 링크로만.</p>
+    </div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
+      <div class="nav">
+        <div class="ic">‹</div>
+        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
+        <div class="ic" style="opacity:.35">⋯</div>
+      </div>
+      <div class="body"><div class="scroll">
+        <div class="empty">
+          <div class="em">📍</div>
+          <h3>지역을 고르면<br>바로 볼 수 있어요</h3>
+          <p>지금 위치를 확인할 수 없어요.<br>자주 가는 곳을 3개까지 저장해 둘 수 있어요.</p>
+        </div>
+
+        <div class="regions">
+          <div class="sect-h">최근에 본 지역</div>
+          <div class="region">🏠 고양시 일산동구 <span class="p">좋음</span></div>
+          <div class="region">🏢 서울 강남구 <span class="p">주의</span></div>
+          <div class="region">🌊 부산 해운대구 <span class="p">보통</span></div>
+          <div class="region" style="color:var(--g500);font-weight:600">＋ 다른 지역 찾기</div>
+        </div>
+
+        <div style="margin-top:28px;text-align:center">
+          <span style="font-size:13.5px;color:var(--g500);font-weight:600;border-bottom:1px solid var(--g200);padding-bottom:2px">위치 권한 다시 확인하기</span>
+        </div>
+      </div></div>
+    </div>
+    <div class="anno">
+      <div><b>정책</b> 권한을 허용하지 않아도 나머지 기능이 정상 동작해야 해요.</div>
+      <div><b>라이팅</b> 기능 제한 상황은 <b>부정형 예외</b>에 해당해요. 원인과 대안을 한 문장씩.</div>
+      <div><b>SDK</b> 재요청은 <code style="color:#C6CCD4">getCurrentLocation.openPermissionDialog()</code>로 사용자가 누를 때만 호출해요.</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
