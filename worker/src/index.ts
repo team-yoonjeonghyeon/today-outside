@@ -12,6 +12,8 @@ import {
   findBestWindow,
   judge,
   round1,
+  smoothSolar,
+  solarNorm,
   uviLabel,
 } from './engine';
 import { Env, estimateUvi, fetchNcst, fetchUvi, fetchVilage } from './kma';
@@ -89,6 +91,15 @@ export default {
         return estimateUvi(srNorm);
       };
 
+      /* ── 일사량 시간축 스무딩 (노면 축열) ── */
+      const srRaw: number[] = [];
+      for (let h = 0; h <= 23; h++) {
+        const f = fcst.get(`${today}-${String(h).padStart(2, '0')}00`);
+        const alt = solarAltitude(p.year, p.month, p.day, h, lat, lon);
+        srRaw.push(solarNorm(alt, f?.sky ?? 3, f?.pty ?? 0));
+      }
+      const srSmooth = smoothSolar(srRaw);
+
       /* ── 현재 판정 ── */
       const nowAlt = solarAltitude(p.year, p.month, p.day, p.hour, lat, lon);
       const nowPoint: WeatherPoint = {
@@ -100,7 +111,7 @@ export default {
         pty: ncst.pty,
         uvi: 0,
       };
-      let nowC = compute(nowPoint, p.month, lat, lon, dateParts, sunset);
+      let nowC = compute(nowPoint, p.month, lat, lon, dateParts, sunset, srSmooth[p.hour]);
       nowPoint.uvi = uviAt(p.hour, nowC.srNorm);
       nowC = { ...nowC, uvi: nowPoint.uvi };
 
@@ -121,7 +132,7 @@ export default {
           pty: f?.pty ?? 0,
           uvi: 0,
         };
-        let c = compute(point, p.month, lat, lon, dateParts, sunset);
+        let c = compute(point, p.month, lat, lon, dateParts, sunset, srSmooth[h]);
         c = { ...c, uvi: uviAt(h, c.srNorm) };
         const v = judge(profile, c, point.airTemp, point.pty);
 

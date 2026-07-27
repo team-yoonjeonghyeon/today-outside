@@ -172,11 +172,13 @@ export function compute(
   lat: number,
   lon: number,
   date: { year: number; month: number; day: number },
-  sunsetHour: number
+  sunsetHour: number,
+  srOverride?: number
 ): Computed {
   const alt = solarAltitude(date.year, date.month, date.day, p.hour, lat, lon);
-  const srNorm = solarNorm(alt, p.sky, p.pty);
-  const hoursAfterSunset = p.hour - sunsetHour;
+  // srOverride가 오면 이미 시간축 스무딩된 값이므로 잔열항을 따로 더하지 않음
+  const srNorm = srOverride ?? solarNorm(alt, p.sky, p.pty);
+  const hoursAfterSunset = srOverride !== undefined ? -1 : p.hour - sunsetHour;
   const bySurface = roadTempAll(p.airTemp, p.windSpeed, srNorm, hoursAfterSunset);
 
   return {
@@ -266,8 +268,10 @@ function sentence(
   const headline = HEADLINES[profile][level];
 
   let reason: string;
-  if (gate === 'ROAD_60' || gate === 'DOG_ROAD_52' || profile === 'dog') {
+  if (gate === 'ROAD_60' || gate === 'DOG_ROAD_52' || (profile === 'dog' && c.roadTemp >= 45)) {
     reason = `아스팔트가 ${Math.round(c.roadTemp)}℃까지 올라 발바닥에 무리가 갈 수 있어요`;
+  } else if (profile === 'dog') {
+    reason = `아스팔트 ${Math.round(c.roadTemp)}℃, 흙길은 ${Math.round(c.roadBySurface.soil)}℃예요`;
   } else if (gate === 'RAIN') {
     reason = '비가 오고 있어요';
   } else if (gate === 'UV_11') {
@@ -280,7 +284,7 @@ function sentence(
     reason = `체감온도 ${Math.round(c.feelsLike)}℃, 자외선 ${c.uvi}예요`;
   }
 
-  if (level === 1) {
+  if (level === 1 && profile !== 'dog') {
     reason = `체감온도 ${Math.round(c.feelsLike)}℃, 자외선 ${c.uvi}로 무리 없어요`;
   }
 
@@ -334,4 +338,21 @@ export function uviLabel(uvi: number): string {
 
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+/* ────────────────────────────────────────────────
+   7. 노면 축열 스무딩
+   일몰 경계에서 잔열항이 계단처럼 튀는 문제를 해결.
+   일사량을 τ=90분 지수감쇠로 시간축에 번지게 한다.
+   ──────────────────────────────────────────────── */
+
+export function smoothSolar(sr: number[]): number[] {
+  const decay = Math.exp(-60 / 90);
+  const out: number[] = [];
+  let carry = 0;
+  for (let h = 0; h < sr.length; h++) {
+    carry = Math.max(sr[h], carry * decay);
+    out.push(carry);
+  }
+  return out;
 }
