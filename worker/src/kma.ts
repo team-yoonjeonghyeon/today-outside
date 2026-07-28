@@ -1,8 +1,11 @@
 import { kstParts, nowKst, yyyymmdd } from './geo';
 
 const NCST = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst';
+const USFCST = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst';
 const VILAGE = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst';
 const UV = 'https://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getUVIdxV4';
+// 기상특보 조회서비스. 키에 이 서비스가 활성화돼 있어야 해요 (아니면 XML/에러 → 안전하게 null 폴백)
+const WARN = 'https://apis.data.go.kr/1360000/WthrWrnInfoService/getWthrWrnList';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -85,6 +88,8 @@ export interface Ncst {
   humidity: number;
   windSpeed: number;
   pty: number;
+  /** 1시간 강수량(mm). 호우 하드게이트용. 초단기실황 RN1 */
+  rain: number;
   baseDate: string;
   baseTime: string;
 }
@@ -105,6 +110,7 @@ export async function fetchNcst(env: Env, nx: number, ny: number): Promise<Ncst>
     humidity: map.REH ?? 60,
     windSpeed: map.WSD ?? 1,
     pty: map.PTY ?? 0,
+    rain: Number.isFinite(map.RN1) ? map.RN1 : 0, // '강수없음'이면 NaN → 0
     baseDate,
     baseTime,
   };
@@ -191,4 +197,52 @@ export async function fetchUvi(
 /** 자외선 API 실패 시 태양고도 기반 추정 */
 export function estimateUvi(srNorm: number): number {
   return Math.max(0, Math.round(12 * Math.pow(srNorm, 1.2)));
+}
+
+/**
+ * 낙뢰 예보. 초단기예보(getUltraSrtFcst)의 LGT 카테고리를 봐요.
+ * 발표 매시 30분, 45분 버퍼 → ncstBase와 동일 규칙 재사용.
+ * 지금~이후 예보 슬롯 중 LGT>0이 하나라도 있으면 true. 실패하면 false.
+ */
+export async function fetchLightning(env: Env, nx: number, ny: number): Promise<boolean> {
+  const { baseDate, baseTime } = ncstBase(nowKst());
+  const url =
+    `${USFCST}?serviceKey=${encodeURIComponent(env.KMA_API_KEY)}` +
+    `&numOfRows=300&pageNo=1&dataType=JSON` +
+    `&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
+  try {
+    const json = await cachedJson(url, 600); // 10분
+    return items(json).some((i) => i.category === 'LGT' && Number(i.fcstValue) > 0);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 폭염특보. 기상특보 조회서비스에서 발효 중인 특보 목록을 받아 '폭염'을 찾아요.
+ * 이 서비스가 키에 없거나 응답이 XML/에러면 안전하게 null을 돌려줘요 (배너 미노출).
+ * stnId 없이 전국 목록을 받아 텍스트에 '폭염'이 있으면 노출 — 지역 필터는 areaNo/stnId 매핑이 생기면 정교화.
+ */
+export async function fetchHeatWarning(env: Env): Promise<{ type: string; text: string } | null> {
+  const today = yyyymmdd(nowKst());
+  const from = yyyymmdd(new Date(nowKst().getTime() - 2 * 86400000));
+  const url =
+    `${WARN}?serviceKey=${encodeURIComponent(env.KMA_API_KEY)}` +
+    `&pageNo=1&numOfRows=50&dataType=JSON&fromTmFc=${from}&toTmFc=${today}`;
+  try {
+    const json = await cachedJson(url, 1800); // 30분
+    const rows = items(json);
+    // t1(제목)·t2(내용) 등에 '폭염'이 들어간 발효 특보를 찾아요
+    const hit = rows.find((r) => {
+      const blob = `${r.title ?? ''} ${r.t1 ?? ''} ${r.t2 ?? ''} ${r.tmFc ?? ''}`;
+      return blob.includes('폭염');
+    });
+    if (!hit) return null;
+    const warn = String(hit.title ?? hit.t1 ?? '폭염특보').includes('경보')
+      ? '폭염경보'
+      : '폭염주의보';
+    return { type: 'heat', text: `${warn}가 발효 중이에요. 한낮 야외 활동을 줄여요` };
+  } catch {
+    return null;
+  }
 }
