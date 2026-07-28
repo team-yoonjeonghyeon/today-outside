@@ -4,7 +4,7 @@ export default defineConfig({
   appName: "today-outside",
   brand: {
     displayName: "오늘 나가도 되나",
-    primaryColor: "#0E9F6E",
+    primaryColor: "#0C816A",
     icon: "", // TODO: 콘솔 업로드 로고 URL
   },
   web: {
@@ -15,6 +15,6 @@ export default defineConfig({
       build: "vite build",
     },
   },
-  permissions: ["location"],
+  permissions: [{ name: "geolocation", access: "access" }],
   outdir: "dist",
 });

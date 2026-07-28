@@ -1,137 +1,141 @@
 <!DOCTYPE html>
+
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>오늘 나가도 되나 — 디자인 프레임</title>
-<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>오늘 나가도 되나 — 디자인 프레임 (민트)</title>
+<link as="style" crossorigin="" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet"/>
 <style>
   :root{
-    --brand:#0E9F6E; --brand-sub:#0B7A54;
-    --lv1:#0E9F6E; --lv2:#A3C13A; --lv3:#F5A524; --lv4:#F2711C; --lv5:#E03131;
+    /* ── 브랜드 민트 4단 ── */
+    --mint400:#48F9D6;   /* Aquamarine · 시그니처 · 버튼 배경 */
+    --mint200:#88F1CE;   /* Spray · 선택 상태 · 보조 하이라이트 */
+    --mint700:#0C816A;   /* Surfie Green · 콘솔 등록값 · 판정 좋음 · 텍스트 */
+    --mint900:#05392F;   /* 민트 위 잉크 */
+    --mint050:#EAFDF6;   /* 틴트 배경 */
+
+    /* ── 판정 램프 · '좋음'을 브랜드 민트와 같은 색으로 통일 ── */
+    --lv1:#0C816A; --lv1t:#0C816A; --lv2:#A3C13A; --lv3:#F5A524; --lv4:#F2711C; --lv5:#E03131;
+
     --g900:#191F28; --g700:#4E5968; --g500:#8B95A1; --g300:#B0B8C1;
     --g200:#E5E8EB; --g100:#F2F4F6; --g50:#F9FAFB; --white:#fff;
-    --r-card:16px; --r-btn:12px;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
-  body{
-    font-family:'Pretendard Variable',Pretendard,-apple-system,sans-serif;
-    background:#1C1F23; color:var(--g900);
-    padding:56px 32px 80px;
-  }
-  .page-head{max-width:1400px;margin:0 auto 56px;color:#fff}
-  .page-head .eyebrow{font-size:12px;letter-spacing:.12em;color:#7A8290;font-weight:600;margin-bottom:12px}
-  .page-head h1{font-size:34px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
-  .page-head p{font-size:14px;color:#9BA3AF;line-height:1.7;max-width:640px}
-  .specbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
-  .chip{font-size:11.5px;font-weight:600;color:#C6CCD4;background:#292D33;border:1px solid #363B42;padding:6px 11px;border-radius:99px}
-  .chip b{color:#fff;font-weight:700}
-  .sw{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  body{font-family:'Pretendard Variable',Pretendard,-apple-system,sans-serif;background:#14181A;color:var(--g900);padding:56px 32px 90px}
 
-  .grid{max-width:1400px;margin:0 auto;display:flex;flex-wrap:wrap;gap:56px 44px;justify-content:flex-start}
+  .page-head{max-width:1400px;margin:0 auto 42px;color:#fff}
+  .page-head .eyebrow{font-size:12px;letter-spacing:.12em;color:var(--mint400);font-weight:700;margin-bottom:12px}
+  .page-head h1{font-size:34px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
+  .page-head p{font-size:14.5px;color:#98A2A6;line-height:1.75;max-width:660px}
+
+  /* 토큰 패널 */
+  .tokens{max-width:1400px;margin:0 auto 58px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+  .tk{background:#1C2124;border:1px solid #2A3034;border-radius:16px;padding:20px 22px}
+  .tk h4{font-size:11.5px;font-weight:700;color:#7C868B;letter-spacing:.07em;margin-bottom:14px}
+  .rowsw{display:flex;align-items:center;gap:11px;padding:7px 0}
+  .rowsw i{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:block}
+  .rowsw .hx{font-size:12.5px;font-weight:700;color:#E3E8EA;font-variant-numeric:tabular-nums}
+  .rowsw .rl{font-size:11px;color:#7C868B;font-weight:600;margin-top:2px}
+  .tk .memo{margin-top:13px;padding-top:13px;border-top:1px solid #2A3034;font-size:11.5px;color:#7C868B;line-height:1.7}
+  .tk .memo b{color:#BFC7CB}
+  .lgrow{display:flex;gap:14px;margin-bottom:12px}
+  .lgcase{flex:1}
+  .lgcase .st{border-radius:11px;padding:18px;display:grid;place-items:center}
+  .lgcase .st.lt{background:#F2F4F6}.lgcase .st.dk{background:#101214}
+  .lgmark{width:62px;height:62px;display:grid;place-items:center;font-size:27px;font-weight:800}
+  .lgcase .cp{font-size:10.5px;color:#7C868B;text-align:center;margin-top:8px;font-weight:600}
+
+  .grid{max-width:1400px;margin:0 auto;display:flex;flex-wrap:wrap;gap:56px 44px}
   .cell{width:375px}
   .cell-head{color:#fff;margin-bottom:14px}
-  .cell-head .no{font-size:11px;font-weight:700;color:var(--brand);letter-spacing:.1em}
+  .cell-head .no{font-size:11px;font-weight:800;color:var(--mint400);letter-spacing:.1em}
   .cell-head h2{font-size:16px;font-weight:700;margin:4px 0 5px}
-  .cell-head p{font-size:12.5px;color:#8A929E;line-height:1.6}
+  .cell-head p{font-size:12.5px;color:#828C91;line-height:1.6}
 
-  /* phone */
-  .phone{
-    width:375px;height:812px;background:var(--white);border-radius:34px;overflow:hidden;
-    position:relative;display:flex;flex-direction:column;
-    box-shadow:0 20px 50px rgba(0,0,0,.45);
-  }
-  .status{height:44px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 22px 6px;font-size:12.5px;font-weight:700;color:var(--g900);flex-shrink:0}
-  .status .dots{display:flex;gap:4px;align-items:center;font-size:11px;color:var(--g700)}
-  /* 앱인토스 비게임 내비게이션 바 */
-  .nav{height:52px;display:flex;align-items:center;padding:0 8px 0 6px;flex-shrink:0;border-bottom:1px solid transparent}
-  .nav .ic{width:40px;height:40px;display:grid;place-items:center;color:var(--g900)}
+  .phone{width:375px;height:812px;background:var(--white);border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.48)}
+  .status{height:44px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 22px 6px;font-size:12.5px;font-weight:700;flex-shrink:0}
+  .status .d{font-size:11px;color:var(--g700)}
+  .nav{height:52px;display:flex;align-items:center;padding:0 8px 0 6px;flex-shrink:0}
+  .nav .ic{width:40px;height:40px;display:grid;place-items:center;font-size:16px}
   .nav .brand{flex:1;display:flex;align-items:center;gap:7px;justify-content:center}
-  .nav .logo{width:20px;height:20px;border-radius:5px;background:var(--brand);display:grid;place-items:center;color:#fff;font-size:10px;font-weight:800}
+  .nav .logo{width:20px;height:20px;border-radius:5px;background:var(--mint400);display:grid;place-items:center;color:var(--mint900);font-size:11px;font-weight:800}
   .nav .brand span{font-size:15px;font-weight:700;letter-spacing:-.01em}
   .body{flex:1;overflow:hidden;position:relative}
   .scroll{height:100%;overflow:hidden;padding:0 20px}
 
-  /* shared */
-  .prof-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 0 14px}
-  .prof{display:flex;align-items:center;gap:6px;background:var(--g100);border-radius:99px;padding:7px 12px;font-size:13.5px;font-weight:700;color:var(--g900)}
-  .loc{display:flex;align-items:center;gap:3px;font-size:13.5px;font-weight:600;color:var(--g700)}
+  .tabbar{display:flex;align-items:center;gap:3px;background:var(--g100);border-radius:13px;padding:4px;margin:6px 0 14px}
+  .tab{flex:1;text-align:center;font-size:12.5px;font-weight:700;color:var(--g500);padding:9px 4px;border-radius:10px;white-space:nowrap}
+  .tab.active{background:#fff;color:var(--mint700);box-shadow:0 1px 3px rgba(0,0,0,.08)}
   .caret{font-size:9px;color:var(--g500)}
+  .share-ic{width:28px;height:28px;border-radius:50%;background:var(--g100);display:grid;place-items:center;font-size:13px;color:var(--g700);flex-shrink:0}
 
-  .verdict{padding:10px 0 22px}
+  .verdict{padding:10px 0 20px}
   .verdict .now{font-size:15px;font-weight:600;color:var(--g500);margin-bottom:6px}
   .verdict h3{font-size:32px;font-weight:800;letter-spacing:-.035em;line-height:1.22}
   .verdict .why{margin-top:12px;font-size:15px;line-height:1.55;color:var(--g700);font-weight:500}
 
-  .window-cta{margin-top:18px;border-radius:var(--r-card);padding:15px 16px;display:flex;align-items:center;gap:11px}
-  .window-cta .t{font-size:15px;font-weight:700}
-  .window-cta .s{font-size:12.5px;font-weight:500;opacity:.8;margin-top:2px}
+  .wcta{margin-top:4px;border-radius:16px;padding:15px 16px;display:flex;align-items:center;gap:11px}
+  .wcta .ci{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:15px}
+  .wcta .t{font-size:15px;font-weight:700}
+  .wcta .s{font-size:12.5px;font-weight:500;margin-top:2px;opacity:.85}
 
-  .sect-h{font-size:13px;font-weight:700;color:var(--g500);margin:24px 0 10px}
+  .sect-h{font-size:13px;font-weight:700;color:var(--g500);margin:22px 0 10px}
 
-  .metric{display:flex;align-items:center;gap:13px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r-card);padding:14px 15px;margin-bottom:8px}
-  .metric .icn{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+  .metric{display:flex;align-items:center;gap:13px;background:var(--g50);border:1px solid var(--g200);border-radius:16px;padding:14px 15px;margin-bottom:8px}
+  .metric .icn{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;flex-shrink:0;background:var(--g100)}
   .metric .lbl{font-size:13px;font-weight:600;color:var(--g500)}
   .metric .val{font-size:20px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:1px}
   .metric .sub{font-size:12px;color:var(--g500);font-weight:500;margin-top:3px}
-  .metric .arrow{margin-left:auto;color:var(--g300);font-size:15px}
+  .metric .ar{margin-left:auto;color:var(--g300);font-size:15px}
+  .metric.hero{background:#FFF8EC;border-color:#FCE3B4;padding:17px 16px}
+  .metric.hero .icn{width:46px;height:46px;font-size:21px;background:#FCE3B4}
+  .metric.hero .val{font-size:29px;color:var(--lv3)}
   .badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:var(--g200);color:var(--g700);margin-left:6px;vertical-align:2px}
 
-  .metric.hero{background:#FFF8EC;border-color:#FCE3B4;padding:18px 16px}
-  .metric.hero .val{font-size:30px}
-  .metric.hero .icn{width:46px;height:46px;font-size:22px}
-
-  /* timeline strip */
-  .strip-wrap{background:var(--g50);border:1px solid var(--g200);border-radius:var(--r-card);padding:16px 15px}
+  .strip-wrap{background:var(--g50);border:1px solid var(--g200);border-radius:16px;padding:16px 15px}
   .strip-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
   .strip-top .t{font-size:14px;font-weight:700}
-  .strip-top .s{font-size:12px;color:var(--brand);font-weight:700}
+  .strip-top .s{font-size:12px;color:var(--mint700);font-weight:700}
   .strip{display:flex;gap:2.5px;height:44px;align-items:flex-end}
-  .strip i{flex:1;border-radius:3px;display:block;position:relative}
+  .strip i{flex:1;border-radius:3px;display:block}
   .strip i.nowmark{outline:2.5px solid var(--g900);outline-offset:1.5px;border-radius:4px}
   .strip-ax{display:flex;justify-content:space-between;margin-top:8px;font-size:10.5px;color:var(--g500);font-weight:600}
   .goodband{margin-top:11px;display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--g700)}
   .goodband em{display:inline-block;width:26px;height:4px;border-radius:2px;background:var(--lv1)}
 
-  .tips{margin-top:8px}
-  .tip{display:flex;gap:10px;padding:12px 2px;border-bottom:1px solid var(--g100);font-size:14px;color:var(--g700);line-height:1.5;font-weight:500}
-  .tip b{color:var(--g900);font-weight:700}
-  .tip .n{color:var(--brand);font-weight:800;flex-shrink:0}
-
-  .adbox{margin-top:20px;height:64px;border-radius:10px;background:var(--g100);border:1px dashed var(--g300);display:grid;place-items:center;font-size:11.5px;color:var(--g500);font-weight:600}
-
+  .adbox{margin-top:18px;height:64px;border-radius:10px;background:var(--g100);border:1px dashed var(--g300);display:grid;place-items:center;font-size:11.5px;color:var(--g500);font-weight:600}
   .src{margin-top:14px;font-size:11.5px;color:var(--g500);font-weight:500;line-height:1.6}
 
-  /* F1 onboarding */
+  /* F1 */
   .ob-h{padding:30px 0 26px}
   .ob-h h3{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.32}
   .ob-h p{margin-top:11px;font-size:14.5px;color:var(--g700);line-height:1.6;font-weight:500}
-  .pick{display:flex;align-items:center;gap:14px;border:1.5px solid var(--g200);border-radius:var(--r-card);padding:17px 16px;margin-bottom:10px}
-  .pick.on{border-color:var(--brand);background:#F1FBF6}
+  .pick{display:flex;align-items:center;gap:14px;border:1.5px solid var(--g200);border-radius:16px;padding:17px 16px;margin-bottom:10px}
+  .pick.on{border-color:var(--mint400);background:var(--mint050)}
   .pick .em{width:44px;height:44px;border-radius:13px;background:var(--g100);display:grid;place-items:center;font-size:21px}
-  .pick.on .em{background:#DDF3E9}
+  .pick.on .em{background:var(--mint200)}
   .pick .t{font-size:16px;font-weight:700}
   .pick .s{font-size:12.5px;color:var(--g500);margin-top:3px;font-weight:500}
+  .pick.on .s{color:var(--mint700)}
   .pick .rd{margin-left:auto;width:21px;height:21px;border-radius:50%;border:1.5px solid var(--g200)}
-  .pick.on .rd{border:none;background:var(--brand);display:grid;place-items:center;color:#fff;font-size:11px;font-weight:800}
-
+  .pick.on .rd{border:none;background:var(--mint400);display:grid;place-items:center;color:var(--mint900);font-size:11px;font-weight:800}
   .permnote{margin-top:22px;background:var(--g50);border-radius:12px;padding:14px 15px;font-size:12.5px;color:var(--g700);line-height:1.65;font-weight:500}
   .permnote b{color:var(--g900)}
-
   .bottomcta{position:absolute;left:0;right:0;bottom:0;padding:14px 20px 30px;background:linear-gradient(180deg,rgba(255,255,255,0) 0%,#fff 22%)}
-  .btn{height:54px;border-radius:14px;background:var(--brand);color:#fff;font-size:16.5px;font-weight:700;display:grid;place-items:center}
+  .btn{height:54px;border-radius:14px;background:var(--mint400);color:var(--mint900);font-size:16.5px;font-weight:800;display:grid;place-items:center}
   .btn.ghost{background:transparent;color:var(--g700);height:46px;font-size:14.5px;font-weight:600}
 
-  /* F4 detail rows */
+  /* F4 */
   .hour{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--g100)}
-  .hour .hh{font-size:14px;font-weight:700;width:46px;font-variant-numeric:tabular-nums;color:var(--g900)}
+  .hour .hh{font-size:14px;font-weight:700;width:46px;font-variant-numeric:tabular-nums}
   .hour .bar{flex:1;height:8px;border-radius:4px;background:var(--g100);overflow:hidden}
   .hour .bar i{display:block;height:100%;border-radius:4px}
   .hour .tag{font-size:12px;font-weight:700;width:58px;text-align:right}
-  .hour.on{background:#F1FBF6;margin:0 -10px;padding:13px 10px;border-radius:10px;border-bottom:none}
+  .hour.on{background:var(--mint050);margin:0 -10px;padding:13px 10px;border-radius:10px;border-bottom:none}
 
-  /* F5 evidence */
-  .calc{background:var(--g50);border:1px solid var(--g200);border-radius:var(--r-card);padding:16px}
+  /* F5 */
+  .calc{background:var(--g50);border:1px solid var(--g200);border-radius:16px;padding:16px}
   .calcrow{display:flex;justify-content:space-between;font-size:13.5px;padding:8px 0;color:var(--g700);font-weight:500}
   .calcrow b{color:var(--g900);font-weight:700;font-variant-numeric:tabular-nums}
   .calcrow.tot{border-top:1px solid var(--g200);margin-top:6px;padding-top:12px;font-size:15px}
@@ -140,419 +144,695 @@
   .surf .nm{width:76px;color:var(--g700)}
   .surf .tr{flex:1;height:22px;background:var(--g100);border-radius:6px;overflow:hidden}
   .surf .tr i{display:block;height:100%;border-radius:6px}
-  .surf .dg{width:46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--g900);font-weight:800}
-  .notice{margin-top:16px;background:#FFF8EC;border:1px solid #FCE3B4;border-radius:12px;padding:14px;font-size:13px;line-height:1.6;color:#8A5A0B;font-weight:500}
-  .notice b{color:#6B4507}
+  .surf .dg{width:46px;text-align:right;font-variant-numeric:tabular-nums;font-weight:800}
+  .notice{margin-top:16px;background:var(--mint050);border:1px solid #B7EEDC;border-radius:12px;padding:14px;font-size:13px;line-height:1.6;color:var(--mint900);font-weight:500}
+  .notice b{font-weight:800}
 
-  /* F6 empty */
+  /* F6 */
   .empty{padding:52px 0 0;text-align:center}
-  .empty .em{width:74px;height:74px;border-radius:22px;background:var(--g100);display:grid;place-items:center;font-size:32px;margin:0 auto 22px}
+  .empty .em{width:74px;height:74px;border-radius:22px;background:var(--mint050);display:grid;place-items:center;font-size:32px;margin:0 auto 22px}
   .empty h3{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.4}
   .empty p{margin-top:11px;font-size:14.5px;color:var(--g700);line-height:1.65;font-weight:500}
-  .regions{margin-top:28px;text-align:left}
   .region{display:flex;align-items:center;gap:11px;padding:15px 4px;border-bottom:1px solid var(--g100);font-size:15.5px;font-weight:600}
   .region .p{margin-left:auto;font-size:12.5px;color:var(--g500);font-weight:600}
 
-  .anno{margin-top:16px;background:#232830;border:1px solid #333941;border-radius:12px;padding:14px 15px}
-  .anno div{font-size:12px;color:#A8B0BB;line-height:1.75;font-weight:500;padding-left:14px;position:relative}
-  .anno div::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--brand)}
+  .anno{margin-top:16px;background:#1C2124;border:1px solid #2A3034;border-radius:12px;padding:14px 15px}
+  .anno div{font-size:12px;color:#9AA4A9;line-height:1.75;font-weight:500;padding-left:14px;position:relative}
+  .anno div::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--mint400)}
   .anno div + div{margin-top:7px}
-  .anno b{color:#E6EAF0;font-weight:700}
+  .anno b{color:#DDE4E7;font-weight:700}
+  code{color:#8FE8CD;font-size:11.5px}
+
+  /* ── 보충 섹션 구분선 ── */
+  .divider{width:100%;color:#fff;margin:14px 0 6px;padding-top:44px;border-top:1px solid #262B31}
+  .divider .tag{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--mint400);margin-bottom:10px}
+  .divider h2{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:9px}
+  .divider p{font-size:13.5px;color:#8A949A;line-height:1.7;max-width:760px}
+
+  /* F7 설정 */
+  .setrow{display:flex;align-items:center;gap:13px;padding:15px 2px;border-bottom:1px solid var(--g100)}
+  .setrow .ic2{width:36px;height:36px;border-radius:10px;background:var(--g100);display:grid;place-items:center;font-size:16px;flex-shrink:0}
+  .setrow .t{font-size:15px;font-weight:700}
+  .setrow .s{font-size:12px;color:var(--g500);font-weight:500;margin-top:2px}
+  .setrow .val{margin-left:auto;font-size:13.5px;color:var(--g500);font-weight:600}
+  .setrow .ar{color:var(--g300);font-size:14px;margin-left:4px}
+  .toggle{width:44px;height:26px;border-radius:99px;background:var(--g200);position:relative;flex-shrink:0;margin-left:auto}
+  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .toggle.on{background:var(--mint400)}
+  .toggle.on::after{left:21px}
+  .regionchip{display:inline-flex;align-items:center;gap:6px;background:var(--g100);border-radius:99px;padding:6px 12px;font-size:12.5px;font-weight:700;margin:0 6px 6px 0}
+  .regionchip.main{background:var(--mint050);color:var(--mint700)}
+
+  /* F8 지역 검색 */
+  .searchbar{display:flex;align-items:center;gap:9px;background:var(--g100);border-radius:13px;padding:13px 14px;font-size:14.5px;color:var(--g500);font-weight:600}
+  .resultrow{display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--g100)}
+  .resultrow .pin{width:34px;height:34px;border-radius:10px;background:var(--g100);display:grid;place-items:center;font-size:15px}
+  .resultrow .t{font-size:14.5px;font-weight:700}
+  .resultrow .s{font-size:12px;color:var(--g500);font-weight:500;margin-top:1px}
+  .resultrow .add{margin-left:auto;font-size:12px;font-weight:700;color:var(--mint700);background:var(--mint050);padding:6px 11px;border-radius:9px}
+
+  /* F9 알림 동의 인라인 */
+  .permcard{background:var(--mint050);border:1px solid #B7EEDC;border-radius:16px;padding:20px 18px;text-align:center;margin-top:18px}
+  .permcard .ic3{width:52px;height:52px;border-radius:16px;background:var(--mint400);display:grid;place-items:center;font-size:24px;margin:0 auto 14px}
+  .permcard h4{font-size:16.5px;font-weight:800;color:var(--mint900);letter-spacing:-.01em}
+  .permcard p{font-size:13px;color:var(--mint700);line-height:1.6;font-weight:500;margin-top:8px}
+
+  /* F11 스켈레톤 */
+  @keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+  .skel{background:linear-gradient(90deg,var(--g100) 25%,var(--g50) 37%,var(--g100) 63%);background-size:400px 100%;animation:shimmer 1.4s infinite linear;border-radius:10px}
+
+  /* F12 오프라인 배너 */
+  .stalebar{display:flex;align-items:center;gap:10px;background:#FFF8EC;border:1px solid #FCE3B4;border-radius:12px;padding:12px 14px;font-size:12.5px;font-weight:600;color:#8A5A0B}
+  .stalebar .refresh{margin-left:auto;font-size:12px;font-weight:800;color:var(--mint700)}
+
+  /* F13 리워드 게이트 */
+  .lockwrap{position:relative;border-radius:16px;overflow:hidden}
+  .lockwrap .blurcontent{filter:blur(6px);opacity:.55;pointer-events:none}
+  .lockoverlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(255,255,255,.35)}
+  .lockoverlay .ic4{width:48px;height:48px;border-radius:14px;background:var(--mint400);color:var(--mint900);display:grid;place-items:center;font-size:22px}
+  .lockoverlay .t{font-size:14.5px;font-weight:800;color:var(--g900)}
+  .rewardbtn{margin-top:4px;height:48px;border-radius:13px;background:var(--mint400);color:var(--mint900);font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 18px}
+
+  /* F14 공유 카드 */
+  .sharecard{border-radius:20px;padding:24px 20px;background:linear-gradient(160deg,var(--mint400),var(--mint200));color:var(--mint900)}
+  .sharecard .brand2{font-size:12px;font-weight:800;opacity:.75}
+  .sharecard .big{font-size:23px;font-weight:800;letter-spacing:-.02em;margin-top:12px;line-height:1.35}
+  .sharecard .foot{margin-top:18px;font-size:11.5px;font-weight:700;opacity:.7}
+  .sharerow{display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--g100)}
+  .sharerow .sic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:17px;color:#fff}
+  .sharerow .t{font-size:14.5px;font-weight:700}
+
+  /* F15 겨울 모드 */
+  .wintertag{display:inline-block;font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px;background:#E7F1FF;color:#2B6CB0;margin-bottom:8px}
+
+  /* 화면별 사용 색상 */
+  .palette-mini{margin-top:14px;padding-top:14px;border-top:1px dashed #2A3034}
+  .pm-title{font-size:11px;font-weight:700;color:#7C868B;letter-spacing:.05em;margin-bottom:9px}
+  .pm-row{display:flex;flex-wrap:wrap;gap:7px}
+  .pm-chip{display:inline-flex;align-items:center;gap:7px;background:#1C2124;border:1px solid #2A3034;border-radius:99px;padding:6px 11px 6px 7px;font-size:11px;font-weight:600;color:#B7C0C6;font-variant-numeric:tabular-nums}
+  .pm-chip i{width:15px;height:15px;border-radius:5px;display:block;flex-shrink:0;border:1px solid rgba(255,255,255,.12)}
+
+  /* ── 화면 흐름도 ── */
+  .flowmap{max-width:1400px;margin:0 auto}
+  .flow-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:8px}
+  .flow-card{background:#1C2124;border:1px solid #2A3034;border-radius:14px;padding:16px 18px}
+  .flow-card h4{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;color:#EDEFF1;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #2A3034}
+  .flow-fid{font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:6px;background:#2A3034;color:#9AA4A9;letter-spacing:.02em}
+  .flow-row{display:flex;align-items:center;gap:9px;padding:7px 0;flex-wrap:wrap;font-size:12.5px}
+  .fr-trig{color:#C6CCD4;font-weight:600;flex-shrink:0}
+  .fr-arrow{color:#5C646C;font-size:11px;flex-shrink:0}
+  .fr-dest{color:#8A929A;font-weight:500;flex:1;min-width:120px}
+  .fr-tag{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:99px;flex-shrink:0;letter-spacing:.02em}
+  .t-screen{background:#123A2F;color:var(--mint400)}
+  .t-inline{background:#3A2F12;color:#F5C563}
+  .t-external{background:#2A2F35;color:#9AA4A9}
+  .t-system{background:#241C40;color:#B7BEFF}
 </style>
 </head>
 <body>
-
 <div class="page-head">
-  <div class="eyebrow">APPS IN TOSS · 비게임 미니앱 · 디자인 프레임 v1</div>
-  <h1>오늘 나가도 되나</h1>
-  <p>체감온도·자외선·노면온도를 하나의 판정으로 합쳐, 지금 나가도 되는지 한 줄로 알려주는 미니앱. 논리 해상도 375×812 기준으로 설계했고, 앱인토스 비게임 출시 가이드와 UX 라이팅 규칙을 그대로 적용했어요.</p>
-  <div class="specbar">
-    <span class="chip">논리 해상도 <b>375 × 812</b></span>
-    <span class="chip">테마 <b>라이트 모드 전용</b></span>
-    <span class="chip"><span class="sw" style="background:#0E9F6E"></span>brand <b>#0E9F6E</b></span>
-    <span class="chip"><span class="sw" style="background:#0E9F6E"></span>좋음</span>
-    <span class="chip"><span class="sw" style="background:#A3C13A"></span>보통</span>
-    <span class="chip"><span class="sw" style="background:#F5A524"></span>주의</span>
-    <span class="chip"><span class="sw" style="background:#F2711C"></span>위험</span>
-    <span class="chip"><span class="sw" style="background:#E03131"></span>매우 위험</span>
-    <span class="chip">탭바 <b>미사용</b></span>
-    <span class="chip">진입 바텀시트 <b>없음</b></span>
-  </div>
+<div class="eyebrow">APPS IN TOSS · 비게임 미니앱 · 디자인 프레임 v11 (흐름도 + 누락 화면 보완)</div>
+<h1>오늘 나가도 되나</h1>
+<p>맨 위 화면 흐름도에서 어느 버튼이 어디로 가는지 전부 확인할 수 있어요. 훑어보면서 F13·F14·F16처럼 눌러서 못 들어가던 고아 화면을 찾아 연결했고, F8의 중복 설정도 정리했어요.</p>
+</div>
+<div class="tokens">
+<div class="tk">
+<h4>브랜드 민트 · 팔레트 기반 5단</h4>
+<div class="rowsw"><i style="background:#48F9D6"></i><div><div class="hx">#48F9D6</div><div class="rl">MINT 400 · Aquamarine · 시그니처 · 버튼</div></div></div>
+<div class="rowsw"><i style="background:#88F1CE"></i><div><div class="hx">#88F1CE</div><div class="rl">MINT 200 · Spray · 선택 상태 · 보조</div></div></div>
+<div class="rowsw"><i style="background:#0C816A"></i><div><div class="hx">#0C816A</div><div class="rl">MINT 700 · Surfie Green · 등록값 · 좋음</div></div></div>
+<div class="rowsw"><i style="background:#05392F"></i><div><div class="hx">#05392F</div><div class="rl">MINT 900 · 민트 위 잉크</div></div></div>
+<div class="rowsw"><i style="background:#EAFDF6;border:1px solid #D3F2E7"></i><div><div class="hx">#EAFDF6</div><div class="rl">MINT 050 · 틴트 배경</div></div></div>
+<div class="memo"><b>granite.config.ts</b>의 <code>brand.primaryColor</code>에는 <b>#0C816A</b>를 넣어요. 대비 4.82:1이라 토스가 자동 보정하지 않아요.</div>
+</div>
+<div class="tk">
+<h4>버튼 대비 검증</h4>
+<div style="display:flex;gap:10px;margin-bottom:12px">
+<div style="flex:1;height:52px;border-radius:13px;background:#48F9D6;color:#05392F;font-size:14.5px;font-weight:800;display:grid;place-items:center">민트 + 잉크</div>
+<div style="flex:1;height:52px;border-radius:13px;background:#48F9D6;color:#fff;font-size:14.5px;font-weight:800;display:grid;place-items:center">민트 + 흰색</div>
+</div>
+<div class="rowsw"><i style="background:#1B5E43;border-radius:7px;width:22px;height:22px;color:#4ADE9B;display:grid;place-items:center;font-size:11px;font-weight:800">✓</i><div><div class="hx">9.56 : 1</div><div class="rl">Aquamarine 위 잉크 — AAA 통과</div></div></div>
+<div class="rowsw"><i style="background:#5E1B24;border-radius:7px;width:22px;height:22px;color:#FF8A9B;display:grid;place-items:center;font-size:11px;font-weight:800">✕</i><div><div class="hx">1.33 : 1</div><div class="rl">Aquamarine 위 흰색 — 사용 금지</div></div></div>
+<div class="memo">Aquamarine은 밝아서 <b>흰 글씨를 얹을 수 없어요.</b> 딥 그린 잉크를 쓰는 게 이 디자인의 시그니처가 돼요.</div>
+</div>
+<div class="tk">
+<h4>로고 · 600 × 600 각진 정사각형</h4>
+<div class="lgrow">
+<div class="lgcase"><div class="st lt"><div class="lgmark" style="background:#48F9D6;color:#05392F">☀</div></div><div class="cp">라이트 모드</div></div>
+<div class="lgcase"><div class="st dk"><div class="lgmark" style="background:#48F9D6;color:#05392F">☀</div></div><div class="cp">다크 모드</div></div>
+</div>
+<div class="memo">밝은 민트는 <b>양쪽 모드 모두에서 잘 보여요.</b> 모서리는 둥글게 처리하지 않고, 배경을 꽉 채워 제작해요.</div>
+</div>
+<div class="tk">
+<h4>판정 램프 · '좋음' = Surfie Green</h4>
+<div class="rowsw"><i style="background:#0C816A"></i><div><div class="hx">#0C816A</div><div class="rl">좋음 — MINT 700과 동일</div></div></div>
+<div class="rowsw"><i style="background:#A3C13A"></i><div><div class="hx">#A3C13A</div><div class="rl">보통</div></div></div>
+<div class="rowsw"><i style="background:#F5A524"></i><div><div class="hx">#F5A524</div><div class="rl">주의</div></div></div>
+<div class="rowsw"><i style="background:#F2711C"></i><div><div class="hx">#F2711C</div><div class="rl">위험</div></div></div>
+<div class="rowsw"><i style="background:#E03131"></i><div><div class="hx">#E03131</div><div class="rl">매우 위험</div></div></div>
+<div class="memo">Surfie Green은 흰 배경 대비가 <b>4.82:1</b>이라, 면과 작은 글씨에 <b>같은 값 하나</b>로 쓸 수 있어요. 별도 텍스트 변형이 필요 없어요.</div>
+</div>
+</div>
+<div class="flowmap">
+<div class="divider" style="padding-top:6px;border-top:none;margin-top:6px">
+<div class="tag">화면 흐름도</div>
+<h2>어느 버튼이 어디로 가는지</h2>
+<p>홈(F2·F3·F7)이 탭으로 묶인 <b>하나의 허브</b>예요. 거기서 뻗어나가는 모든 경로를 화면별로 정리했어요. '같은 화면'은 새 화면으로 안 넘어가고 그 자리에서 상태만 바뀌는 것(카드가 펼쳐지거나 잠금이 풀리는 식), '외부'는 미니앱을 벗어나는 것(OS 공유 시트, 광고 SDK), '시스템'은 사용자가 누르는 게 아니라 조건이 맞으면 자동으로 뜨는 화면이에요.</p>
+</div>
+<div class="flow-grid">
+<div class="flow-card"><h4><span class="flow-fid">F1</span>최초 진입 · 위치 확인</h4><div class="flow-row"><div class="fr-trig">내 위치로 시작하기 (권한 허용)</div><div class="fr-arrow">→</div><div class="fr-dest">홈 (시작 탭)</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">내 위치로 시작하기 (권한 거부)</div><div class="fr-arrow">→</div><div class="fr-dest">F6 위치 권한 거부</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">지역 직접 고르기</div><div class="fr-arrow">→</div><div class="fr-dest">F9 지역 검색·추가</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">⚙ 설정</div><div class="fr-arrow">→</div><div class="fr-dest">F8 설정</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">탭 전환</div><div class="fr-arrow">→</div><div class="fr-dest">다른 프로필 미리보기(권한 대기 유지)</div><span class="fr-tag t-inline">같은 화면</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid" style="background:var(--mint400);color:var(--mint900)">허브</span>F2 · F3 · F7 (반려견/야외작업/러너 — 탭으로 전환)</h4><div class="flow-row"><div class="fr-trig">탭 전환</div><div class="fr-arrow">→</div><div class="fr-dest">다른 프로필 홈</div><span class="fr-tag t-inline">같은 화면</span></div><div class="flow-row"><div class="fr-trig">🔗 공유 아이콘</div><div class="fr-arrow">→</div><div class="fr-dest">F14 공유하기</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">지표 카드 › (체감·자외선·노면)</div><div class="fr-arrow">→</div><div class="fr-dest">F5 지표 상세(해당 지표)</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">다음 행동 카드(wcta) ›</div><div class="fr-arrow">→</div><div class="fr-dest">F4 시간창</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">위치 · 일산동구 ▾</div><div class="fr-arrow">→</div><div class="fr-dest">F9(저장 지역 있음) / F6(권한 없음)</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">⚙ 설정</div><div class="fr-arrow">→</div><div class="fr-dest">F8 설정</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">‹ 뒤로가기</div><div class="fr-arrow">→</div><div class="fr-dest">미니앱 종료</div><span class="fr-tag t-system">시스템</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F4</span>시간창</h4><div class="flow-row"><div class="fr-trig">시간대 막대 탭</div><div class="fr-arrow">→</div><div class="fr-dest">같은 화면 내 툴팁</div><span class="fr-tag t-inline">같은 화면</span></div><div class="flow-row"><div class="fr-trig">이번 주 리포트 보기 ›</div><div class="fr-arrow">→</div><div class="fr-dest">F13 리워드 광고 게이트</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">‹ 뒤로가기</div><div class="fr-arrow">→</div><div class="fr-dest">홈으로</div><span class="fr-tag t-screen">화면 이동</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F5</span>지표 상세</h4><div class="flow-row"><div class="fr-trig">‹ 뒤로가기</div><div class="fr-arrow">→</div><div class="fr-dest">홈으로 (진입한 지표 카드 위치로)</div><span class="fr-tag t-screen">화면 이동</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F6</span>위치 권한 거부</h4><div class="flow-row"><div class="fr-trig">최근 지역 탭</div><div class="fr-arrow">→</div><div class="fr-dest">홈으로 복귀 (그 지역 데이터)</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">+ 다른 지역 찾기</div><div class="fr-arrow">→</div><div class="fr-dest">F9 지역 검색·추가</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">위치 권한 다시 확인하기</div><div class="fr-arrow">→</div><div class="fr-dest">OS 권한 다이얼로그 → 허용 시 홈</div><span class="fr-tag t-system">시스템</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F8</span>설정</h4><div class="flow-row"><div class="fr-trig">시작 탭 ›</div><div class="fr-arrow">→</div><div class="fr-dest">탭 선택 (인라인, 새 화면 아님)</div><span class="fr-tag t-inline">같은 화면</span></div><div class="flow-row"><div class="fr-trig">지역 ＋ 추가</div><div class="fr-arrow">→</div><div class="fr-dest">F9 지역 검색·추가</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">알림 토글 최초 ON</div><div class="fr-arrow">→</div><div class="fr-dest">F10 알림 동의 (같은 화면 인라인)</div><span class="fr-tag t-inline">같은 화면</span></div><div class="flow-row"><div class="fr-trig">데이터 출처 ›</div><div class="fr-arrow">→</div><div class="fr-dest">F16 데이터 출처 안내</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">‹ 뒤로가기</div><div class="fr-arrow">→</div><div class="fr-dest">홈으로</div><span class="fr-tag t-screen">화면 이동</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F9</span>지역 검색·추가</h4><div class="flow-row"><div class="fr-trig">검색 결과 '추가'</div><div class="fr-arrow">→</div><div class="fr-dest">호출한 화면으로 복귀 (F6 또는 F8)</div><span class="fr-tag t-screen">화면 이동</span></div><div class="flow-row"><div class="fr-trig">최근 검색 탭</div><div class="fr-arrow">→</div><div class="fr-dest">호출한 화면으로 복귀 + 지역 반영</div><span class="fr-tag t-screen">화면 이동</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F10</span>알림 동의 (F8의 상태)</h4><div class="flow-row"><div class="fr-trig">알림 허용하기</div><div class="fr-arrow">→</div><div class="fr-dest">OS 권한 다이얼로그 → F8 복귀</div><span class="fr-tag t-system">시스템</span></div><div class="flow-row"><div class="fr-trig">나중에 할게요</div><div class="fr-arrow">→</div><div class="fr-dest">F8 복귀 (토글 유지)</div><span class="fr-tag t-inline">같은 화면</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F13</span>리워드 광고 게이트</h4><div class="flow-row"><div class="fr-trig">광고 보고 확인하기</div><div class="fr-arrow">→</div><div class="fr-dest">외부 광고 SDK → 같은 화면 잠금 해제</div><span class="fr-tag t-external">외부</span></div><div class="flow-row"><div class="fr-trig">‹ 뒤로가기</div><div class="fr-arrow">→</div><div class="fr-dest">F4로 복귀</div><span class="fr-tag t-screen">화면 이동</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F14</span>공유하기</h4><div class="flow-row"><div class="fr-trig">카카오톡 / 링크 복사 / 토스로 보내기</div><div class="fr-arrow">→</div><div class="fr-dest">외부 공유 시트 (미니앱 밖)</div><span class="fr-tag t-external">외부</span></div><div class="flow-row"><div class="fr-trig">‹ 뒤로가기</div><div class="fr-arrow">→</div><div class="fr-dest">홈으로 복귀</div><span class="fr-tag t-screen">화면 이동</span></div></div>
+<div class="flow-card"><h4><span class="flow-fid">F16</span>데이터 출처 안내</h4><div class="flow-row"><div class="fr-trig">‹ 뒤로가기</div><div class="fr-arrow">→</div><div class="fr-dest">F8로 복귀</div><span class="fr-tag t-screen">화면 이동</span></div></div>
+
+</div>
+<div class="flow-card" style="margin-top:4px">
+<h4><span class="flow-fid" style="background:#2A2F70;color:#B7BEFF">자동</span>버튼으로 못 가는 화면 (조건부 자동 진입)</h4>
+<div class="flow-row"><div class="fr-trig">최초 로딩 · 스켈레톤</div><div class="fr-arrow">←</div><div class="fr-dest">캐시된 값이 하나도 없는 최초 실행일 때</div><span class="fr-tag t-system">버튼 없음</span></div><div class="flow-row"><div class="fr-trig">오프라인 · API 장애 폴백</div><div class="fr-arrow">←</div><div class="fr-dest">기상청 API가 10초 내 응답하지 않을 때</div><span class="fr-tag t-system">버튼 없음</span></div><div class="flow-row"><div class="fr-trig">겨울 모드 홈</div><div class="fr-arrow">←</div><div class="fr-dest">11~3월, 날짜 기준으로 자동 전환</div><span class="fr-tag t-system">버튼 없음</span></div>
+</div>
+<div class="pnote" style="margin-top:22px">
+<h4>이번에 채운 빈틈</h4>
+<p><b>F13(리워드 리포트)</b>과 <b>F14(공유하기)</b>가 어디서도 눌러서 들어갈 수 없는 고아 화면이었어요. F13은 F4 하단에 '이번 주 리포트 보기' 카드를, F14는 홈 판정 카드에 🔗 아이콘을 새로 붙여서 연결했어요.</p>
+<p><b>F16(데이터 출처 안내)</b>을 새로 만들었어요. F8 설정의 '데이터 출처' 행에 화살표만 있고 실제로 열리는 화면이 없었어요.</p>
+<p>F8의 '프로필' 행이 탭바와 하는 일이 겹쳤어요. <b>'시작 탭'</b>으로 역할을 좁혀서, 실시간 전환(탭)과 기본값 설정(설정 화면)을 분리했어요.</p>
+<p>F2·F3·F7의 다음 행동 카드(wcta)에 화살표가 없어서 눌러도 되는지 알 수 없었어요. 전부 화살표를 붙이고 F4로 이어지게 표시했어요.</p>
+</div>
 </div>
 
 <div class="grid">
+<!-- F1 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F1</div><h2>최초 진입 · 위치 확인</h2><p>탭으로 셋 다 볼 수 있는데 하나를 배타적으로 고르게 하는 건 모순이라 없앴어요. 홈 화면 그대로 열리고, 판정 카드 자리에 위치 설명이 먼저 와요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic">⚙</div></div>
+<div class="body"><div class="scroll">
+<div class="tabbar"><div class="tab">🏃 러닝·운동</div><div class="tab active">🐕 반려견 산책</div><div class="tab">🦺 야외 작업</div></div>
+<div class="permcard" style="margin-top:8px">
+<div class="ic3">📍</div>
+<h4>위치를 알려주면<br/>우리 동네 값으로 보여드려요</h4>
+<p>동네마다 햇빛과 바람이 달라서,<br/>위치를 알면 노면온도까지 정확해져요.</p>
+</div>
+<div class="btn" style="margin-top:14px">내 위치로 시작하기</div>
+<div class="btn ghost">지역 직접 고르기</div>
+<div class="sect-h" style="margin-top:22px">지금 바깥 상태</div>
+<div class="metric hero" style="opacity:.45"><div class="icn">🛣</div><div><div class="lbl">노면 온도</div><div class="val">-- ℃</div><div class="sub">위치를 확인하면 보여드려요</div></div></div>
+<div class="metric" style="opacity:.45"><div class="icn">🌡</div><div><div class="lbl">체감온도</div><div class="val">-- ℃</div></div></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>변경</b> 탭이 이미 셋을 다 보여주는데, 진입 시점에 하나를 배타적으로 고르게 하는 건 <b>같은 선택을 두 번</b> 강요하는 거예요. 프로필 선택 화면 자체를 없앴어요.</div>
+<div><b>기본 탭</b> 처음 여는 사람에게는 <b>반려견 산책</b>을 기본 탭으로 보여줘요. 재방문 시엔 마지막으로 본 탭을 기억해요.</div>
+<div><b>정책</b> 여전히 진입 직후 바텀시트는 없어요. 권한 설명은 인라인 카드로, 판정 카드가 있어야 할 자리에 대신 놓았어요.</div>
+<div><b>정책</b> 권한 요청 전에 사유를 먼저 설명하고, 거부해도 되는 대안(지역 직접 고르기)을 같은 화면에 둬요.</div>
+<div><b>설계</b> 아래 지표 카드를 흐리게 미리 보여줘서, 권한을 주면 무엇을 얻는지 <b>결과를 먼저 예고</b>해요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#F2F4F6"></i>#F2F4F6 · 탭바 트랙 배경</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 활성 탭 텍스트</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · 권한 카드 배경</span><span class="pm-chip"><i style="background:#48F9D6"></i>#48F9D6 · 권한 카드 아이콘·버튼 배경</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · 권한 카드 제목·버튼 텍스트</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 권한 카드 본문 텍스트</span></div></div></div>
+<!-- F2 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F2</div><h2>홈 — 반려견 프로필 · 주의</h2><p>판정은 램프 색, 다음 행동은 민트. 두 색의 역할이 화면에서 갈려요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic">⚙</div></div>
+<div class="body"><div class="scroll">
+<div class="tabbar"><div class="tab">🏃 러닝·운동</div><div class="tab active">🐕 반려견 산책</div><div class="tab">🦺 야외 작업</div></div>
+<div class="verdict">
+<div style="display:flex;align-items:center;justify-content:space-between"><div class="now">오후 1시 20분 · 일산동구 <span class="caret">▾</span></div><div class="share-ic">🔗</div></div>
+<h3 style="color:var(--lv3)">지금은 잠깐만<br/>다녀오는 게 좋아요</h3>
+<div class="why">아스팔트가 51℃까지 올라서<br/>발바닥에 무리가 갈 수 있어요.</div>
+</div>
+<div class="wcta" style="background:var(--mint050)">
+<div class="ci" style="background:var(--mint400);color:var(--mint900)">🌙</div>
+<div><div class="t" style="color:var(--mint900)">저녁 7시 30분부터 좋아요</div><div class="s" style="color:var(--mint700)">그때 바닥은 34℃로 내려가요</div></div>
+<div class="ar" style="color:var(--mint700)">›</div>
+</div>
+<div class="sect-h">지금 바깥 상태</div>
+<div class="metric hero"><div class="icn">🛣</div><div><div class="lbl">노면 온도 <span class="badge">추정</span></div><div class="val">51℃</div><div class="sub">잔디 39℃ · 흙길 38℃</div></div><div class="ar">›</div></div>
+<div class="metric"><div class="icn" style="background:#FFE9E9">🌡</div><div><div class="lbl">체감온도 · 몸높이 보정</div><div class="val">38℃</div><div class="sub">기온 32℃ · 습도 68%</div></div><div class="ar">›</div></div>
+<div class="metric"><div class="icn" style="background:#FFF1D6">☀️</div><div><div class="lbl">자외선</div><div class="val">8 <span style="font-size:14px;color:var(--g700)">매우높음</span></div><div class="sub">자외선지수</div></div><div class="ar">›</div></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>누락 보완</b> 공유(F14)로 가는 버튼이 어디에도 없었어요. 우측 상단 내비바는 정책상 버튼이 1개(설정)뿐이라 넣을 수 없어서, <b>판정 카드 안의 콘텐츠 아이콘</b>으로 넣었어요. 다음 행동 카드(wcta)에도 화살표를 붙여 F4로 이어진다는 걸 표시했어요.</div>
+<div><b>용어 통일</b> 이 지표의 이름을 '아스팔트 온도'·'지면 온도'로 화면마다 다르게 불렀던 걸 <b>'노면 온도'</b> 하나로 통일했어요. '아스팔트'는 이제 여러 표면 재질 중 하나를 가리킬 때만 써요(F5의 재질 비교처럼).</div>
+<div><b>용어 구분</b> 이 카드의 체감온도는 일반 체감온도가 아니라, 노면 복사열을 반영해 <b>몸높이 기준으로 보정</b>한 값이에요. 그래서 라벨을 '체감온도 · 몸높이 보정'으로 바꿨어요 — '노면'이라는 단어가 두 지표에 겹쳐 있으면 헷갈리니까요.</div>
+<div><b>변경</b> 프로필을 드롭다운 대신 <b>3탭 세그먼트 컨트롤</b>로 항상 노출해요. 눌러서 열어야 했던 걸 손가락 한 번으로 전환하게 바꿨어요.</div>
+<div><b>민트</b> 활성 탭은 흰 배경 + <code>mint700</code> 텍스트예요. 탭 자체는 판정이 아니라 '지금 보고 있는 화면'을 가리키는 거라 판정 램프색과는 분리했어요.</div>
+<div><b>민트</b> 판정은 주황인데 최적 시간 카드는 민트예요. <b>민트가 곧 좋은 시간</b>이라 위험 화면에서도 뜻이 어긋나지 않아요.</div>
+<div><b>설계</b> 프로필에 따라 지표 순서와 크기가 바뀌어요. 반려견은 노면이 히어로.</div>
+<div><b>정책</b> 추정값에는 반드시 <b>추정 배지</b>를 붙여요.</div>
+<div><b>참고</b> 공유해주신 목업의 ♥ · ⋯ · ✕ 아이콘은 <b>프로토타입 툴(Figma 미러링)의 화면 자체 UI</b>로 보여요. 앱인토스 비게임 내비바는 우측 기능 버튼을 <b>최대 1개</b>로 제한해서, 실제 빌드에는 설정(⚙) 하나만 남겨야 해요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#F5A524"></i>#F5A524 · 판정 타이틀 · 주의</span><span class="pm-chip"><i style="background:#FFF8EC"></i>#FFF8EC · 노면온도 히어로 카드 배경</span><span class="pm-chip"><i style="background:#FCE3B4"></i>#FCE3B4 · 히어로 아이콘 배경</span><span class="pm-chip"><i style="background:#48F9D6"></i>#48F9D6 · 다음 행동 카드(wcta) 아이콘</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · wcta 배경</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · wcta 제목 텍스트</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · wcta 보조 텍스트</span><span class="pm-chip"><i style="background:#FFE9E9"></i>#FFE9E9 · 체감온도 아이콘 배경</span><span class="pm-chip"><i style="background:#FFF1D6"></i>#FFF1D6 · 자외선 아이콘 배경</span><span class="pm-chip"><i style="background:#F2F4F6"></i>#F2F4F6 · 탭바 트랙 배경</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 활성 탭 텍스트</span></div></div></div>
+<!-- F3 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F3</div><h2>홈 — 야외 작업 프로필 · 위험</h2><p>같은 시각·같은 위치. 프로필만 바꿔도 위계와 문장이 달라져요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic">⚙</div></div>
+<div class="body"><div class="scroll">
+<div class="tabbar"><div class="tab">🏃 러닝·운동</div><div class="tab">🐕 반려견 산책</div><div class="tab active">🦺 야외 작업</div></div>
+<div class="verdict">
+<div style="display:flex;align-items:center;justify-content:space-between"><div class="now">오후 1시 20분 · 일산동구 <span class="caret">▾</span></div><div class="share-ic">🔗</div></div>
+<h3 style="color:var(--lv4)">2시간마다<br/>20분씩 쉬어요</h3>
+<div class="why">체감온도가 34℃예요. 폭염작업 휴식<br/>기준인 33℃를 넘었어요.</div>
+</div>
+<div class="wcta" style="background:var(--mint050)">
+<div class="ci" style="background:var(--mint400);color:var(--mint900)">⏱</div>
+<div><div class="t" style="color:var(--mint900)">다음 휴식은 오후 2시 10분</div><div class="s" style="color:var(--mint700)">그늘이나 냉방 공간에서 20분 이상</div></div>
+<div class="ar" style="color:var(--mint700)">›</div>
+</div>
+<div class="sect-h">지금 바깥 상태</div>
+<div class="metric hero" style="background:#FFF3EC;border-color:#FBD3BC"><div class="icn" style="background:#FBD3BC">🌡</div><div><div class="lbl">체감온도</div><div class="val" style="color:var(--lv4)">34℃</div><div class="sub">기온 32℃ · 습도 68% · 바람 1.2m/s</div></div><div class="ar">›</div></div>
+<div class="metric"><div class="icn" style="background:#FFF1D6">☀️</div><div><div class="lbl">자외선</div><div class="val">8 <span style="font-size:14px;color:var(--g700)">매우높음</span></div><div class="sub">긴팔과 챙 넓은 모자를 써요</div></div><div class="ar">›</div></div>
+<div class="metric"><div class="icn">🛣</div><div><div class="lbl">노면 온도 <span class="badge">추정</span></div><div class="val">51℃</div><div class="sub">복사열이 더해져요</div></div><div class="ar">›</div></div>
+<div class="src">참고용 기상정보 안내예요. 안전 진단이나 의학적 판단을 대신하지 않아요.<br/>출처 · 기상청</div>
+<div class="adbox">앱인토스 배너 광고 (스크롤 영역 안)</div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>변경</b> 상단 탭바가 '야외 작업'에 맞춰져요. F2와 같은 컴포넌트라 프로필 전환 시 위치·감도 변화가 없어요.</div>
+<div><b>설계</b> 임계값이 <b>법정 기준(31℃ / 33℃)</b>에 정렬돼 문장이 그대로 행동 지침이 돼요.</div>
+<div><b>정책</b> 의료 서비스로 오인되지 않도록 참고용 고지와 출처를 함께 표기해요.</div>
+<div><b>정책</b> 배너는 스크롤 가능한 화면 하단에만. 인트로·로딩·모달에는 넣지 않아요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#F2711C"></i>#F2711C · 판정 타이틀 · 위험</span><span class="pm-chip"><i style="background:#FFF3EC"></i>#FFF3EC · 체감온도 히어로 카드 배경</span><span class="pm-chip"><i style="background:#FBD3BC"></i>#FBD3BC · 히어로 아이콘 배경</span><span class="pm-chip"><i style="background:#48F9D6"></i>#48F9D6 · 다음 행동 카드(wcta) 아이콘</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · wcta 배경</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · wcta 제목 텍스트</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · wcta 보조 텍스트</span><span class="pm-chip"><i style="background:#FFF1D6"></i>#FFF1D6 · 자외선 아이콘 배경</span></div></div></div>
+<!-- F4 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F4</div><h2>시간창 — 오늘 언제 나가나</h2><p>18칸 스트립. '보통 이하'가 90분 이상 이어지는 구간을 최적 창으로 뽑아요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div style="padding:14px 0 18px">
+<div style="font-size:13px;font-weight:700;color:var(--g500)">🐕 반려견 산책 · 일산동구</div>
+<div style="font-size:24px;font-weight:800;letter-spacing:-.03em;margin-top:7px">오늘 산책하기 좋은<br/>시간이에요</div>
+</div>
+<div class="strip-wrap">
+<div class="strip-top"><div class="t">6시 → 24시</div><div class="s">지금 오후 1시</div></div>
+<div class="strip">
+<i style="background:var(--lv1);height:30%"></i><i style="background:var(--lv1);height:32%"></i>
+<i style="background:var(--lv2);height:44%"></i><i style="background:var(--lv2);height:52%"></i>
+<i style="background:var(--lv3);height:64%"></i><i style="background:var(--lv3);height:72%"></i>
+<i style="background:var(--lv4);height:84%"></i><i class="nowmark" style="background:var(--lv4);height:92%"></i>
+<i style="background:var(--lv4);height:100%"></i><i style="background:var(--lv4);height:96%"></i>
+<i style="background:var(--lv3);height:80%"></i><i style="background:var(--lv3);height:66%"></i>
+<i style="background:var(--lv2);height:52%"></i><i style="background:var(--lv1);height:40%"></i>
+<i style="background:var(--lv1);height:34%"></i><i style="background:var(--lv1);height:30%"></i>
+<i style="background:var(--lv1);height:26%"></i><i style="background:var(--lv1);height:24%"></i>
+</div>
+<div class="strip-ax"><span>6시</span><span>10시</span><span>14시</span><span>18시</span><span>24시</span></div>
+<div class="goodband"><em></em> 오전 6~8시 · 저녁 7시 30분 이후가 좋아요</div>
+</div>
+<div class="sect-h">시간별로 보기</div>
+<div class="hour"><div class="hh">12시</div><div class="bar"><i style="width:74%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">위험</div></div>
+<div class="hour on"><div class="hh">13시</div><div class="bar"><i style="width:82%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">지금</div></div>
+<div class="hour"><div class="hh">14시</div><div class="bar"><i style="width:88%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">위험</div></div>
+<div class="hour"><div class="hh">16시</div><div class="bar"><i style="width:62%;background:var(--lv3)"></i></div><div class="tag" style="color:var(--lv3)">주의</div></div>
+<div class="hour"><div class="hh">18시</div><div class="bar"><i style="width:42%;background:var(--lv2)"></i></div><div class="tag" style="color:#7A9420">보통</div></div>
+<div class="hour"><div class="hh">20시</div><div class="bar"><i style="width:24%;background:var(--lv1)"></i></div><div class="tag" style="color:var(--lv1t)">좋음</div></div>
+<div class="hour"><div class="hh">22시</div><div class="bar"><i style="width:19%;background:var(--lv1)"></i></div><div class="tag" style="color:var(--lv1t)">좋음</div></div>
+<div class="src">3시간마다 새로 계산해요 · 출처 · 기상청 단기예보</div>
+<div class="wcta" style="background:var(--mint050);margin-top:16px">
+<div class="ci" style="background:var(--mint400);color:var(--mint900)">📊</div>
+<div><div class="t" style="color:var(--mint900)">이번 주 리포트 보기</div><div class="s" style="color:var(--mint700)">7일치 좋은 시간을 한눈에</div></div>
+<div class="ar" style="color:var(--mint700)">›</div>
+</div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>누락 보완</b> F13(리워드 리포트)이 어디서도 눌러서 못 들어가는 고아 화면이었어요. 오늘 하루를 다 본 다음 자연스럽게 이어지는 자리라 여기 붙였어요.</div>
+<div><b>민트</b> 스트립에서 민트로 칠해진 구간이 곧 나가도 되는 시간이에요. <b>로고와 같은 색을 찾으면 돼요.</b></div>
+<div><b>설계</b> 막대 <b>높이 + 색</b> 두 채널로 표현해 색각 이상에서도 읽혀요.</div>
+<div><b>정책</b> 인터랙션 반응 2초 초과 금지 → 캐시 우선 렌더 후 백그라운드 갱신.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · LV1 · 좋음 (스트립·굿밴드)</span><span class="pm-chip"><i style="background:#A3C13A"></i>#A3C13A · LV2 · 보통</span><span class="pm-chip"><i style="background:#F5A524"></i>#F5A524 · LV3 · 주의</span><span class="pm-chip"><i style="background:#F2711C"></i>#F2711C · LV4 · 위험</span><span class="pm-chip"><i style="background:#7A9420"></i>#7A9420 · '보통' 라벨 텍스트 변형</span><span class="pm-chip"><i style="background:#8B95A1"></i>#8B95A1 · 축 캡션 텍스트</span></div></div></div>
+<!-- F5 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F5</div><h2>지표 상세 — 왜 이 판정인가</h2><p>추정 모델을 숨기지 않고 전부 공개해요. 신뢰가 여기서 갈려요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div style="padding:16px 0 18px">
+<div style="font-size:13px;font-weight:700;color:var(--g500)">노면 온도</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">
+<div style="font-size:42px;font-weight:800;letter-spacing:-.04em;color:var(--lv3);font-variant-numeric:tabular-nums">51℃</div>
+<div class="badge" style="font-size:11px;padding:3px 8px">추정</div>
+</div>
+<div style="font-size:14.5px;color:var(--g700);margin-top:7px;font-weight:500">아스팔트 기준이에요</div>
+</div>
+<div class="sect-h">이렇게 계산했어요</div>
+<div class="calc">
+<div class="calcrow"><span>지금 기온</span><b>32.0℃</b></div>
+<div class="calcrow"><span>햇빛 세기</span><b>강함 · +19.4℃</b></div>
+<div class="calcrow"><span>바람 1.2m/s</span><b>−0.4℃</b></div>
+<div class="calcrow tot"><span>아스팔트 표면</span><b>51.0℃</b></div>
+</div>
+<div class="sect-h">바닥 재질에 따라 달라져요</div>
+<div class="surf"><div class="nm">아스팔트</div><div class="tr"><i style="width:96%;background:var(--lv3)"></i></div><div class="dg">51℃</div></div>
+<div class="surf"><div class="nm">보도블록</div><div class="tr"><i style="width:84%;background:var(--lv3)"></i></div><div class="dg">46℃</div></div>
+<div class="surf"><div class="nm">우레탄</div><div class="tr"><i style="width:76%;background:var(--lv2)"></i></div><div class="dg">43℃</div></div>
+<div class="surf"><div class="nm">잔디</div><div class="tr"><i style="width:60%;background:var(--lv1)"></i></div><div class="dg">39℃</div></div>
+<div class="surf"><div class="nm">흙길</div><div class="tr"><i style="width:57%;background:var(--lv1)"></i></div><div class="dg">38℃</div></div>
+<div class="notice"><b>직접 한 번 확인해요</b><br/>손등을 바닥에 7초 대보고 뜨거우면 강아지 발에도 뜨거워요. 그때는 흙길이나 잔디로 돌아가요.</div>
+<div class="src">노면 온도는 기온·햇빛·바람으로 계산한 추정값이라 실제와 다를 수 있어요.<br/>출처 · 기상청 단기예보, 생활기상지수, 종관기상관측(ASOS)</div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>민트</b> 안내 박스가 민트 틴트예요. 경고가 아니라 <b>도움말</b>이라는 신호로 읽혀요.</div>
+<div><b>신뢰</b> 계산 과정을 그대로 노출해요. 블랙박스면 한 번 틀렸을 때 회복이 안 돼요.</div>
+<div><b>정책</b> 공공데이터 기반 서비스는 데이터 출처를 명시해야 해요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#F5A524"></i>#F5A524 · 노면온도 값 · 아스팔트/보도블록 바</span><span class="pm-chip"><i style="background:#A3C13A"></i>#A3C13A · 우레탄 바</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 잔디·흙길 바</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · 안내 박스(손등 테스트) 배경</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · 안내 박스 텍스트</span><span class="pm-chip"><i style="background:#4E5968"></i>#4E5968 · 계산 과정 본문 텍스트</span></div></div></div>
+<!-- F6 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F6</div><h2>위치 권한 거부 · 지역 고르기</h2><p>권한을 안 줘도 기능이 100% 같아요. 재요청은 조용한 텍스트 링크로만.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div class="empty">
+<div class="em">📍</div>
+<h3>지역을 고르면<br/>바로 볼 수 있어요</h3>
+<p>지금 위치를 확인할 수 없어요.<br/>자주 가는 곳을 3개까지 저장해 둘 수 있어요.</p>
+</div>
+<div style="margin-top:28px;text-align:left">
+<div class="sect-h">최근에 본 지역</div>
+<div class="region">🏠 고양시 일산동구 <span class="p" style="color:var(--lv1t)">좋음</span></div>
+<div class="region">🏢 서울 강남구 <span class="p" style="color:var(--lv3)">주의</span></div>
+<div class="region">🌊 부산 해운대구 <span class="p">보통</span></div>
+<div class="region" style="color:var(--mint700)">＋ 다른 지역 찾기</div>
+</div>
+<div style="margin-top:28px;text-align:center">
+<span style="font-size:13.5px;color:var(--g500);font-weight:600;border-bottom:1px solid var(--g200);padding-bottom:2px">위치 권한 다시 확인하기</span>
+</div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>정책</b> 권한을 허용하지 않아도 나머지 기능이 정상 동작해야 해요.</div>
+<div><b>라이팅</b> 기능 제한 상황은 부정형 예외예요. 원인과 대안을 한 문장씩.</div>
+<div><b>SDK</b> 재요청은 <code>getCurrentLocation.openPermissionDialog()</code>로 사용자가 누를 때만 호출해요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · '좋음' 지역 라벨</span><span class="pm-chip"><i style="background:#F5A524"></i>#F5A524 · '주의' 지역 라벨</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · 빈 상태 아이콘 배경</span><span class="pm-chip"><i style="background:#8B95A1"></i>#8B95A1 · 보조 설명 텍스트</span><span class="pm-chip"><i style="background:#E5E8EB"></i>#E5E8EB · 지역 리스트 구분선</span></div></div></div>
+<!-- ══════════ 구분선 ══════════ -->
+<div class="divider">
+<div class="tag">보충 01 · 프로필 완성 · 설정 · 지역</div>
+<h2>F1~F6에서 빠졌던 화면들</h2>
+<p>세 번째 프로필(러너)의 홈 화면, 설정 화면 자체(F2 톱니바퀴 아이콘이 실제로 여는 곳), 지역을 3개까지 등록하는 검색 화면, 그리고 알림 동의를 올바른 위치에서 요청하는 인라인 화면이에요.</p>
+</div>
+<!-- F7 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F7</div><h2>홈 — 러너 프로필 · 좋음</h2><p>세 프로필의 마지막 조각이자, 판정 램프의 '좋음' 색을 보여주는 유일한 프레임이에요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic">⚙</div></div>
+<div class="body"><div class="scroll">
+<div class="tabbar"><div class="tab active">🏃 러닝·운동</div><div class="tab">🐕 반려견 산책</div><div class="tab">🦺 야외 작업</div></div>
+<div class="verdict">
+<div style="display:flex;align-items:center;justify-content:space-between"><div class="now">오후 7시 40분 · 일산동구 <span class="caret">▾</span></div><div class="share-ic">🔗</div></div>
+<h3 style="color:var(--lv1)">지금 나가기<br/>좋아요</h3>
+<div class="why">체감온도가 26℃로 내려왔고<br/>자외선도 약해졌어요.</div>
+</div>
+<div class="wcta" style="background:var(--mint050)">
+<div class="ci" style="background:var(--mint400);color:var(--mint900)">🏃</div>
+<div><div class="t" style="color:var(--mint900)">밤 10시까지 좋은 상태예요</div><div class="s" style="color:var(--mint700)">이후엔 기온이 더 낮아져요</div></div>
+<div class="ar" style="color:var(--mint700)">›</div>
+</div>
+<div class="sect-h">지금 바깥 상태</div>
+<div class="metric hero" style="background:var(--mint050);border-color:#B7EEDC"><div class="icn" style="background:var(--mint200)">🌡</div><div><div class="lbl">체감온도</div><div class="val" style="color:var(--lv1)">26℃</div><div class="sub">기온 25℃ · 습도 58%</div></div><div class="ar">›</div></div>
+<div class="metric"><div class="icn" style="background:#FFF1D6">☀️</div><div><div class="lbl">자외선</div><div class="val">1 <span style="font-size:14px;color:var(--g700)">낮음</span></div><div class="sub">자외선지수</div></div><div class="ar">›</div></div>
+<div class="metric"><div class="icn">🛣</div><div><div class="lbl">노면 온도 <span class="badge">추정</span></div><div class="val">28℃</div><div class="sub">한낮보다 23℃ 낮아요</div></div><div class="ar">›</div></div>
+<div class="adbox">앱인토스 배너 광고 (스크롤 영역 안)</div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>변경</b> 탭바 첫 번째가 활성 상태예요. 활성 탭 텍스트가 <code>mint700</code>이고 판정도 '좋음'(같은 색)이라, 이 화면에서만 두 색의 의미가 우연히 겹쳐요 — 의도한 통일이라 문제 없어요.</div>
+<div><b>설계</b> 셋 중 유일하게 판정 '좋음' <code>#0C816A</code>가 등장해요. 브랜드 민트와 같은 색이라 위화감이 없어요.</div>
+<div><b>가중치</b> 러너는 체감온도 0.55 · 자외선 0.30 · 노면 0.15 — 노면 비중이 반려견보다 훨씬 낮아요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 판정 타이틀 · 좋음 (램프 유일 등장)</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · 히어로 카드 배경</span><span class="pm-chip"><i style="background:#88F1CE"></i>#88F1CE · 히어로 아이콘 배경</span><span class="pm-chip"><i style="background:#48F9D6"></i>#48F9D6 · wcta 아이콘</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · wcta 텍스트</span><span class="pm-chip"><i style="background:#FFF1D6"></i>#FFF1D6 · 자외선 아이콘 배경</span></div></div></div>
+<!-- F8 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F8</div><h2>설정</h2><p>F2 홈 화면 톱니바퀴 아이콘이 실제로 여는 화면. 비게임 내비바 규칙상 우측 기능 버튼은 이거 하나뿐이에요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>설정</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div class="sect-h" style="margin-top:16px">기본 정보</div>
+<div class="setrow"><div><div class="t">이름</div></div><span class="val">김토스</span></div>
+<div class="sect-h">시작 탭</div>
+<div class="setrow"><div class="ic2">🐕</div><div><div class="t">반려견 산책</div><div class="s">앱을 열면 이 탭부터 보여줘요</div></div><span class="ar">›</span></div>
+<div class="sect-h">지역 <span style="color:var(--g300);font-weight:600">· 최대 3개</span></div>
+<div style="padding:6px 0 4px"><span class="regionchip main">🏠 일산동구</span><span class="regionchip">🏢 강남구</span><span class="regionchip">＋ 추가</span></div>
+<div class="sect-h">알림</div>
+<div class="setrow"><div class="ic2">🌤</div><div><div class="t">아침 브리핑</div><div class="s">매일 오전 8:00 · 종일 시간 요약</div></div><div class="toggle on"></div></div>
+<div class="setrow"><div class="ic2">⚠️</div><div><div class="t">위험 시간대 알림</div><div class="s">체감온도가 위험 단계일 때</div></div><div class="toggle"></div></div>
+<div class="setrow"><div class="ic2">🐾</div><div><div class="t">산책 추천 시간 알림</div><div class="s">반려견 산책 좋은 시간대만</div></div><div class="toggle"></div></div>
+<div class="sect-h">기타</div>
+<div class="setrow"><div class="ic2">📄</div><div><div class="t">데이터 출처</div><div class="s">기상청 공공데이터</div></div><span class="ar">›</span></div>
+<div class="setrow"><div class="ic2">ℹ️</div><div><div class="t">버전 정보</div></div><span class="val">1.0.0</span></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>수정</b> '프로필' 행이 탭바와 하는 일이 겹쳤어요(둘 다 프로필 전환). 탭이 실시간 전환을 담당하니, 여기는 <b>'시작 탭'</b>으로 역할을 좁혔어요 — 앱을 새로 열 때 어떤 탭부터 보여줄지만 정해요.</div>
+<div><b>누락 보완</b> '데이터 출처' 행에 화살표(›)만 있고 실제 화면이 없었어요. F16을 새로 만들어 연결했어요.</div>
+<div><b>변경</b> 이름 필드를 최상단에 추가하고, 알림을 <b>아침 브리핑 · 위험 시간대 · 산책 추천 시간</b> 3종으로 세분화했어요. 프로필마다 원하는 알림이 다를 수 있어서요.</div>
+<div><b>정책</b> 우측 상단 기능 버튼은 <b>최대 1개</b>예요. 이 화면 자체가 그 버튼의 목적지라 화면 안에서 또 다른 상단 버튼을 만들지 않아요.</div>
+<div><b>정책</b> 알림 토글을 켤 때만 OS 푸시 권한을 요청해요 → F10에서 이어져요.</div>
+<div><b>설계</b> 지역이 이미 2개면 '추가' 칩을 눌러 F9로 이동, 3개면 칩이 비활성 처리돼요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#48F9D6"></i>#48F9D6 · 알림 토글 ON 배경</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · 대표 지역칩 배경</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 대표 지역칩 텍스트</span><span class="pm-chip"><i style="background:#F2F4F6"></i>#F2F4F6 · 일반 설정 아이콘·지역칩 배경</span><span class="pm-chip"><i style="background:#E5E8EB"></i>#E5E8EB · 토글 OFF 배경·행 구분선</span><span class="pm-chip"><i style="background:#B0B8C1"></i>#B0B8C1 · 우측 화살표</span></div></div></div>
+<!-- F9 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F9</div><h2>지역 검색·추가</h2><p>설정의 '추가' 칩에서 진입. 위치 권한이 없어도 이 화면 하나로 F6의 대안이 완성돼요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>지역 추가</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div style="padding:14px 0 4px"><div class="searchbar">🔍 동 이름으로 검색</div></div>
+<div class="sect-h">검색 결과</div>
+<div class="resultrow"><div class="pin">📍</div><div><div class="t">수원시 영통구</div><div class="s">경기도</div></div><div class="add">추가</div></div>
+<div class="resultrow"><div class="pin">📍</div><div><div class="t">수원시 팔달구</div><div class="s">경기도</div></div><div class="add">추가</div></div>
+<div class="resultrow"><div class="pin">📍</div><div><div class="t">수원시 장안구</div><div class="s">경기도</div></div><div class="add">추가</div></div>
+<div class="sect-h">최근 검색</div>
+<div class="resultrow"><div class="pin" style="background:transparent">🕓</div><div><div class="t">해운대구</div></div><span class="ar">›</span></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>정책</b> 위치 권한을 거부해도 <b>기능이 100% 동일</b>해야 한다는 원칙이 이 화면에서 완성돼요. 검색 결과 하나를 저장하면 F6의 대안이 실제로 동작해요.</div>
+<div><b>설계</b> 이미 3개가 저장된 상태라면 '추가' 대신 "가장 오래된 지역과 바꿀까요?" 확인 문구가 떠요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#F2F4F6"></i>#F2F4F6 · 검색창·결과 아이콘 배경</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · '추가' 버튼 배경</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · '추가' 버튼 텍스트</span><span class="pm-chip"><i style="background:#8B95A1"></i>#8B95A1 · 보조 텍스트(주소·최근검색)</span></div></div></div>
+<!-- F10 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F10</div><h2>알림 동의 · 인라인</h2><p>F8에서 토글을 켠 바로 그 순간에만 나타나요. 뒤로가기나 진입 직후에는 절대 뜨지 않아요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>설정</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div class="sect-h" style="margin-top:16px">알림</div>
+<div class="setrow"><div class="ic2">🌤</div><div><div class="t">아침 브리핑</div><div class="s">매일 오전 8:00 · 종일 시간 요약</div></div><div class="toggle on"></div></div>
+<div class="setrow"><div class="ic2">⚠️</div><div><div class="t">위험 시간대 알림</div><div class="s">체감온도가 위험 단계일 때</div></div><div class="toggle on"></div></div>
+<div class="setrow"><div class="ic2">🐾</div><div><div class="t">산책 추천 시간 알림</div><div class="s">반려견 산책 좋은 시간대만</div></div><div class="toggle on"></div></div>
+<div class="permcard">
+<div class="ic3">🔔</div>
+<h4>알림을 받으려면<br/>허용이 필요해요</h4>
+<p>매일 아침, 오늘 나가기 좋은 시간을<br/>가장 먼저 알려드릴게요.</p>
+</div>
+<div class="btn" style="margin-top:14px">알림 허용하기</div>
+<div style="text-align:center;margin-top:14px"><span style="font-size:13px;color:var(--g500);font-weight:600">나중에 할게요</span></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>정책</b> 알림 동의는 <b>설정 화면 안에서만</b> 요청해요. 이 카드는 사용자가 토글을 켠 직후에만 인라인으로 나타나고, 진입 시점이나 뒤로가기 시점에는 절대 노출되지 않아요.</div>
+<div><b>정책</b> "나중에 할게요"를 눌러도 토글이 강제로 꺼지지 않고, 다음에 앱을 열 때 다시 물어보지 않아요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#48F9D6"></i>#48F9D6 · 알림 토글 ON 배경 · 안내 아이콘</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · 안내 카드 배경</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · 안내 카드 제목 텍스트</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 안내 카드 본문 텍스트</span></div></div></div>
+<!-- ══════════ 구분선 ══════════ -->
+<div class="divider">
+<div class="tag">보충 02 · 상태 처리</div>
+<h2>비어 있거나, 느리거나, 실패했을 때</h2>
+<p>실제 서비스는 항상 완벽한 데이터로 열리지 않아요. 최초 로딩, 캐시가 오래된 경우, 기상청 API가 응답하지 않는 경우를 각각 화면으로 만들었어요.</p>
+</div>
+<!-- F11 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F11</div><h2>최초 로딩 · 스켈레톤</h2><p>인터랙션 반응이 2초를 넘으면 안 된다는 규칙 때문에 빈 화면 대신 골격을 먼저 보여줘요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic">⚙</div></div>
+<div class="body"><div class="scroll">
+<div class="tabbar" style="opacity:.45;pointer-events:none"><div class="tab">🏃 러닝·운동</div><div class="tab active">🐕 반려견 산책</div><div class="tab">🦺 야외 작업</div></div>
+<div style="padding:10px 0 20px">
+<div class="skel" style="width:120px;height:16px;margin-bottom:12px"></div>
+<div class="skel" style="width:220px;height:32px;margin-bottom:8px"></div>
+<div class="skel" style="width:180px;height:32px;margin-bottom:14px"></div>
+<div class="skel" style="width:100%;height:44px"></div>
+</div>
+<div class="skel" style="width:100%;height:92px;border-radius:16px;margin-bottom:8px"></div>
+<div class="skel" style="width:100%;height:70px;border-radius:16px;margin-bottom:8px"></div>
+<div class="skel" style="width:100%;height:70px;border-radius:16px"></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>정책</b> 인터랙션 반응이 <b>2초를 초과하면 안 돼요.</b> 캐시된 마지막 값이 있으면 스켈레톤 대신 그 값을 먼저 보여주고 백그라운드로 갱신해요. 이 화면은 캐시조차 없는 최초 실행에만 나와요.</div>
+<div><b>설계</b> 실제 카드와 같은 비율의 블록만 배치해 레이아웃이 로딩 후에 튀지 않아요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#F2F4F6"></i>#F2F4F6 · 스켈레톤 그라데이션 밝은 톤</span><span class="pm-chip"><i style="background:#F9FAFB"></i>#F9FAFB · 스켈레톤 그라데이션 어두운 톤</span></div></div></div>
+<!-- F12 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F12</div><h2>오프라인 · API 장애 폴백</h2><p>기상청 API가 응답하지 않을 때. 빈 화면 대신 마지막 캐시 값을 보여줘요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic">⚙</div></div>
+<div class="body"><div class="scroll">
+<div style="padding:14px 0 10px"><div class="stalebar">🔄 18분 전 값이에요, 지금 값을 다시 불러올게요 <span class="refresh">새로고침</span></div></div>
+<div class="tabbar"><div class="tab">🏃 러닝·운동</div><div class="tab active">🐕 반려견 산책</div><div class="tab">🦺 야외 작업</div></div>
+<div class="verdict">
+<div class="now">오후 1시 20분 · 일산동구 <span class="caret">▾</span> 기준</div>
+<h3 style="color:var(--lv3)">지금은 잠깐만<br/>다녀오는 게 좋아요</h3>
+<div class="why">아스팔트가 51℃까지 올라서<br/>발바닥에 무리가 갈 수 있어요.</div>
+</div>
+<div class="metric hero"><div class="icn">🛣</div><div><div class="lbl">노면 온도 <span class="badge">추정</span></div><div class="val">51℃</div><div class="sub">18분 전 기준</div></div><div class="ar">›</div></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>정책</b> API 장애 시에도 <b>빈 화면을 보여주면 안 돼요.</b> 마지막 성공 응답을 캐시에서 서빙하고 "N분 전 기준"을 명시해요.</div>
+<div><b>설계</b> 노란 배너가 사라지면 실시간 값으로 자동 교체돼요. 사용자가 직접 새로고침을 누를 수도 있어요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#FFF8EC"></i>#FFF8EC · 오프라인 배너 배경</span><span class="pm-chip"><i style="background:#FCE3B4"></i>#FCE3B4 · 오프라인 배너 테두리</span><span class="pm-chip"><i style="background:#8A5A0B"></i>#8A5A0B · 오프라인 배너 텍스트</span><span class="pm-chip"><i style="background:#F5A524"></i>#F5A524 · 판정 타이틀 · 주의</span><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 새로고침 링크 텍스트</span></div></div></div>
+<!-- ══════════ 구분선 ══════════ -->
+<div class="divider">
+<div class="tag">보충 03 · 수익화 · 성장</div>
+<h2>돈을 버는 화면, 사람이 늘어나는 화면</h2>
+<p>배너는 F2·F3에 이미 있어요. 여기서는 eCPM이 가장 높은 리워드 광고와, 공유를 통한 성장 루프를 화면으로 만들었어요.</p>
+</div>
+<!-- F13 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F13</div><h2>리워드 광고 게이트</h2><p>F4(시간창) 맨 아래 '이번 주 리포트 보기'에서 진입해요. 광고 시청으로 해금하는 방식이고, 세 광고 유형 중 eCPM이 가장 높아요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div style="padding:14px 0 10px"><div style="font-size:20px;font-weight:800;letter-spacing:-.02em">이번 주 산책 리포트</div></div>
+<div class="lockwrap">
+<div class="blurcontent">
+<div class="strip-wrap">
+<div class="strip-top"><div class="t">월 · 화 · 수 · 목 · 금 · 토 · 일</div></div>
+<div class="strip">
+<i style="background:var(--lv1);height:60%"></i><i style="background:var(--lv2);height:50%"></i>
+<i style="background:var(--lv3);height:70%"></i><i style="background:var(--lv1);height:40%"></i>
+<i style="background:var(--lv1);height:35%"></i><i style="background:var(--lv2);height:55%"></i>
+<i style="background:var(--lv1);height:30%"></i>
+</div>
+</div>
+</div>
+<div class="lockoverlay">
+<div class="ic4">🔒</div>
+<div class="t">광고를 보면 볼 수 있어요</div>
+<div class="rewardbtn">▶ 광고 보고 확인하기</div>
+</div>
+</div>
+<div class="src" style="margin-top:16px">광고는 15초 내외예요. 끝까지 보면 이번 주 리포트가 7일간 열려요.</div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>수익</b> 리워드 광고는 사용자가 직접 선택하고 끝까지 시청해 <b>세 유형 중 eCPM이 가장 높아요.</b></div>
+<div><b>정책</b> 광고는 사전 로딩해두고 재생 시점에 실시간으로 불러오지 않아요. 재생 실패 시 콘텐츠는 그대로 잠금 상태를 유지해요.</div>
+<div><b>정책</b> 전면형 광고는 이 앱에서 쓰지 않아요. 세션이 짧아 흐름을 끊으면 재방문이 무너져요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#0C816A"></i>#0C816A · 블러 미리보기 · 좋음 구간</span><span class="pm-chip"><i style="background:#A3C13A"></i>#A3C13A · 블러 미리보기 · 보통 구간</span><span class="pm-chip"><i style="background:#F5A524"></i>#F5A524 · 블러 미리보기 · 주의 구간</span><span class="pm-chip"><i style="background:#48F9D6"></i>#48F9D6 · 잠금 아이콘·버튼 배경</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · 버튼 텍스트</span></div></div></div>
+<!-- F14 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F14</div><h2>공유하기</h2><p>홈 판정 카드 우측 상단 🔗 아이콘에서 진입해요(F2·F3·F7·F15 공통). 성장 루프의 핵심 화면이에요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>공유하기</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div style="padding:16px 0"><div class="sharecard">
+<div class="brand2">오늘 나가도 되나 · 일산동구</div>
+<div class="big">지금은 잠깐만<br/>다녀오는 게 좋아요</div>
+<div class="foot">저녁 7시 30분부터 좋아요 · 아스팔트 51℃</div>
+</div></div>
+<div class="sect-h">공유할 곳</div>
+<div class="sharerow"><div class="sic" style="background:#FEE500;color:#3A1D1D">💬</div><div class="t">카카오톡</div></div>
+<div class="sharerow"><div class="sic" style="background:var(--g300)">🔗</div><div class="t">링크 복사</div></div>
+<div class="sharerow"><div class="sic" style="background:#000">토스</div><div class="t">토스 앱으로 보내기</div></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>SDK</b> <code>getTossShareLink</code>로 생성한 링크는 받은 사람이 토스 앱 안에서 바로 이 미니앱을 열게 해요.</div>
+<div><b>정책</b> 공유 카드 문구는 과장 없이 실제 판정 그대로예요. 브랜드 로고와 지역명을 포함해 출처가 분명해요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#48F9D6"></i>#48F9D6 · 공유 카드 그라데이션 시작</span><span class="pm-chip"><i style="background:#88F1CE"></i>#88F1CE · 공유 카드 그라데이션 끝</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · 공유 카드 텍스트</span><span class="pm-chip"><i style="background:#FEE500"></i>#FEE500 · 카카오톡 아이콘 배경</span><span class="pm-chip"><i style="background:#3A1D1D"></i>#3A1D1D · 카카오톡 아이콘 색</span><span class="pm-chip"><i style="background:#000000"></i>#000000 · 토스 채널 아이콘 배경</span></div></div></div>
+<!-- ══════════ 구분선 ══════════ -->
+<div class="divider">
+<div class="tag">보충 04 · 계절 확장</div>
+<h2>여름이 지나도 남는 이유</h2>
+<p>겨울철 사용량 급감은 기획서에서 가장 큰 리스크로 짚었던 부분이에요. 같은 판정 엔진을 계절만 바꿔 재사용하는 화면이에요.</p>
+</div>
+<!-- F15 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F15</div><h2>겨울 모드 홈</h2><p>여름엔 노면 ‘열’을, 겨울엔 노면 ‘결빙’을 같은 계산 구조로 보여줘요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div><div class="ic">⚙</div></div>
+<div class="body"><div class="scroll">
+<div class="tabbar"><div class="tab">🏃 러닝·운동</div><div class="tab active">🐕 반려견 산책</div><div class="tab">🦺 야외 작업</div></div>
+<div class="verdict">
+<span class="wintertag">❄️ 겨울 모드</span>
+<div style="display:flex;align-items:center;justify-content:space-between"><div class="now">오전 7시 10분 · 일산동구 <span class="caret">▾</span></div><div class="share-ic">🔗</div></div>
+<h3 style="color:var(--lv3)">그늘진 길은<br/>미끄러울 수 있어요</h3>
+<div class="why">노면이 영하로 떨어져 얼었을<br/>가능성이 있어요.</div>
+</div>
+<div class="wcta" style="background:var(--mint050)">
+<div class="ci" style="background:var(--mint400);color:var(--mint900)">☀️</div>
+<div><div class="t" style="color:var(--mint900)">낮 12시 이후엔 녹아요</div><div class="s" style="color:var(--mint700)">햇빛에 노출된 구간부터 먼저 풀려요</div></div>
+<div class="ar" style="color:var(--mint700)">›</div>
+</div>
+<div class="sect-h">지금 바깥 상태</div>
+<div class="metric hero" style="background:#E7F1FF;border-color:#BEDCFB"><div class="icn" style="background:#BEDCFB">🧊</div><div><div class="lbl">노면 온도 <span class="badge">추정</span></div><div class="val" style="color:#2B6CB0">−2℃</div><div class="sub">그늘·다리 위는 더 낮아요</div></div><div class="ar">›</div></div>
+<div class="metric"><div class="icn" style="background:#EAF2FF">💨</div><div><div class="lbl">체감온도 · 풍속냉각</div><div class="val">−7℃</div><div class="sub">기온 1℃ · 바람 4.2m/s</div></div><div class="ar">›</div></div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>재사용</b> 노면 추정 모델의 ΔT 계산 구조를 그대로 쓰되, 여름엔 복사열을 더하고 겨울엔 결빙 여부를 판정해요. 새 모델을 또 만들 필요가 없어요.</div>
+<div><b>계절 판별</b> 11~3월에는 체감온도 산식이 풍속냉각지수로 자동 전환돼요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#F5A524"></i>#F5A524 · 판정 타이틀 · 주의(결빙 표현에 재사용)</span><span class="pm-chip"><i style="background:#E7F1FF"></i>#E7F1FF · 노면온도 히어로 카드 배경</span><span class="pm-chip"><i style="background:#BEDCFB"></i>#BEDCFB · 히어로 아이콘 배경</span><span class="pm-chip"><i style="background:#EAF2FF"></i>#EAF2FF · 체감온도(풍속냉각) 아이콘 배경</span><span class="pm-chip"><i style="background:#2B6CB0"></i>#2B6CB0 · 결빙 온도·태그 텍스트</span></div></div></div>
 
-  <!-- ============ F1 ============ -->
-  <div class="cell">
-    <div class="cell-head">
-      <div class="no">F1</div>
-      <h2>진입 · 프로필 선택</h2>
-      <p>최초 1회만 노출. 바텀시트가 아니라 인라인 전체 화면으로 구현해 진입 즉시 인터럽트가 뜨지 않게 했어요.</p>
-    </div>
-    <div class="phone">
-      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
-      <div class="nav">
-        <div class="ic">✕</div>
-        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
-        <div class="ic" style="opacity:.35">⋯</div>
-      </div>
-      <div class="body"><div class="scroll">
-        <div class="ob-h">
-          <h3>누구의 기준으로<br>알려드릴까요?</h3>
-          <p>같은 32℃도 뛰는 사람, 일하는 사람,<br>맨발로 걷는 강아지에게 다르게 느껴져요.</p>
-        </div>
-
-        <div class="pick">
-          <div class="em">🏃</div>
-          <div><div class="t">러닝·운동</div><div class="s">체감온도와 자외선을 먼저 봐요</div></div>
-          <div class="rd"></div>
-        </div>
-        <div class="pick on">
-          <div class="em">🐕</div>
-          <div><div class="t">반려견 산책</div><div class="s">바닥 온도를 가장 먼저 봐요</div></div>
-          <div class="rd">✓</div>
-        </div>
-        <div class="pick">
-          <div class="em">🦺</div>
-          <div><div class="t">야외 작업</div><div class="s">체감온도와 휴식 시점을 알려줘요</div></div>
-          <div class="rd"></div>
-        </div>
-
-        <div class="permnote">
-          <b>위치를 왜 물어보나요?</b><br>
-          동네마다 햇빛과 바람이 달라서, 위치를 알면 우리 동네 바닥 온도까지 계산할 수 있어요. 위치를 안 알려줘도 지역을 직접 고르면 똑같이 볼 수 있어요.
-        </div>
-      </div></div>
-      <div class="bottomcta">
-        <div class="btn">내 위치로 시작하기</div>
-        <div class="btn ghost">지역 직접 고르기</div>
-      </div>
-    </div>
-    <div class="anno">
-      <div><b>정책</b> 진입 직후 바텀시트 금지 — 알림 동의 바텀시트도 포함돼요. 온보딩은 전체 화면으로.</div>
-      <div><b>정책</b> 권한 요청 전에 사유를 먼저 설명하고, 거부해도 전 기능이 동작하는 대안을 같은 화면에 둬요.</div>
-      <div><b>라이팅</b> CTA만 보고 다음 행동이 예측돼요. "시작하기"가 아니라 "내 위치로 시작하기".</div>
-    </div>
-  </div>
-
-  <!-- ============ F2 ============ -->
-  <div class="cell">
-    <div class="cell-head">
-      <div class="no">F2</div>
-      <h2>홈 — 반려견 프로필 · 주의</h2>
-      <p>스크롤 없이 결론이 끝나요. 노면온도 카드가 맨 위로 올라오고 크기도 커져요.</p>
-    </div>
-    <div class="phone">
-      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
-      <div class="nav">
-        <div class="ic">‹</div>
-        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
-        <div class="ic">⚙</div>
-      </div>
-      <div class="body"><div class="scroll">
-        <div class="prof-bar">
-          <div class="prof">🐕 반려견 산책 <span class="caret">▼</span></div>
-          <div class="loc">일산동구 <span class="caret">▼</span></div>
-        </div>
-
-        <div class="verdict">
-          <div class="now">오후 1시 20분</div>
-          <h3 style="color:var(--lv3)">지금은 잠깐만<br>다녀오는 게 좋아요</h3>
-          <div class="why">아스팔트가 51℃까지 올라서<br>발바닥에 무리가 갈 수 있어요.</div>
-        </div>
-
-        <div class="window-cta" style="background:#F1FBF6">
-          <div style="width:34px;height:34px;border-radius:10px;background:var(--lv1);display:grid;place-items:center;color:#fff;font-size:16px">🌙</div>
-          <div>
-            <div class="t" style="color:var(--brand-sub)">저녁 7시 30분부터 좋아요</div>
-            <div class="s" style="color:var(--brand-sub)">그때 바닥은 34℃로 내려가요</div>
-          </div>
-        </div>
-
-        <div class="sect-h">지금 바깥 상태</div>
-
-        <div class="metric hero">
-          <div class="icn" style="background:#FCE3B4">🛣</div>
-          <div>
-            <div class="lbl">아스팔트 온도 <span class="badge">추정</span></div>
-            <div class="val" style="color:var(--lv3)">51℃</div>
-            <div class="sub">잔디 39℃ · 흙길 38℃</div>
-          </div>
-          <div class="arrow">›</div>
-        </div>
-
-        <div class="metric">
-          <div class="icn" style="background:#FFE9E9">🌡</div>
-          <div>
-            <div class="lbl">체감온도 · 지면 높이</div>
-            <div class="val">38℃</div>
-            <div class="sub">기온 32℃ · 습도 68%</div>
-          </div>
-          <div class="arrow">›</div>
-        </div>
-
-        <div class="metric">
-          <div class="icn" style="background:#FFF1D6">☀️</div>
-          <div>
-            <div class="lbl">자외선</div>
-            <div class="val">8 <span style="font-size:14px;color:var(--g700)">매우높음</span></div>
-            <div class="sub">자외선지수</div>
-          </div>
-          <div class="arrow">›</div>
-        </div>
-      </div></div>
-    </div>
-    <div class="anno">
-      <div><b>설계</b> 프로필에 따라 지표 <b>순서와 크기가 바뀌어요</b>. 반려견은 노면이 히어로 카드.</div>
-      <div><b>정책</b> 추정값에는 반드시 <b>추정 배지</b>를 붙여요.</div>
-      <div><b>라이팅</b> 긍정형 우선 — "나가지 마세요"가 아니라 "7시 30분부터 좋아요".</div>
-    </div>
-  </div>
-
-  <!-- ============ F3 ============ -->
-  <div class="cell">
-    <div class="cell-head">
-      <div class="no">F3</div>
-      <h2>홈 — 야외 작업 프로필 · 위험</h2>
-      <p>같은 시각, 같은 위치. 프로필만 바꿔도 위계와 문장이 전부 달라져요.</p>
-    </div>
-    <div class="phone">
-      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
-      <div class="nav">
-        <div class="ic">‹</div>
-        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
-        <div class="ic">⚙</div>
-      </div>
-      <div class="body"><div class="scroll">
-        <div class="prof-bar">
-          <div class="prof">🦺 야외 작업 <span class="caret">▼</span></div>
-          <div class="loc">일산동구 <span class="caret">▼</span></div>
-        </div>
-
-        <div class="verdict">
-          <div class="now">오후 1시 20분</div>
-          <h3 style="color:var(--lv4)">2시간마다<br>20분씩 쉬어요</h3>
-          <div class="why">체감온도가 34℃예요. 폭염작업 휴식<br>기준인 33℃를 넘었어요.</div>
-        </div>
-
-        <div class="window-cta" style="background:#FFF3EC">
-          <div style="width:34px;height:34px;border-radius:10px;background:var(--lv4);display:grid;place-items:center;color:#fff;font-size:15px">⏱</div>
-          <div>
-            <div class="t" style="color:#A8410B">다음 휴식은 오후 2시 10분</div>
-            <div class="s" style="color:#A8410B">그늘이나 냉방 공간에서 20분 이상</div>
-          </div>
-        </div>
-
-        <div class="sect-h">지금 바깥 상태</div>
-
-        <div class="metric hero" style="background:#FFF3EC;border-color:#FBD3BC">
-          <div class="icn" style="background:#FBD3BC">🌡</div>
-          <div>
-            <div class="lbl">체감온도</div>
-            <div class="val" style="color:var(--lv4)">34℃</div>
-            <div class="sub">기온 32℃ · 습도 68% · 바람 1.2m/s</div>
-          </div>
-          <div class="arrow">›</div>
-        </div>
-
-        <div class="metric">
-          <div class="icn" style="background:#FFF1D6">☀️</div>
-          <div>
-            <div class="lbl">자외선</div>
-            <div class="val">8 <span style="font-size:14px;color:var(--g700)">매우높음</span></div>
-            <div class="sub">긴팔과 챙 넓은 모자를 써요</div>
-          </div>
-          <div class="arrow">›</div>
-        </div>
-
-        <div class="metric">
-          <div class="icn" style="background:#EEF1F4">🛣</div>
-          <div>
-            <div class="lbl">지면 온도 <span class="badge">추정</span></div>
-            <div class="val">51℃</div>
-            <div class="sub">복사열이 더해져요</div>
-          </div>
-          <div class="arrow">›</div>
-        </div>
-
-        <div class="src">참고용 기상정보 안내예요. 안전 진단이나 의학적 판단을 대신하지 않아요.<br>출처 · 기상청</div>
-        <div class="adbox">앱인토스 배너 광고 (스크롤 영역 안)</div>
-      </div></div>
-    </div>
-    <div class="anno">
-      <div><b>설계</b> 임계값이 <b>법정 기준(31℃ / 33℃)</b>에 정렬돼 있어 문장이 그대로 행동 지침이 돼요.</div>
-      <div><b>정책</b> 의료 서비스로 오인되지 않도록 <b>참고용 안내 고지</b>와 출처를 함께 표기해요.</div>
-      <div><b>정책</b> 배너는 스크롤 가능한 화면 하단에만. 인트로·로딩·모달에는 넣지 않아요.</div>
-    </div>
-  </div>
-
-  <!-- ============ F4 ============ -->
-  <div class="cell">
-    <div class="cell-head">
-      <div class="no">F4</div>
-      <h2>시간창 — 오늘 언제 나가나</h2>
-      <p>18칸 컬러 스트립으로 하루를 한눈에. '보통 이하'가 90분 이상 이어지는 구간을 최적 창으로 뽑아요.</p>
-    </div>
-    <div class="phone">
-      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
-      <div class="nav">
-        <div class="ic">‹</div>
-        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
-        <div class="ic" style="opacity:.35">⋯</div>
-      </div>
-      <div class="body"><div class="scroll">
-        <div style="padding:14px 0 18px">
-          <div style="font-size:13px;font-weight:700;color:var(--g500)">🐕 반려견 산책 · 일산동구</div>
-          <div style="font-size:24px;font-weight:800;letter-spacing:-.03em;margin-top:7px">오늘 산책하기 좋은<br>시간이에요</div>
-        </div>
-
-        <div class="strip-wrap">
-          <div class="strip-top">
-            <div class="t">6시 → 24시</div>
-            <div class="s">지금 오후 1시</div>
-          </div>
-          <div class="strip">
-            <i style="background:var(--lv1);height:30%"></i>
-            <i style="background:var(--lv1);height:32%"></i>
-            <i style="background:var(--lv2);height:44%"></i>
-            <i style="background:var(--lv2);height:52%"></i>
-            <i style="background:var(--lv3);height:64%"></i>
-            <i style="background:var(--lv3);height:72%"></i>
-            <i style="background:var(--lv4);height:84%"></i>
-            <i class="nowmark" style="background:var(--lv4);height:92%"></i>
-            <i style="background:var(--lv4);height:100%"></i>
-            <i style="background:var(--lv4);height:96%"></i>
-            <i style="background:var(--lv3);height:80%"></i>
-            <i style="background:var(--lv3);height:66%"></i>
-            <i style="background:var(--lv2);height:52%"></i>
-            <i style="background:var(--lv1);height:40%"></i>
-            <i style="background:var(--lv1);height:34%"></i>
-            <i style="background:var(--lv1);height:30%"></i>
-            <i style="background:var(--lv1);height:26%"></i>
-            <i style="background:var(--lv1);height:24%"></i>
-          </div>
-          <div class="strip-ax"><span>6시</span><span>10시</span><span>14시</span><span>18시</span><span>24시</span></div>
-          <div class="goodband"><em></em> 오전 6~8시 · 저녁 7시 30분 이후가 좋아요</div>
-        </div>
-
-        <div class="sect-h">시간별로 보기</div>
-
-        <div class="hour"><div class="hh">12시</div><div class="bar"><i style="width:74%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">위험</div></div>
-        <div class="hour on"><div class="hh">13시</div><div class="bar"><i style="width:82%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">지금</div></div>
-        <div class="hour"><div class="hh">14시</div><div class="bar"><i style="width:88%;background:var(--lv4)"></i></div><div class="tag" style="color:var(--lv4)">위험</div></div>
-        <div class="hour"><div class="hh">16시</div><div class="bar"><i style="width:62%;background:var(--lv3)"></i></div><div class="tag" style="color:var(--lv3)">주의</div></div>
-        <div class="hour"><div class="hh">18시</div><div class="bar"><i style="width:42%;background:var(--lv2)"></i></div><div class="tag" style="color:#7A9420">보통</div></div>
-        <div class="hour"><div class="hh">20시</div><div class="bar"><i style="width:24%;background:var(--lv1)"></i></div><div class="tag" style="color:var(--lv1)">좋음</div></div>
-        <div class="hour"><div class="hh">22시</div><div class="bar"><i style="width:19%;background:var(--lv1)"></i></div><div class="tag" style="color:var(--lv1)">좋음</div></div>
-
-        <div class="src">3시간마다 새로 계산해요 · 출처 · 기상청 단기예보</div>
-      </div></div>
-    </div>
-    <div class="anno">
-      <div><b>설계</b> 막대 <b>높이 + 색</b> 두 채널로 위험도를 표현해 색각 이상에서도 읽혀요.</div>
-      <div><b>설계</b> 현재 시각은 검은 아웃라인으로만 표시해요. 컬러를 하나 더 쓰면 램프가 무너져요.</div>
-      <div><b>정책</b> 인터랙션 반응이 2초를 넘지 않도록 캐시 우선 렌더 후 백그라운드 갱신.</div>
-    </div>
-  </div>
-
-  <!-- ============ F5 ============ -->
-  <div class="cell">
-    <div class="cell-head">
-      <div class="no">F5</div>
-      <h2>지표 상세 — 왜 이 판정인가</h2>
-      <p>추정 모델을 숨기지 않고 전부 공개해요. 이 앱의 신뢰가 여기서 갈려요.</p>
-    </div>
-    <div class="phone">
-      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
-      <div class="nav">
-        <div class="ic">‹</div>
-        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
-        <div class="ic" style="opacity:.35">⋯</div>
-      </div>
-      <div class="body"><div class="scroll">
-        <div style="padding:16px 0 18px">
-          <div style="font-size:13px;font-weight:700;color:var(--g500)">바닥 온도</div>
-          <div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">
-            <div style="font-size:42px;font-weight:800;letter-spacing:-.04em;color:var(--lv3);font-variant-numeric:tabular-nums">51℃</div>
-            <div class="badge" style="font-size:11px;padding:3px 8px">추정</div>
-          </div>
-          <div style="font-size:14.5px;color:var(--g700);margin-top:7px;font-weight:500">아스팔트 기준이에요</div>
-        </div>
-
-        <div class="sect-h">이렇게 계산했어요</div>
-        <div class="calc">
-          <div class="calcrow"><span>지금 기온</span><b>32.0℃</b></div>
-          <div class="calcrow"><span>햇빛 세기</span><b>강함 · +19.4℃</b></div>
-          <div class="calcrow"><span>바람 1.2m/s</span><b>−0.4℃</b></div>
-          <div class="calcrow tot"><span>아스팔트 표면</span><b>51.0℃</b></div>
-        </div>
-
-        <div class="sect-h">바닥 재질에 따라 달라져요</div>
-        <div class="surf"><div class="nm">아스팔트</div><div class="tr"><i style="width:96%;background:var(--lv3)"></i></div><div class="dg">51℃</div></div>
-        <div class="surf"><div class="nm">보도블록</div><div class="tr"><i style="width:84%;background:var(--lv3)"></i></div><div class="dg">46℃</div></div>
-        <div class="surf"><div class="nm">우레탄</div><div class="tr"><i style="width:76%;background:var(--lv2)"></i></div><div class="dg">43℃</div></div>
-        <div class="surf"><div class="nm">잔디</div><div class="tr"><i style="width:60%;background:var(--lv1)"></i></div><div class="dg">39℃</div></div>
-        <div class="surf"><div class="nm">흙길</div><div class="tr"><i style="width:57%;background:var(--lv1)"></i></div><div class="dg">38℃</div></div>
-
-        <div class="notice">
-          <b>직접 한 번 확인해요</b><br>
-          손등을 바닥에 7초 대보고 뜨거우면 강아지 발에도 뜨거워요. 그때는 흙길이나 잔디로 돌아가요.
-        </div>
-
-        <div class="src">
-          바닥 온도는 기온·햇빛·바람으로 계산한 추정값이라 실제와 다를 수 있어요.<br>
-          출처 · 기상청 단기예보, 생활기상지수, 종관기상관측(ASOS)
-        </div>
-      </div></div>
-    </div>
-    <div class="anno">
-      <div><b>신뢰</b> 계산 과정을 그대로 노출해요. 블랙박스로 두면 한 번 틀렸을 때 회복이 안 돼요.</div>
-      <div><b>신뢰</b> 손등 7초 테스트를 넣어 <b>앱을 맹신하지 않도록</b> 유도해요.</div>
-      <div><b>정책</b> 공공데이터 기반 서비스는 데이터 출처를 명시해야 해요.</div>
-    </div>
-  </div>
-
-  <!-- ============ F6 ============ -->
-  <div class="cell">
-    <div class="cell-head">
-      <div class="no">F6</div>
-      <h2>위치 권한 거부 · 지역 직접 고르기</h2>
-      <p>권한을 안 줘도 기능이 100% 같아요. 재요청은 조용한 텍스트 링크로만.</p>
-    </div>
-    <div class="phone">
-      <div class="status"><span>9:41</span><span class="dots">▮▮▮ ⌁ ▰</span></div>
-      <div class="nav">
-        <div class="ic">‹</div>
-        <div class="brand"><div class="logo">☀</div><span>오늘 나가도 되나</span></div>
-        <div class="ic" style="opacity:.35">⋯</div>
-      </div>
-      <div class="body"><div class="scroll">
-        <div class="empty">
-          <div class="em">📍</div>
-          <h3>지역을 고르면<br>바로 볼 수 있어요</h3>
-          <p>지금 위치를 확인할 수 없어요.<br>자주 가는 곳을 3개까지 저장해 둘 수 있어요.</p>
-        </div>
-
-        <div class="regions">
-          <div class="sect-h">최근에 본 지역</div>
-          <div class="region">🏠 고양시 일산동구 <span class="p">좋음</span></div>
-          <div class="region">🏢 서울 강남구 <span class="p">주의</span></div>
-          <div class="region">🌊 부산 해운대구 <span class="p">보통</span></div>
-          <div class="region" style="color:var(--g500);font-weight:600">＋ 다른 지역 찾기</div>
-        </div>
-
-        <div style="margin-top:28px;text-align:center">
-          <span style="font-size:13.5px;color:var(--g500);font-weight:600;border-bottom:1px solid var(--g200);padding-bottom:2px">위치 권한 다시 확인하기</span>
-        </div>
-      </div></div>
-    </div>
-    <div class="anno">
-      <div><b>정책</b> 권한을 허용하지 않아도 나머지 기능이 정상 동작해야 해요.</div>
-      <div><b>라이팅</b> 기능 제한 상황은 <b>부정형 예외</b>에 해당해요. 원인과 대안을 한 문장씩.</div>
-      <div><b>SDK</b> 재요청은 <code style="color:#C6CCD4">getCurrentLocation.openPermissionDialog()</code>로 사용자가 누를 때만 호출해요.</div>
-    </div>
-  </div>
-
+<!-- F16 -->
+<div class="cell">
+<div class="cell-head"><div class="no">F16</div><h2>데이터 출처 안내</h2><p>F8 설정의 '데이터 출처' 행이 실제로 여는 화면이에요. 화살표만 있고 목적지가 없던 걸 채웠어요.</p></div>
+<div class="phone">
+<div class="status"><span>9:41</span><span class="d">▮▮▮ ⌁ ▰</span></div>
+<div class="nav"><div class="ic">‹</div><div class="brand"><div class="logo">☀</div><span>데이터 출처</span></div><div class="ic" style="opacity:.35">⋯</div></div>
+<div class="body"><div class="scroll">
+<div style="padding:16px 0 6px;font-size:14px;color:var(--g700);line-height:1.6;font-weight:500">모든 값은 기상청 공공데이터를 바탕으로 저희가 계산한 추정치예요.</div>
+<div class="sect-h" style="margin-top:18px">실황·예보</div>
+<div class="setrow"><div class="ic2">📡</div><div><div class="t">초단기실황 · 단기예보</div><div class="s">기온·습도·풍속 · 10분~3시간 주기 갱신</div></div></div>
+<div class="setrow"><div class="ic2">☀️</div><div><div class="t">생활기상지수 3.0</div><div class="s">자외선지수 · 하루 2회 갱신</div></div></div>
+<div class="sect-h">노면 온도 계산용</div>
+<div class="setrow"><div class="ic2">🌡</div><div><div class="t">종관기상관측(ASOS)</div><div class="s">일사량·지면온도 · 추정 모델 보정에 사용</div></div></div>
+<div class="sect-h">특보</div>
+<div class="setrow"><div class="ic2">⚠️</div><div><div class="t">기상특보</div><div class="s">폭염·한파 특보 · 수시 갱신</div></div></div>
+<div class="notice" style="margin-top:20px">이 앱은 참고용 기상정보 안내예요. 의학적 판단이나 안전 진단을 대신하지 않아요. 응급 상황에는 즉시 119 또는 관련 기관에 연락하세요.</div>
+</div></div>
+</div>
+<div class="anno">
+<div><b>누락 보완</b> F8에 화살표(›)만 있고 실제 목적지가 없던 화면이에요. 정보 자체는 F5 하단 캡션에 있었지만, 설정에서 독립적으로 다시 확인할 수 있는 화면이 없었어요.</div>
+<div><b>정책</b> 공공데이터 기반 서비스는 출처를 명시해야 해요 — 이 화면이 그 요건을 만족하는 전용 지면이에요.</div>
+<div><b>정책</b> 의료 서비스로 오인되지 않도록 참고용 고지를 다시 한번 명시해요.</div>
+</div>
+<div class="palette-mini"><div class="pm-title">이 화면에 쓴 색</div><div class="pm-row"><span class="pm-chip"><i style="background:#F2F4F6"></i>#F2F4F6 · 항목 아이콘 배경</span><span class="pm-chip"><i style="background:#EAFDF6"></i>#EAFDF6 · 하단 고지 배경</span><span class="pm-chip"><i style="background:#05392F"></i>#05392F · 하단 고지 텍스트</span><span class="pm-chip"><i style="background:#4E5968"></i>#4E5968 · 본문 텍스트</span></div></div>
+</div>
 </div>
 </body>
 </html>
