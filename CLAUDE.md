@@ -4,7 +4,7 @@
 
 ## 읽고 시작할 것
 - docs/오늘나가도되나_기획서.md — 전체 기획, 판정 로직, 정책 대응
-- docs/오늘나가도되나_디자인프레임.html — 화면 6개 디자인
+- docs/오늘나가도되나_디자인프레임.html — 화면 디자인(F1~F16) + 화면 흐름도. 색 토큰은 이 파일의 `:root`가 최신 기준
 - docs/judge-api-spec.md — API 계약
 
 ## 폴더
@@ -28,5 +28,6 @@ GET https://today-outside-api.yoonjeonghyeon.workers.dev/judge?nx=57&ny=127&prof
 - 의료·진단 표현 금지
 
 ## 등급 색
-1 #0E9F6E / 2 #A3C13A / 3 #F5A524 / 4 #F2711C / 5 #E03131
-브랜드 #0E9F6E
+1 #0C816A / 2 #A3C13A / 3 #F5A524 / 4 #F2711C / 5 #E03131
+브랜드(= 등급1) #0C816A / 버튼·인터랙션 민트 #48F9D6 (텍스트는 흰색 금지, #05392F 잉크만)
+프론트 코드에서는 이 값들을 직접 쓰지 말고 app/src/constants/judge.ts를 참조

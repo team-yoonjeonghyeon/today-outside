@@ -17,7 +17,8 @@
     "@toss/tds-mobile": "latest",
     "@toss/tds-mobile-ait": "latest",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
