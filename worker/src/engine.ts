@@ -291,6 +291,38 @@ function sentence(
   return { headline, reason };
 }
 
+/**
+ * 낙뢰·호우 하드게이트. 기획서 3-5 "낙뢰 예보 / 시간당 강수 15mm↑ → 매우 위험 (사유 대체 표시)".
+ * 가중합·다른 게이트를 전부 무시하고 최고 등급으로 올린 뒤 사유를 위험 문구로 갈아끼워요.
+ * 낙뢰가 강수보다 우선이에요.
+ */
+export function hazardGate(
+  base: Verdict,
+  profile: Profile,
+  rainMmPerHour: number,
+  lightning: boolean
+): Verdict {
+  if (lightning) {
+    return {
+      ...base,
+      level: 5,
+      headline: HEADLINES[profile][5],
+      reason: '천둥·번개가 예보됐어요. 지금은 안전한 실내가 좋아요',
+      gate: 'LIGHTNING',
+    };
+  }
+  if (rainMmPerHour >= 15) {
+    return {
+      ...base,
+      level: 5,
+      headline: HEADLINES[profile][5],
+      reason: `시간당 ${Math.round(rainMmPerHour)}mm 강한 비가 내려요. 지금은 실내가 좋아요`,
+      gate: 'HEAVY_RAIN',
+    };
+  }
+  return base;
+}
+
 /* ────────────────────────────────────────────────
    6. 시간창 계산
    ──────────────────────────────────────────────── */

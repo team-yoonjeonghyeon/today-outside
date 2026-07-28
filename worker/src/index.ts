@@ -10,13 +10,22 @@ import { kstParts, nowKst, solarAltitude, toLatLon, yyyymmdd } from './geo';
 import {
   compute,
   findBestWindow,
+  hazardGate,
   judge,
   round1,
   smoothSolar,
   solarNorm,
   uviLabel,
 } from './engine';
-import { Env, estimateUvi, fetchNcst, fetchUvi, fetchVilage } from './kma';
+import {
+  Env,
+  estimateUvi,
+  fetchHeatWarning,
+  fetchLightning,
+  fetchNcst,
+  fetchUvi,
+  fetchVilage,
+} from './kma';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -52,21 +61,36 @@ function estimateSunsetHour(
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
     if (url.pathname !== '/judge') return err('NOT_FOUND', '없는 경로예요', 404);
 
-    const nx = Number(url.searchParams.get('nx'));
-    const ny = Number(url.searchParams.get('ny'));
+    // 파라미터 검증. get()은 누락 시 null → Number(null)=0(유한값)이라 그냥 두면 통과해버려요.
+    const nxRaw = url.searchParams.get('nx');
+    const nyRaw = url.searchParams.get('ny');
+    const nx = Number(nxRaw);
+    const ny = Number(nyRaw);
     const profile = url.searchParams.get('profile') as Profile;
     const areaNo = url.searchParams.get('areaNo');
 
-    if (!Number.isFinite(nx) || !Number.isFinite(ny) || !PROFILES.includes(profile)) {
+    if (
+      nxRaw === null ||
+      nyRaw === null ||
+      !Number.isFinite(nx) ||
+      !Number.isFinite(ny) ||
+      !PROFILES.includes(profile)
+    ) {
       return err('INVALID_PARAM', 'nx, ny, profile을 확인해 주세요', 400);
     }
+
+    // stale 폴백 캐시. 성공 응답을 URL(nx·ny·profile·areaNo) 단위로 저장하고,
+    // 업스트림 장애 시 마지막 성공 응답을 stale:true로 서빙해요 (빈 화면 금지, 기획서 §10).
+    // caches.default는 배포 환경에서만 동작해요.
+    const cache = (globalThis as any).caches?.default as Cache | undefined;
+    const cacheKey = new Request(url.toString());
 
     try {
       const now = nowKst();
@@ -75,10 +99,12 @@ export default {
       const sunset = estimateSunsetHour(p.year, p.month, p.day, lat, lon);
       const today = yyyymmdd(now);
 
-      const [ncst, fcst, uviMap] = await Promise.all([
+      const [ncst, fcst, uviMap, lightning, heatWarn] = await Promise.all([
         fetchNcst(env, nx, ny),
         fetchVilage(env, nx, ny),
         fetchUvi(env, areaNo),
+        fetchLightning(env, nx, ny),
+        fetchHeatWarning(env),
       ]);
 
       const dateParts = { year: p.year, month: p.month, day: p.day };
@@ -115,7 +141,13 @@ export default {
       nowPoint.uvi = uviAt(p.hour, nowC.srNorm);
       nowC = { ...nowC, uvi: nowPoint.uvi };
 
-      const verdict = judge(profile, nowC, ncst.airTemp, ncst.pty);
+      // 낙뢰·호우는 가중합/다른 게이트를 덮어써서 매우위험으로 강제 (기획서 3-5)
+      const verdict = hazardGate(
+        judge(profile, nowC, ncst.airTemp, ncst.pty),
+        profile,
+        ncst.rain,
+        lightning
+      );
 
       /* ── 시간창 06~23시 ── */
       const hourly: HourSlot[] = [];
@@ -171,13 +203,31 @@ export default {
         metrics,
         hourly,
         bestWindow,
-        alert: null,
+        alert: heatWarn,
         source: '기상청',
       };
+
+      // 마지막 성공 응답을 stale 폴백용으로 저장 (1시간 TTL)
+      if (cache) {
+        const store = new Response(JSON.stringify(body), {
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=3600' },
+        });
+        ctx.waitUntil(cache.put(cacheKey, store));
+      }
 
       return json(body);
     } catch (e) {
       console.error(e);
+
+      // 업스트림 장애 시 마지막 성공 응답을 stale:true로 서빙 (빈 화면 금지)
+      if (cache) {
+        const hit = await cache.match(cacheKey);
+        if (hit) {
+          const cached = (await hit.json()) as JudgeResponse;
+          return json({ ...cached, stale: true });
+        }
+      }
+
       return err('UPSTREAM_UNAVAILABLE', '잠시 후 다시 시도해 주세요', 503);
     }
   },
