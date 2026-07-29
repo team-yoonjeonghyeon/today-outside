@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Paragraph, Result, Skeleton, Spacing, Text } from "@toss/tds-mobile";
+import { Loader, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { LEVEL_COLORS, METRIC_LABELS, MINT, type MetricKey, type Profile } from "../constants/judge";
 import { fetchJudge, JudgeApiError, type JudgeResponse, type Metrics } from "../lib/judgeApi";
@@ -137,8 +137,8 @@ export default function Details() {
 
   if (loading && !data) {
     return (
-      <div style={{ padding: "16px 24px", overflow: "hidden" }}>
-        <Skeleton pattern="topList" repeatLastItemCount={3} />
+      <div style={{ display: "flex", justifyContent: "center", padding: "64px 24px" }}>
+        <Loader size="medium" />
       </div>
     );
   }

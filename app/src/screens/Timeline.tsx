@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { List, ListRow, Paragraph, Result, Skeleton, Spacing, Text } from "@toss/tds-mobile";
+import { List, ListRow, Loader, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import {
   LEVEL_COLORS,
@@ -82,8 +82,8 @@ export default function Timeline() {
 
   if (loading && !data) {
     return (
-      <div style={{ padding: "16px 24px", overflow: "hidden" }}>
-        <Skeleton pattern="listOnly" repeatLastItemCount={6} />
+      <div style={{ display: "flex", justifyContent: "center", padding: "64px 24px" }}>
+        <Loader size="medium" />
       </div>
     );
   }

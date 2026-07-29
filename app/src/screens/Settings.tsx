@@ -71,7 +71,7 @@ export default function Settings() {
           open={startTabSheetOpen}
           onOpen={() => setStartTabSheetOpen(true)}
           onClose={() => setStartTabSheetOpen(false)}
-          placement="bottom-start"
+          placement="bottom"
           dropdown={
             <Menu.Dropdown header={<Menu.Header>시작 탭 고르기</Menu.Header>}>
               {PROFILE_ORDER.map((p) => (

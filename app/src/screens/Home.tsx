@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ListRow, Menu, Paragraph, Result, Skeleton, Spacing, Text } from "@toss/tds-mobile";
+import { ListRow, Loader, Menu, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { ProfileTabs } from "../components/ProfileTabs";
 import {
@@ -208,11 +208,11 @@ export default function Home() {
       )}
 
       {loading && !showData && (
-        // TDS Skeleton의 내부 flex 컨테이너가 부모 너비를 무시하고 100vw로 렌더링되는 버그가 있어서
-        // (부모가 432px여도 스켈레톤은 뷰포트 전체 너비로 늘어나 오른쪽으로 삐져나가요),
-        // 화면 밖으로 넘치는 부분을 잘라내야 로딩 후 콘텐츠와 같은 폭으로 보여요.
-        <div style={{ padding: "16px 24px", overflow: "hidden" }}>
-          <Skeleton pattern="cardOnly" repeatLastItemCount={3} />
+        // TDS Skeleton은 내부 컨테이너가 부모 너비를 무시하고 100vw로 렌더링되는 버그가 있어서
+        // 화면 폭에 따라 계속 삐뚤어 보였어요. 카드 모양을 흉내내는 대신 화면 중앙에 작은
+        // 로더 하나만 보여줘요 — 좌우 비대칭이 생길 여지 자체가 없어요.
+        <div style={{ display: "flex", justifyContent: "center", padding: "64px 24px" }}>
+          <Loader size="medium" />
         </div>
       )}
 
