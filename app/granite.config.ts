@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: "오늘 나가도 되나",
     primaryColor: "#0C816A",
-    icon: "", // TODO: 콘솔 업로드 로고 URL
+    icon: "https://static.toss.im/appsintoss/53451/0d4c2328-5d7d-43ea-80cd-1ff0d00de016.png",
   },
   web: {
     host: "localhost",
