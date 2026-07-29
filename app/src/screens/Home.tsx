@@ -4,12 +4,10 @@ import { ListRow, Menu, Paragraph, Result, Skeleton, Spacing, Text } from "@toss
 import { adaptive } from "@toss/tds-colors";
 import { ProfileTabs } from "../components/ProfileTabs";
 import {
-  DEFAULT_PROFILE,
   HERO_TINTS,
   LEVEL_COLORS,
   METRIC_EMOJI,
   MINT,
-  SAVED_REGIONS,
   type MetricKey,
   type Profile,
 } from "../constants/judge";
@@ -21,6 +19,8 @@ import {
   type Metrics,
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
+import { useLastProfile } from "../hooks/useLastProfile";
+import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { ROUTES } from "../routes";
 
@@ -28,10 +28,6 @@ import { ROUTES } from "../routes";
 // docs/오늘나가도되나_디자인프레임.html F2(반려견)·F3(야외 작업)·F7(러너) 참고.
 // ⚙ 설정 진입은 내비게이션 바 액세서리 아이콘(useSettingsAccessoryButton)으로 처리해요 —
 // F4~F9 등 다른 화면에는 안 쓰여서 그 화면들에선 자동으로 사라져요.
-
-// TODO: 위치 권한 연동 전까지 저장된 지역 목록의 첫 번째(고양시 일산동구)를 기본값으로 써요.
-// data/ 격자 매핑 완성 후 실제 위치 기반 nx/ny로 교체해요.
-const DEFAULT_REGION = SAVED_REGIONS[0];
 
 // 히어로가 아닐 때 지표 아이콘 배경. 디자인프레임 F2·F3·F7의 지표별 고정 톤 —
 // 히어로로 뽑히면 HERO_TINTS(판정 등급색)로 덮어써요.
@@ -133,19 +129,19 @@ export default function Home() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  // TODO: Storage에서 마지막으로 본 탭을 읽어와 초기값으로 사용 (재방문 시)
-  const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
+  const [profile, setProfile] = useLastProfile();
+  const { savedRegions } = useSavedRegions();
   const [data, setData] = useState<JudgeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   // F6(지역 설정 전체보기)에서 지역을 고르고 돌아오면 router state로 넘어와요.
-  // TODO: Storage에서 마지막으로 조회한 지역을 읽어와 초기값으로 사용 (재방문 시)
+  // state가 없으면 저장된 지역 목록의 첫 번째를 기본값으로 써요.
   const [region, setRegion] = useState<RegionNavState>(
     (location.state as RegionNavState | null) ?? {
-      nx: DEFAULT_REGION.nx,
-      ny: DEFAULT_REGION.ny,
-      label: DEFAULT_REGION.name,
+      nx: savedRegions[0].nx,
+      ny: savedRegions[0].ny,
+      label: savedRegions[0].name,
     },
   );
 
@@ -227,15 +223,19 @@ export default function Home() {
               placement="bottom-start"
               dropdown={
                 <Menu.Dropdown header={<Menu.Header>지역 바꾸기</Menu.Header>}>
-                  {SAVED_REGIONS.map((saved) => {
+                  {savedRegions.map((saved) => {
                     const isSelected = saved.nx === region.nx && saved.ny === region.ny;
                     return (
                       <Menu.DropdownItem
                         key={saved.name}
                         right={
-                          <span style={{ fontSize: 12, fontWeight: 700, color: saved.levelColor }}>
-                            {isSelected ? `✓ ${saved.levelLabel}` : saved.levelLabel}
-                          </span>
+                          saved.levelLabel ? (
+                            <span style={{ fontSize: 12, fontWeight: 700, color: saved.levelColor }}>
+                              {isSelected ? `✓ ${saved.levelLabel}` : saved.levelLabel}
+                            </span>
+                          ) : isSelected ? (
+                            <span style={{ fontSize: 12, fontWeight: 700, color: MINT[700] }}>✓</span>
+                          ) : undefined
                         }
                         onClick={() => {
                           setRegion({ nx: saved.nx, ny: saved.ny, label: saved.name });
