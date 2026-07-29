@@ -6,7 +6,7 @@ import type {
   Profile,
   WeatherPoint,
 } from './types';
-import { kstParts, nowKst, solarAltitude, toLatLon, yyyymmdd } from './geo';
+import { isValidGrid, kstParts, nowKst, solarAltitude, toLatLon, yyyymmdd } from './geo';
 import {
   compute,
   findBestWindow,
@@ -68,24 +68,17 @@ export default {
     if (url.pathname === '/health') return json({ ok: true });
     if (url.pathname !== '/judge') return err('NOT_FOUND', '없는 경로예요', 404);
 
-    // 파라미터 검증. get()은 누락 시 null → Number(null)=0(유한값)이라 그냥 두면 통과해버려요.
-    const nxRaw = url.searchParams.get('nx');
-    const nyRaw = url.searchParams.get('ny');
-    const nx = Number(nxRaw);
-    const ny = Number(nyRaw);
+    // 파라미터 검증. get()은 누락 시 null → Number(null)=0이라 그냥 두면 통과해버려요.
+    // isValidGrid가 누락(0)·비정수·NaN·격자 범위 밖을 전부 걸러내요 → 잘못된 좌표는 503이 아니라 400.
+    const nx = Number(url.searchParams.get('nx'));
+    const ny = Number(url.searchParams.get('ny'));
     const profile = url.searchParams.get('profile') as Profile;
     const areaNo = url.searchParams.get('areaNo');
     // 지역명(예: "고양시 일산동구"). 폭염특보를 이 구역으로 필터. 없으면 전국 폴백.
     const area = url.searchParams.get('area');
 
-    if (
-      nxRaw === null ||
-      nyRaw === null ||
-      !Number.isFinite(nx) ||
-      !Number.isFinite(ny) ||
-      !PROFILES.includes(profile)
-    ) {
-      return err('INVALID_PARAM', 'nx, ny, profile을 확인해 주세요', 400);
+    if (!isValidGrid(nx, ny) || !PROFILES.includes(profile)) {
+      return err('INVALID_PARAM', 'nx, ny(격자 범위), profile을 확인해 주세요', 400);
     }
 
     // stale 폴백 캐시. 성공 응답을 URL(nx·ny·profile·areaNo) 단위로 저장하고,

@@ -5,6 +5,7 @@ import { hazardGate, judge, sHeat, findBestWindow } from "../src/engine";
 import type { Computed } from "../src/engine";
 import type { Verdict } from "../src/types";
 import { extractAreaToken, heatLevelForArea, nationwideHeatLevel } from "../src/kma";
+import { isValidGrid } from "../src/geo";
 
 const ctx = () => createExecutionContext();
 
@@ -50,6 +51,42 @@ describe("routing & validation", () => {
 		const res = await worker.fetch(req("/judge?nx=57&profile=dog"), env, c);
 		await waitOnExecutionContext(c);
 		expect(res.status).toBe(400);
+	});
+
+	it("격자 범위 밖 → 400 (503 아님) — KMA로 새지 않아요", async () => {
+		const c = ctx();
+		const res = await worker.fetch(req("/judge?nx=9999&ny=9999&profile=dog"), env, c);
+		await waitOnExecutionContext(c);
+		expect(res.status).toBe(400);
+		expect(((await res.json()) as { error: string }).error).toBe("INVALID_PARAM");
+	});
+
+	it("음수 격자 → 400", async () => {
+		const c = ctx();
+		const res = await worker.fetch(req("/judge?nx=-5&ny=-5&profile=dog"), env, c);
+		await waitOnExecutionContext(c);
+		expect(res.status).toBe(400);
+	});
+});
+
+/* ────────── 격자 범위 검증 ────────── */
+describe("isValidGrid", () => {
+	it("유효 격자", () => {
+		expect(isValidGrid(57, 127)).toBe(true);
+		expect(isValidGrid(1, 1)).toBe(true);
+		expect(isValidGrid(149, 253)).toBe(true);
+	});
+
+	it("범위 밖 → false", () => {
+		expect(isValidGrid(0, 127)).toBe(false);
+		expect(isValidGrid(150, 127)).toBe(false);
+		expect(isValidGrid(57, 254)).toBe(false);
+		expect(isValidGrid(-5, -5)).toBe(false);
+	});
+
+	it("비정수·NaN → false", () => {
+		expect(isValidGrid(57.5, 127)).toBe(false);
+		expect(isValidGrid(NaN, 127)).toBe(false);
 	});
 });
 
