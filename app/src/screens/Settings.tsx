@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chip, ChipItem, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
-import { requestNotificationAgreement } from "@apps-in-toss/web-framework";
+import { getAnonymousKey, requestNotificationAgreement } from "@apps-in-toss/web-framework";
 import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useSavedRegions, MAX_SAVED_REGIONS } from "../hooks/useSavedRegions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
+import { subscribeNotification, unsubscribeNotification } from "../lib/judgeApi";
 import { ROUTES } from "../routes";
 
 // F8 설정. 앱빌더에서 파트너가 준 화면 코드를 기준으로 만들었어요(docs 목업 대신).
@@ -58,6 +59,19 @@ function requestAgreement(key: keyof NotificationPrefs): Promise<boolean> {
   });
 }
 
+// 서버가 "누가 동의했는지" 알아야 나중에 보낼 수 있어서, 동의/해제 시점마다 식별키를 새로
+// 받아요. 식별키를 못 받으면(브릿지 없음·비게임 미니앱 아님·구버전 등) null — 이때는 서버
+// 저장을 건너뛰고 로컬 토글만 반영해요.
+async function getAnonKey(): Promise<string | null> {
+  try {
+    const result = await getAnonymousKey();
+    if (result && typeof result === "object" && result.type === "HASH") return result.hash;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Settings() {
   useBackNavigation();
 
@@ -78,17 +92,35 @@ export default function Settings() {
   }, []);
 
   const togglePref = async (key: keyof NotificationPrefs) => {
+    const turningOn = !prefs[key];
+
     // 끄는 건 로컬 선호를 바로 끄면 되지만, 켜는 건 실제 동의 UI를 띄우고 사용자가 동의해야만
     // 켜져요. 거부하거나 동의 UI 자체를 못 띄우면(브릿지 없음 등) 켜지지 않아요.
-    if (!prefs[key]) {
+    if (turningOn) {
       const agreed = await requestAgreement(key);
       if (!agreed) return;
     }
+
     setPrefs((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
+      const next = { ...prev, [key]: turningOn };
       void setStoredJSON(STORAGE_KEYS.notificationPrefs, next);
       return next;
     });
+
+    // 동의는 이미 받았으니(또는 끄는 거니) 토글은 반영하고, 서버 구독 저장/해제는
+    // best-effort로 뒤에서 처리해요 — 실패해도 화면엔 영향 없어요.
+    const anonKey = await getAnonKey();
+    if (!anonKey) return;
+    if (turningOn) {
+      void subscribeNotification({
+        anonKey,
+        type: key,
+        profile,
+        regions: savedRegions.map((r) => ({ name: r.name, nx: r.nx, ny: r.ny })),
+      });
+    } else {
+      void unsubscribeNotification(anonKey, key);
+    }
   };
 
   const canAddRegion = savedRegions.length < MAX_SAVED_REGIONS;
