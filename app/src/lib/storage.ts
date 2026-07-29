@@ -29,4 +29,8 @@ export const STORAGE_KEYS = {
   recentSearch: "todayoutside:recentSearch",
   lastProfile: "todayoutside:lastProfile",
   notificationPrefs: "todayoutside:notificationPrefs",
+  // 새로고침·미니앱 재실행 시 F1(위치 권한 안내)로 돌아가지 않고 마지막으로 보던 지역의
+  // 홈으로 바로 이어지게 하는 용도예요. MemoryRouter라 라우팅 자체는 항상 F1부터 다시
+  // 시작하는데, Onboarding이 이 값을 읽어서 있으면 곧장 Home으로 넘겨요.
+  lastRegion: "todayoutside:lastRegion",
 } as const;

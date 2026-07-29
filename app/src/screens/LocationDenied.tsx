@@ -31,7 +31,7 @@ export default function LocationDenied() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { savedRegions } = useSavedRegions();
+  const { savedRegions, removeRegion } = useSavedRegions();
   const permissionGranted = Boolean((location.state as LocationDeniedNavState | null)?.permissionGranted);
 
   const handleFindOtherRegion = () => {
@@ -99,13 +99,35 @@ export default function LocationDenied() {
               <ListRow.Texts type="1RowTypeA" top={region.name} topProps={{ color: adaptive.grey800 }} />
             }
             right={
-              region.levelLabel ? (
-                <ListRow.Texts
-                  type="Right1RowTypeA"
-                  top={region.levelLabel}
-                  topProps={{ color: region.levelColor, fontWeight: "bold" }}
-                />
-              ) : undefined
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {region.levelLabel && (
+                  <ListRow.Texts
+                    type="Right1RowTypeA"
+                    top={region.levelLabel}
+                    topProps={{ color: region.levelColor, fontWeight: "bold" }}
+                  />
+                )}
+                <button
+                  type="button"
+                  aria-label={`${region.name} 저장 해제`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void removeRegion(region.name);
+                  }}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                    padding: 6,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: adaptive.grey400,
+                    lineHeight: 1,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             }
             verticalPadding="large"
             onClick={() => {

@@ -24,6 +24,7 @@ import { useLastProfile } from "../hooks/useLastProfile";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { requireRegionBySigungu } from "../lib/regions";
+import { setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { ROUTES } from "../routes";
 
 // F2·F3·F7 홈 — 탭으로 묶인 허브. 프로필만 바꿔도 위계와 문장이 달라져요.
@@ -66,10 +67,11 @@ interface MetricCard {
   estimated?: boolean;
 }
 
-function formatKstTime(iso: string): string {
-  const match = iso.match(/T(\d{2}):(\d{2})/);
-  if (!match) return "";
-  const hour = Number(match[1]);
+// 관측 시각(observedAt) 대신 "지금 몇 시인지"를 보여줘요 — 기상청 실황은 매시 40분에
+// 발표돼서 observedAt이 실제 지금 시각보다 최대 1시간 가까이 뒤처질 수 있는데(정상이에요,
+// docs/judge-api-spec.md 참고), 사용자가 보고 싶은 건 "지금" 기준이라 기기 시각을 써요.
+function formatKstTime(): string {
+  const hour = new Date().getHours();
   const period = hour < 12 ? "오전" : "오후";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
   return `${period} ${hour12}시`;
@@ -161,6 +163,12 @@ export default function Home() {
     },
   );
 
+  // 마지막으로 보던 지역을 저장해요 — 새로고침·미니앱 재실행 시 Onboarding이 이 값을 읽어서
+  // F1(위치 권한 안내)를 건너뛰고 곧장 이 지역의 홈으로 돌아올 수 있게 해요.
+  useEffect(() => {
+    void setStoredJSON(STORAGE_KEYS.lastRegion, region);
+  }, [region]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -249,11 +257,15 @@ export default function Home() {
                         key={saved.name}
                         right={
                           saved.levelLabel ? (
-                            <span style={{ fontSize: 12, fontWeight: 700, color: saved.levelColor }}>
-                              {isSelected ? `✓ ${saved.levelLabel}` : saved.levelLabel}
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: isSelected ? MINT[700] : saved.levelColor,
+                              }}
+                            >
+                              {saved.levelLabel}
                             </span>
-                          ) : isSelected ? (
-                            <span style={{ fontSize: 12, fontWeight: 700, color: MINT[700] }}>✓</span>
                           ) : undefined
                         }
                         onClick={() => {
@@ -261,7 +273,10 @@ export default function Home() {
                           setRegionSheetOpen(false);
                         }}
                       >
-                        {saved.name}
+                        {/* 체크 표시(✓) 대신 색으로만 선택 상태를 구분해요 — 이모지 느낌이 안 나게. */}
+                        <span style={{ color: isSelected ? MINT[700] : undefined, fontWeight: isSelected ? 700 : undefined }}>
+                          {saved.name}
+                        </span>
                       </Menu.DropdownItem>
                     );
                   })}
@@ -289,7 +304,7 @@ export default function Home() {
                 style={{ background: "none", border: "none", padding: 0, cursor: "pointer", outline: "none" }}
               >
                 <Paragraph.Text color={adaptive.grey500} fontWeight="bold">
-                  {`${formatKstTime(showData.observedAt)} · ${region.label} ▾`}
+                  {`${formatKstTime()} · ${region.label} ▾`}
                 </Paragraph.Text>
               </button>
             </Menu.Trigger>
@@ -317,9 +332,13 @@ export default function Home() {
                   padding: "12px 14px",
                 }}
               >
-                <Paragraph.Text color={LEVEL_COLORS[5]} fontWeight="bold">
-                  {showData.alert.text}
-                </Paragraph.Text>
+                {/* 서버가 "A. B" 형태(마침표+공백으로 두 문장 이어붙임)로 내려주는데,
+                    한 줄에 다 넣는 대신 문장별로 줄을 나누고 마침표는 빼서 보여줘요. */}
+                {showData.alert.text.split(". ").map((line, i) => (
+                  <Paragraph.Text key={i} color={LEVEL_COLORS[5]} fontWeight="bold">
+                    {line.replace(/\.$/, "")}
+                  </Paragraph.Text>
+                ))}
               </div>
             </div>
           )}

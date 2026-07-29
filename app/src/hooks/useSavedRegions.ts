@@ -75,5 +75,13 @@ export function useSavedRegions() {
     return setStoredJSON(STORAGE_KEYS.savedRegions, next);
   }, []);
 
-  return { savedRegions: regions, addRegion, loaded: isLoaded };
+  // 최대 3개까지만 저장되니, 다 찬 상태에서 다른 지역을 추가하려면 먼저 하나를 지울 수 있어야 해요.
+  const removeRegion = useCallback((name: string) => {
+    const next = savedRegions.filter((r) => r.name !== name);
+    savedRegions = next;
+    notify();
+    return setStoredJSON(STORAGE_KEYS.savedRegions, next);
+  }, []);
+
+  return { savedRegions: regions, addRegion, removeRegion, loaded: isLoaded };
 }

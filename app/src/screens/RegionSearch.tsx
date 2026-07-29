@@ -8,6 +8,7 @@ import { searchRegions } from "../lib/regions";
 import { searchRegionsRemote } from "../lib/judgeApi";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { useBackNavigation } from "../hooks/useBackNavigation";
+import { ROUTES } from "../routes";
 
 // F9 지역 검색·추가. docs/오늘나가도되나_디자인프레임.html F9 참고.
 // 설정(F8)의 '추가' 칩, 또는 F6(위치 권한 거부)의 '다른 지역 찾기'에서 진입해요.
@@ -121,14 +122,20 @@ export default function RegionSearch() {
     await addRegion({ name, nx: item.nx, ny: item.ny });
     setRecentSearch(item.name);
     void setStoredJSON(STORAGE_KEYS.recentSearch, item.name);
-    navigate(-1);
+    // 검색해서 지역을 골랐다는 건 그 지역이 궁금하다는 뜻이라, 이전 화면(F6·F8)으로 돌아가는
+    // 대신 바로 그 지역의 홈 화면으로 이동해요.
+    navigate(ROUTES.home, { state: { nx: item.nx, ny: item.ny, label: name } });
   };
 
   return (
     <>
-      <div style={{ padding: "14px 24px 4px" }}>
+      {/* SearchField 자체가 안쪽에 좌우 16px 패딩을 더 갖고 있어서(보이는 회색 알약이 화면 쪽
+          24px보다 더 좁아 보였어요), 탭바 때와 같은 방식으로 그 내부 패딩을 0으로 없애서
+          다른 화면 요소들과 같은 폭(24px 하나)을 쓰게 맞춰요. */}
+      <div className="region-search-field" style={{ padding: "14px 24px 4px" }}>
+        <style>{`.region-search-field .tds-mobile-search-field > div { padding-left: 0; padding-right: 0; }`}</style>
         <SearchField
-          placeholder="동 이름으로 검색"
+          placeholder="시/군/구·동 이름으로 검색"
           value={query}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
         />

@@ -32,7 +32,7 @@ export default function Settings() {
 
   const navigate = useNavigate();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions } = useSavedRegions();
+  const { savedRegions, removeRegion } = useSavedRegions();
   const [startTabSheetOpen, setStartTabSheetOpen] = useState(false);
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
 
@@ -139,7 +139,24 @@ export default function Settings() {
       <div style={{ padding: "0 16px" }}>
         <Chip kind="action" margin="small" wrap>
           {savedRegions.map((region) => (
-            <ChipItem key={region.name}>{region.name}</ChipItem>
+            <ChipItem
+              key={region.name}
+              right={
+                <span
+                  role="button"
+                  aria-label={`${region.name} 저장 해제`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void removeRegion(region.name);
+                  }}
+                  style={{ fontWeight: 700, color: adaptive.grey400 }}
+                >
+                  ✕
+                </span>
+              }
+            >
+              {region.name}
+            </ChipItem>
           ))}
           <ChipItem
             disabled={!canAddRegion}

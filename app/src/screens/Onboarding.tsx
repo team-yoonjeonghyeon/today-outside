@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Asset,
   Top,
   List,
   ListRow,
+  Loader,
   Paragraph,
   Button,
   Spacing,
@@ -16,7 +17,14 @@ import { PRIMARY_BUTTON_STYLE, GHOST_BUTTON_STYLE } from "../constants/theme";
 import { resolveMyLocationLabel } from "../lib/regions";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
+import { getStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { ROUTES } from "../routes";
+
+interface LastRegion {
+  nx: number;
+  ny: number;
+  label: string;
+}
 
 // 위치를 아직 몰라서 값이 없는 미리보기 3종 — Home의 지표 카드(노면온도·체감온도·자외선)와
 // 순서·구성을 맞춰요. 배열 하나로 관리해서 세 행이 아이콘 크기·줄 구성에서 서로 어긋나지
@@ -37,7 +45,26 @@ export default function Onboarding() {
 
   const [profile, setProfile] = useLastProfile();
   const [locating, setLocating] = useState(false);
+  // 새로고침·미니앱 재실행 시 매번 여기(F1)로 돌아오는 게 아니라, 마지막으로 보던 지역이
+  // 있으면 곧장 그 지역의 홈으로 넘어가요. 확인하는 동안 잠깐 로더만 보여줘요.
+  const [checkingLastRegion, setCheckingLastRegion] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+    getStoredJSON<LastRegion | null>(STORAGE_KEYS.lastRegion, null).then((last) => {
+      if (cancelled) return;
+      if (last) {
+        navigate(ROUTES.home, { state: last, replace: true });
+      } else {
+        setCheckingLastRegion(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleUseLocation = async () => {
     setLocating(true);
@@ -55,6 +82,14 @@ export default function Onboarding() {
   const handlePickRegion = () => {
     navigate(ROUTES.locationDenied);
   };
+
+  if (checkingLastRegion) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", padding: "64px 24px" }}>
+        <Loader size="medium" />
+      </div>
+    );
+  }
 
   return (
     <>
