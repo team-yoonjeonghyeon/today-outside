@@ -228,7 +228,5 @@ function HourRow({ slot, profile, isNow }: { slot: HourSlot; profile: Profile; i
   // 색으로 배경만 강조해요 — 등급 라벨(좋음/보통/주의 등)은 다른 행과 똑같이 그대로 보여줘요.
   if (!isNow) return row;
 
-  return (
-    <div style={{ background: MINT[50], borderRadius: 10, margin: "2px 0" }}>{row}</div>
-  );
+  return <div style={{ background: MINT[50] }}>{row}</div>;
 }
