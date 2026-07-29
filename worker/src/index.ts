@@ -75,6 +75,8 @@ export default {
     const ny = Number(nyRaw);
     const profile = url.searchParams.get('profile') as Profile;
     const areaNo = url.searchParams.get('areaNo');
+    // 지역명(예: "고양시 일산동구"). 폭염특보를 이 구역으로 필터. 없으면 전국 폴백.
+    const area = url.searchParams.get('area');
 
     if (
       nxRaw === null ||
@@ -104,7 +106,7 @@ export default {
         fetchVilage(env, nx, ny),
         fetchUvi(env, areaNo),
         fetchLightning(env, nx, ny),
-        fetchHeatWarning(env),
+        fetchHeatWarning(env, area),
       ]);
 
       const dateParts = { year: p.year, month: p.month, day: p.day };
