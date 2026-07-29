@@ -13,6 +13,8 @@ const STN_HQ = '108';
 
 export interface Env {
   KMA_API_KEY: string;
+  /** 카카오 로컬 API 키 (좌표→행정구역 역지오코딩). 없으면 역지오코딩 스킵 */
+  KAKAO_REST_KEY?: string;
 }
 
 /** 초단기실황 발표: 매시 40분. 40분 전이면 이전 시각 사용 */
