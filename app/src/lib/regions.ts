@@ -82,7 +82,9 @@ export interface MyLocationResult {
 export async function resolveMyLocationLabel(lat: number, lon: number): Promise<MyLocationResult> {
   try {
     const region = await fetchRegion(lat, lon);
-    return { nx: region.nx, ny: region.ny, label: `내 위치(${region.dong})` };
+    // region.label은 서버가 "구 동"으로 이미 조합해 준 값이에요(구가 없는 지역은 시로 폴백돼 있어요) —
+    // 프론트에서 dong만 따로 쓰면 세종시 같은 곳에서 부자연스러워질 수 있어 서버 값을 그대로 써요.
+    return { nx: region.nx, ny: region.ny, label: `내 위치(${region.label})` };
   } catch {
     const { nx, ny } = toGrid(lat, lon);
     const nearest = findNearestRegion(lat, lon);

@@ -112,6 +112,10 @@ export interface RegionLookup {
   sido: string;
   sigungu: string;
   dong: string;
+  // 서버가 이미 "구 동" 형태로 조합해 준 표시용 문자열이에요 — 세종시처럼 구가 없는 곳은
+  // sido로 자동 폴백돼 있어서, 프론트에서 직접 조합하지 않고 이 값을 그대로 써요.
+  label: string;
+  code: string;
   nx: number;
   ny: number;
 }
@@ -119,8 +123,8 @@ export interface RegionLookup {
 /**
  * 좌표 → 행정구역(카카오 역지오코딩, 동 단위까지). 중심점 최근접 방식(findNearestRegion)은
  * 경계 동네를 이웃 구로 잘못 잡을 수 있어서(공덕동→서대문구), GPS로 지역 라벨을 뽑을 땐 이 쪽이 더
- * 정확해요. 카카오 키 미설정·장애·미매칭이면 502 REGION_UNAVAILABLE — 그때만 호출부가
- * findNearestRegion으로 폴백해요 (docs/judge-api-spec.md GET /region 계약).
+ * 정확해요. 카카오 키 미설정·장애·미매칭이면 4xx/5xx로 실패해요 — 그때만 호출부가
+ * findNearestRegion으로 폴백해요.
  */
 export async function fetchRegion(lat: number, lon: number): Promise<RegionLookup> {
   const query = new URLSearchParams({ lat: String(lat), lon: String(lon) });
@@ -129,4 +133,31 @@ export async function fetchRegion(lat: number, lon: number): Promise<RegionLooku
     throw new Error(`region lookup failed: ${res.status}`);
   }
   return (await res.json()) as RegionLookup;
+}
+
+export interface RegionSearchResult {
+  sido: string;
+  sigungu: string;
+  dong: string;
+  label: string;
+  code: string;
+  lat: number;
+  lon: number;
+  nx: number;
+  ny: number;
+}
+
+/**
+ * 주소·동 이름으로 카카오 주소 검색(동 단위). 결과가 없으면 빈 배열 — 에러가 아니에요.
+ * 카카오 키 미설정·장애면 502 — 호출부가 data/regions.json 기반 구 단위 검색(searchRegions)으로
+ * 폴백해요 (정책: 위치 관련 기능이 부분 실패해도 검색 자체는 계속 동작해야 해요).
+ */
+export async function searchRegionsRemote(query: string): Promise<RegionSearchResult[]> {
+  const url = new URLSearchParams({ q: query });
+  const res = await fetch(`${API_BASE_URL}/search?${url.toString()}`);
+  if (!res.ok) {
+    throw new Error(`region search failed: ${res.status}`);
+  }
+  const body = (await res.json()) as { results: RegionSearchResult[] };
+  return body.results;
 }
