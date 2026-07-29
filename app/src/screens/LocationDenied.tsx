@@ -2,9 +2,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Asset, List, ListRow, Paragraph, Spacing, Text, TextButton } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
-import { MINT, SAVED_REGIONS } from "../constants/judge";
+import { MINT } from "../constants/judge";
+import { useSavedRegions } from "../hooks/useSavedRegions";
 import { toGrid } from "../lib/geo";
 import { ROUTES } from "../routes";
+
+const PIN_EMOJI = "https://static.toss.im/2d-icons/emoji/png/4x/u1F4CD.png";
 
 // F6 위치 권한 거부 · 지역 고르기. docs/오늘나가도되나_디자인프레임.html F6 참고.
 // 정책: 권한을 안 줘도 나머지 기능이 100% 같아야 해요 — 저장한 지역(최대 3개) 목록이 그 대안이에요.
@@ -20,6 +23,7 @@ interface LocationDeniedNavState {
 export default function LocationDenied() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { savedRegions } = useSavedRegions();
   const permissionGranted = Boolean((location.state as LocationDeniedNavState | null)?.permissionGranted);
 
   const handleFindOtherRegion = () => {
@@ -85,12 +89,12 @@ export default function LocationDenied() {
       </div>
 
       <List>
-        {SAVED_REGIONS.map((region) => (
+        {savedRegions.map((region) => (
           <ListRow
             key={region.name}
             left={
               <ListRow.AssetImage
-                src={region.emojiSrc}
+                src={PIN_EMOJI}
                 shape="squircle"
                 backgroundColor={adaptive.greyOpacity100}
                 size="xsmall"
@@ -100,11 +104,13 @@ export default function LocationDenied() {
               <ListRow.Texts type="1RowTypeA" top={region.name} topProps={{ color: adaptive.grey800 }} />
             }
             right={
-              <ListRow.Texts
-                type="Right1RowTypeA"
-                top={region.levelLabel}
-                topProps={{ color: region.levelColor, fontWeight: "bold" }}
-              />
+              region.levelLabel ? (
+                <ListRow.Texts
+                  type="Right1RowTypeA"
+                  top={region.levelLabel}
+                  topProps={{ color: region.levelColor, fontWeight: "bold" }}
+                />
+              ) : undefined
             }
             verticalPadding="large"
             onClick={() => {

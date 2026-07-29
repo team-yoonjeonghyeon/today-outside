@@ -68,48 +68,8 @@ export const PROFILE_META: Record<
 // 홈 탭바 표시 순서 (디자인프레임 F1/F2 tabbar 기준)
 export const PROFILE_ORDER: Profile[] = ["runner", "dog", "worker"];
 
-// 최초 진입 시 기본 탭. 재방문부터는 마지막으로 본 탭을 Storage에서 읽어요 (TODO).
+// 최초 진입 시 기본 탭. 재방문부터는 마지막으로 본 탭을 Storage에서 읽어요 (useLastProfile).
 export const DEFAULT_PROFILE: Profile = "dog";
-
-export interface SavedRegion {
-  emojiSrc: string;
-  name: string;
-  nx: number;
-  ny: number;
-  levelLabel: string;
-  levelColor: string;
-}
-
-// 저장된 지역(최대 3개) 목업 데이터. 홈의 지역 전환 바텀시트(F2·F3·F7)와 F6(위치 권한 거부) 화면이 같은 목록을 공유해요.
-// TODO: Storage에서 실제 저장된 지역을 읽어와요. data/ 지역·격자 매핑(기획서 data/ 폴더)이 아직 없어서
-// nx/ny는 기상청 동네예보 격자 좌표표 기준 기억나는 값을 임시로 넣었어요 — 강남구·해운대구 값은 검증 전이니
-// data/ 매핑이 생기면 반드시 그 값으로 교체해요. levelLabel도 실제로는 judge API 응답이어야 해요.
-export const SAVED_REGIONS: SavedRegion[] = [
-  {
-    emojiSrc: "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E0.png",
-    name: "고양시 일산동구",
-    nx: 57,
-    ny: 127,
-    levelLabel: "좋음",
-    levelColor: LEVEL_COLORS[1],
-  },
-  {
-    emojiSrc: "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png",
-    name: "서울 강남구",
-    nx: 61,
-    ny: 126,
-    levelLabel: "주의",
-    levelColor: LEVEL_COLORS[3],
-  },
-  {
-    emojiSrc: "https://static.toss.im/2d-icons/emoji/png/4x/u1F30A.png",
-    name: "부산 해운대구",
-    nx: 99,
-    ny: 75,
-    levelLabel: "보통",
-    levelColor: "#8B95A1",
-  },
-];
 
 // 홈(F2·F3·F7)의 지표 카드 3종 + F5(지표 상세)가 공유하는 지표 키.
 // 카드를 누르면 이 키를 들고 F5로 이동해요 (docs/오늘나가도되나_디자인프레임.html 화면 흐름도:

@@ -1,0 +1,31 @@
+/**
+ * 앱인토스 Storage(기기 저장소, localStorage 격) 접근 단일 창구.
+ * 문자열만 저장 가능해서 JSON.stringify/parse로 감싸요. 브릿지가 없는 환경(브라우저 프리뷰 등)이나
+ * 저장소 접근 자체가 실패하는 경우 모두 조용히 폴백하도록 try/catch로 방어해요 —
+ * useSettingsAccessoryButton에서 겪었듯 이 SDK 호출들은 동기적으로 throw할 수 있어요.
+ */
+import { Storage } from "@apps-in-toss/web-framework";
+
+export async function getStoredJSON<T>(key: string, fallback: T): Promise<T> {
+  try {
+    const raw = await Storage.getItem(key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function setStoredJSON<T>(key: string, value: T): Promise<void> {
+  try {
+    await Storage.setItem(key, JSON.stringify(value));
+  } catch {
+    // 브릿지 없음·저장 실패 — 조용히 무시해요. 이번 세션 동안은 메모리 상태로만 동작해요.
+  }
+}
+
+export const STORAGE_KEYS = {
+  savedRegions: "todayoutside:savedRegions",
+  recentSearch: "todayoutside:recentSearch",
+  lastProfile: "todayoutside:lastProfile",
+} as const;

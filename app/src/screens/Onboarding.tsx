@@ -12,9 +12,9 @@ import {
 import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
-import { DEFAULT_PROFILE, type Profile } from "../constants/judge";
 import { PRIMARY_BUTTON_STYLE, GHOST_BUTTON_STYLE } from "../constants/theme";
 import { toGrid } from "../lib/geo";
+import { useLastProfile } from "../hooks/useLastProfile";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { ROUTES } from "../routes";
 
@@ -26,8 +26,7 @@ import { ROUTES } from "../routes";
 export default function Onboarding() {
   useSettingsAccessoryButton();
 
-  // TODO: Storage에서 마지막으로 본 탭을 읽어와 초기값으로 사용 (재방문 시)
-  const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
+  const [profile, setProfile] = useLastProfile();
   const [locating, setLocating] = useState(false);
   const navigate = useNavigate();
 
