@@ -6,6 +6,7 @@ import { LEVEL_COLORS, METRIC_LABELS, MINT, type MetricKey, type Profile } from 
 import { fetchJudge, JudgeApiError, type JudgeResponse, type Metrics } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
+import { UV_ADVICE, uvTips, type UvLabel } from "../constants/uvAdvice";
 
 // F5 지표 상세 — 왜 이 판정인가. docs/오늘나가도되나_디자인프레임.html F5 참고.
 // 이 화면의 스타일(.sect-h/.calc/.calcrow/.surf/.notice/.badge)은 그 파일 <style> 블록의
@@ -158,9 +159,14 @@ export default function Details() {
   const { metrics } = data;
   const levelColor = LEVEL_COLORS[data.now.level];
   const isRoad = metricKey === "road";
+  const isUv = metricKey === "uv";
   const rows = calcRows(metricKey, metrics);
   const totalLabel = isRoad ? "아스팔트 표면" : METRIC_LABELS[metricKey];
   const surfaceMax = Math.max(...surfaceRows(metrics).map((r) => r.value));
+  // 서버 uviLabel이 기상청 5단계 표현과 정확히 일치할 때만 조언을 보여줘요 — 다른 문자열이면
+  // 지어내지 않고 그냥 섹션을 건너뛰어요 (정직성 원칙).
+  const uvAdvice = isUv ? UV_ADVICE[metrics.uviLabel as UvLabel] : undefined;
+  const uvTipList = isUv && uvAdvice ? uvTips(metrics.uviLabel as UvLabel, profile) : [];
 
   return (
     <>
@@ -224,6 +230,32 @@ export default function Details() {
         </div>
       </div>
 
+      {isUv && uvAdvice && (
+        <>
+          <SectionHeader>이렇게 준비해요</SectionHeader>
+
+          <div style={{ margin: "0 24px" }}>
+            <div style={{ background: MINT[50], border: `1px solid ${MINT.border}`, borderRadius: 12, padding: 14 }}>
+              <Paragraph.Text color={MINT[900]} fontWeight="bold" typography="t7">
+                {uvAdvice.headline}
+              </Paragraph.Text>
+              {uvTipList.length > 0 && (
+                <>
+                  <Spacing size={8} />
+                  {uvTipList.map((tip) => (
+                    <div key={tip} style={{ padding: "3px 0" }}>
+                      <Paragraph.Text color={MINT[900]} typography="t7">
+                        {`· ${tip}`}
+                      </Paragraph.Text>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
       {isRoad && (
         <>
           <SectionHeader>바닥 재질에 따라 달라져요</SectionHeader>
@@ -249,7 +281,7 @@ export default function Details() {
                   color={adaptive.grey900}
                   fontWeight="bold"
                   typography="t7"
-                  style={{ width: 46, textAlign: "right", fontVariantNumeric: "tabular-nums" }}
+                  style={{ width: 56, textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}
                 >
                   {`${row.value}℃`}
                 </Text>
