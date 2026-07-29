@@ -111,6 +111,23 @@ export const SAVED_REGIONS: SavedRegion[] = [
   },
 ];
 
+// 홈(F2·F3·F7)의 지표 카드 3종 + F5(지표 상세)가 공유하는 지표 키.
+// 카드를 누르면 이 키를 들고 F5로 이동해요 (docs/오늘나가도되나_디자인프레임.html 화면 흐름도:
+// "지표 카드 › (체감·자외선·노면) → F5 지표 상세(해당 지표)").
+export type MetricKey = "feelsLike" | "uv" | "road";
+
+export const METRIC_EMOJI: Record<MetricKey, string> = {
+  feelsLike: "https://static.toss.im/2d-icons/emoji/png/4x/u1F321.png",
+  uv: "https://static.toss.im/2d-icons/emoji/png/4x/u2600.png",
+  road: "https://static.toss.im/2d-icons/emoji/png/4x/u1F6E4.png",
+};
+
+export const METRIC_LABELS: Record<MetricKey, string> = {
+  feelsLike: "체감온도",
+  uv: "자외선",
+  road: "노면 온도",
+};
+
 // docs/judge-api-spec.md "uviLabel" 구간
 export function uviLabel(uvi: number): string {
   if (uvi < 3) return "낮음";
