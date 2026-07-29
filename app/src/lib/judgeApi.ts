@@ -4,7 +4,7 @@
  */
 import type { JudgeLevel, Profile } from "../constants/judge";
 
-const API_BASE_URL = "https://p3645aoqlgvlatlhgueesj4mt40ukhdc.lambda-url.ap-northeast-2.on.aws";
+export const API_BASE_URL = "https://p3645aoqlgvlatlhgueesj4mt40ukhdc.lambda-url.ap-northeast-2.on.aws";
 
 export interface Verdict {
   level: JudgeLevel;
@@ -160,4 +160,48 @@ export async function searchRegionsRemote(query: string): Promise<RegionSearchRe
   }
   const body = (await res.json()) as { results: RegionSearchResult[] };
   return body.results;
+}
+
+export type NotificationType = "morningBriefing" | "dangerAlert" | "walkTimeAlert";
+
+export interface NotificationRegion {
+  name: string;
+  nx: number;
+  ny: number;
+}
+
+/**
+ * 알림 동의(requestNotificationAgreement newAgreement) 뒤에 호출해서 식별키·지역·프로필을
+ * 서버에 저장해요. 실제 조건 판정·발송(스마트 발송)은 아직 서버에 없어요 — 지금은 "누가
+ * 동의했는지"만 기록해두는 단계예요. 실패해도 토글은 그냥 켜져요(이미 동의 UI는 진짜로
+ * 띄웠으니까요) — best-effort로 두고 조용히 넘어가요.
+ */
+export async function subscribeNotification(params: {
+  anonKey: string;
+  type: NotificationType;
+  profile: Profile;
+  regions: NotificationRegion[];
+}): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/notify/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function unsubscribeNotification(anonKey: string, type: NotificationType): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/notify/subscribe`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ anonKey, type }),
+    });
+  } catch {
+    // 실패해도 로컬 토글은 그냥 꺼져요 — 다음에 다시 껐다 켜면 서버 쪽도 정리돼요.
+  }
 }
