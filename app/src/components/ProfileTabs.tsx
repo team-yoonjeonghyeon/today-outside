@@ -13,13 +13,16 @@ interface ProfileTabsProps {
 // 홈(F2·F3·F7)과 F1(진입) 모두 이 탭바를 얹은 같은 셸을 써요 — 화면 흐름도 참고.
 // 라벨은 이모지 없이 텍스트만 써요 — 이모지를 붙이면 좁은 화면에서 두 줄로 줄바꿈됐어요.
 //
-// "반려견 산책"이 기본 크기(17px)에서 좁은 화면이면 두 줄로 줄바꿈됐어요. 글자를 너무 줄이는
-// 대신, 이 탭바를 감싸는 화면 쪽 좌우 패딩을 24px→8px로 줄여서 폭을 더 벌었어요(화면 쪽 padding
-// 참고) — 그래도 여유가 부족할 수 있어 15px로 살짝만 줄여요(기본 17px보다는 크게 안 티나요).
+// "반려견 산책"이 기본 크기(17px)에서 좁은 화면이면 두 줄로 줄바꿈됐어요. 15px로 살짝만
+// 줄여요(기본 17px보다는 크게 안 티나요). SegmentedControl.Item의 style prop은 숨겨진
+// <input>에만 적용되고 실제 보이는 글자는 내부 .tds-mobile-paragraph__text 스팬이 그려서,
+// 이 컴포넌트 스코프 CSS로 폰트를 줄여요.
 //
-// SegmentedControl.Item은 style prop을 받긴 하지만(InputHTMLAttributes 상속) 그건 숨겨진
-// <input>에만 적용되고, 실제 보이는 글자는 내부의 .tds-mobile-paragraph__text 스팬이 그려요 —
-// 그 스팬엔 prop으로 직접 손댈 방법이 없어서, 이 컴포넌트 안에서만 적용되는 스코프 CSS로 줄여요.
+// 이 탭바를 감싸는 화면 쪽 div는 항상 24px 좌우 패딩을 줘요 — 화면의 다른 제목·버튼·카드가
+// 전부 24px 패딩을 쓰는 것과 맞추기 위해서예요 (Home.tsx·Onboarding.tsx 둘 다 동일).
+// 근데 SegmentedControl 자체도 바로 안쪽에 24px 좌우 패딩을 자체적으로 갖고 있어서, 화면 쪽
+// 24px + 이 내부 24px이 겹쳐 이중으로 좁아졌어요(총 48px 인셋). 내부 쪽을 0으로 없애서
+// 실제 폭이 화면 쪽 24px 딱 하나만큼만 좁아지게 맞춰요.
 export function ProfileTabs({ value, onChange, disabled = false }: ProfileTabsProps) {
   return (
     <div
@@ -27,7 +30,10 @@ export function ProfileTabs({ value, onChange, disabled = false }: ProfileTabsPr
       aria-disabled={disabled}
       style={disabled ? { opacity: 0.45, pointerEvents: "none" } : undefined}
     >
-      <style>{`.profile-tabs .tds-mobile-paragraph__text { font-size: 15px; }`}</style>
+      <style>{`
+        .profile-tabs .tds-mobile-paragraph__text { font-size: 15px; }
+        .profile-tabs > div { padding-left: 0 !important; padding-right: 0 !important; }
+      `}</style>
       <SegmentedControl value={value} onChange={(v) => onChange(v as Profile)}>
         {PROFILE_ORDER.map((profile) => (
           <SegmentedControl.Item key={profile} value={profile}>

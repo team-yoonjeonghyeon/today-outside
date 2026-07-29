@@ -120,8 +120,10 @@ export default function Onboarding() {
         </Paragraph.Text>
       </div>
 
-      {/* 위치를 아직 몰라서 값이 없는 미리보기 — 권한을 주면 뭘 얻는지 결과를 먼저 예고해요. */}
-      <div style={{ opacity: 0.45 }}>
+      {/* 위치를 아직 몰라서 값이 없는 미리보기 — 권한을 주면 뭘 얻는지 결과를 먼저 예고해요.
+          List 자체엔 좌우 패딩이 없어서, 화면의 다른 요소(제목·버튼·탭바)랑 같은 24px을
+          여기서 직접 줘요 — 안 그러면 이 목록만 화면 끝까지 꽉 차서 더 넓어 보였어요. */}
+      <div style={{ opacity: 0.45, padding: "0 24px" }}>
         <List>
           {PREVIEW_METRICS.map((metric) => (
             <ListRow
