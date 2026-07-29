@@ -14,6 +14,7 @@
  */
 import { DynamoDBClient, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import worker from './index';
+import { toGrid } from './geo';
 
 const TABLE = process.env.CACHE_TABLE ?? '';
 const ddb = TABLE ? new DynamoDBClient({}) : null;
@@ -21,6 +22,8 @@ const ddb = TABLE ? new DynamoDBClient({}) : null;
 /* ────────────────────────────────── 캐시 정책 */
 
 const KMA_HOST = 'apis.data.go.kr';
+const KAKAO_HOST = 'dapi.kakao.com';
+const KAKAO_KEY = process.env.KAKAO_REST_KEY ?? '';
 
 /** 엔드포인트별 보관 시간(초). URL에 base_time이 들어있어 새 발표가 나오면 키가 저절로 바뀌어요. */
 function ttlSeconds(url: string): number {
@@ -170,18 +173,224 @@ interface LambdaResponse {
   body: string;
 }
 
+
+/* ────────────────────────────────── 좌표 → 행정구역 (카카오) */
+
+const CORS_HEADERS = {
+  'Content-Type': 'application/json; charset=utf-8',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+/** 좌표는 소수점 4자리(약 11m)로 반올림해서 캐시 적중률을 올려요. */
+const roundCoord = (v: number) => Math.round(v * 1e4) / 1e4;
+
+interface KakaoDoc {
+  region_type: 'B' | 'H';
+  region_1depth_name: string;
+  region_2depth_name: string;
+  region_3depth_name: string;
+  code: string;
+}
+
+async function handleRegion(lat: number, lon: number): Promise<LambdaResponse> {
+  if (!KAKAO_KEY) {
+    return {
+      statusCode: 500,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'NO_KAKAO_KEY', message: '카카오 키가 설정되지 않았어요' }),
+    };
+  }
+
+  const x = roundCoord(lon);
+  const y = roundCoord(lat);
+  const key = `kakao:coord2region:${x},${y}`;
+
+  let text = memoryGet(key);
+  if (text === null) {
+    const hit = await ddbGet(key);
+    if (hit) {
+      memorySet(key, hit);
+      text = hit.body;
+    }
+  }
+
+  if (text === null) {
+    const res = await originalFetch(
+      `https://${KAKAO_HOST}/v2/local/geo/coord2regioncode.json?x=${x}&y=${y}`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } }
+    );
+    text = await res.text();
+    if (res.ok) {
+      // 행정구역은 거의 안 바뀌니 30일 보관
+      const entry: Entry = { body: text, expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400 };
+      memorySet(key, entry);
+      await ddbPut(key, entry);
+    } else {
+      return {
+        statusCode: 502,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'KAKAO_UNAVAILABLE', message: '위치 정보를 가져오지 못했어요' }),
+      };
+    }
+  }
+
+  const docs: KakaoDoc[] = JSON.parse(text).documents ?? [];
+  // 법정동(B)을 우선 쓰고 없으면 행정동(H)
+  const doc = docs.find((d) => d.region_type === 'B') ?? docs[0];
+  if (!doc) {
+    return {
+      statusCode: 404,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'NOT_FOUND', message: '해당 좌표의 행정구역을 찾지 못했어요' }),
+    };
+  }
+
+  const { nx, ny } = toGrid(lat, lon);
+  return {
+    statusCode: 200,
+    headers: CORS_HEADERS,
+    body: JSON.stringify({
+      sido: doc.region_1depth_name,
+      sigungu: doc.region_2depth_name,
+      dong: doc.region_3depth_name,
+      // 화면 표시용. 구가 없는 시는 동까지 붙여야 구체적이에요.
+      label: doc.region_2depth_name
+        ? `${doc.region_2depth_name} ${doc.region_3depth_name}`.trim()
+        : doc.region_1depth_name,
+      code: doc.code,
+      nx,
+      ny,
+    }),
+  };
+}
+
+
+/** 주소 검색: 사용자가 친 글자로 전국 읍면동까지 찾아요. */
+async function handleSearch(q: string): Promise<LambdaResponse> {
+  if (!KAKAO_KEY) {
+    return { statusCode: 500, headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'NO_KAKAO_KEY', message: '카카오 키가 설정되지 않았어요' }) };
+  }
+
+  const key = `kakao:search:${q}`;
+  let text = memoryGet(key);
+  if (text === null) {
+    const hit = await ddbGet(key);
+    if (hit) { memorySet(key, hit); text = hit.body; }
+  }
+
+  if (text === null) {
+    const res = await originalFetch(
+      `https://${KAKAO_HOST}/v2/local/search/address.json?size=15&query=${encodeURIComponent(q)}`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } }
+    );
+    text = await res.text();
+    if (res.ok) {
+      // 주소는 거의 안 바뀌니 7일 보관. 같은 검색어가 반복될수록 이득이에요.
+      const entry: Entry = { body: text, expiresAt: Math.floor(Date.now() / 1000) + 7 * 86400 };
+      memorySet(key, entry);
+      await ddbPut(key, entry);
+    } else {
+      return { statusCode: 502, headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'KAKAO_UNAVAILABLE', message: '검색에 실패했어요' }) };
+    }
+  }
+
+  interface AddrDoc {
+    address_name: string;
+    x: string;
+    y: string;
+    address?: {
+      region_1depth_name: string;
+      region_2depth_name: string;
+      region_3depth_name: string;
+      b_code: string;
+    };
+  }
+
+  const docs: AddrDoc[] = JSON.parse(text).documents ?? [];
+  const seen = new Set<string>();
+  const results = [];
+
+  for (const d of docs) {
+    const a = d.address;
+    if (!a) continue;
+    const lat = Number(d.y);
+    const lon = Number(d.x);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+    // 같은 동이 도로명/지번으로 중복돼 나오는 걸 걸러요.
+    const dedupe = `${a.region_2depth_name}|${a.region_3depth_name}`;
+    if (seen.has(dedupe)) continue;
+    seen.add(dedupe);
+
+    results.push({
+      sido: a.region_1depth_name,
+      sigungu: a.region_2depth_name,
+      dong: a.region_3depth_name,
+      label: `${a.region_2depth_name} ${a.region_3depth_name}`.trim() || d.address_name,
+      code: a.b_code,
+      lat,
+      lon,
+      ...toGrid(lat, lon),
+    });
+  }
+
+  return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ results }) };
+}
+
 export const handler = async (event: FunctionUrlEvent): Promise<LambdaResponse> => {
   const method = event.requestContext?.http?.method ?? 'GET';
   const path = event.rawPath ?? '/';
   const qs = event.rawQueryString ? `?${event.rawQueryString}` : '';
 
+  if (method === 'OPTIONS') return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+
+  // 카카오를 쓰는 경로는 기존 워커에 없어서 여기서 직접 처리해요. index.ts는 그대로 둡니다.
+  if (path === '/search') {
+    const sp = new URLSearchParams(event.rawQueryString ?? '');
+    const q = (sp.get('q') ?? '').trim();
+    if (q.length < 2) {
+      return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ results: [] }) };
+    }
+    try {
+      return await handleSearch(q);
+    } catch (e) {
+      console.error('[search]', e);
+      return { statusCode: 502, headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'KAKAO_UNAVAILABLE', message: '검색에 실패했어요' }) };
+    }
+  }
+
+  if (path === '/region') {
+    const sp = new URLSearchParams(event.rawQueryString ?? '');
+    const lat = Number(sp.get('lat'));
+    const lon = Number(sp.get('lon'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'INVALID_PARAM', message: 'lat, lon을 확인해 주세요' }),
+      };
+    }
+    try {
+      return await handleRegion(lat, lon);
+    } catch (e) {
+      console.error('[region]', e);
+      return {
+        statusCode: 502,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'KAKAO_UNAVAILABLE', message: '위치 정보를 가져오지 못했어요' }),
+      };
+    }
+  }
+
   // 호스트는 아무거나 상관없어요. index.ts는 pathname과 searchParams만 봐요.
   const request = new Request(`https://lambda.local${path}${qs}`, { method });
 
-  const env = {
-    KMA_API_KEY: process.env.KMA_API_KEY ?? '',
-    KAKAO_REST_KEY: process.env.KAKAO_REST_KEY, // /region 역지오코딩용. 없으면 502 → 프론트 폴백
-  } as never;
+  const env = { KMA_API_KEY: process.env.KMA_API_KEY ?? '' } as never;
 
   // Worker의 waitUntil은 "응답 뒤에 마저 처리"인데 Lambda는 응답과 동시에 얼어붙어요.
   // 그래서 끝까지 기다립니다.
