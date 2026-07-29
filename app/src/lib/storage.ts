@@ -28,4 +28,5 @@ export const STORAGE_KEYS = {
   savedRegions: "todayoutside:savedRegions",
   recentSearch: "todayoutside:recentSearch",
   lastProfile: "todayoutside:lastProfile",
+  notificationPrefs: "todayoutside:notificationPrefs",
 } as const;

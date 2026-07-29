@@ -4,6 +4,7 @@ import { Paragraph, Result, Skeleton, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { LEVEL_COLORS, METRIC_LABELS, MINT, type MetricKey, type Profile } from "../constants/judge";
 import { fetchJudge, JudgeApiError, type JudgeResponse, type Metrics } from "../lib/judgeApi";
+import { useBackNavigation } from "../hooks/useBackNavigation";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 
 // F5 지표 상세 — 왜 이 판정인가. docs/오늘나가도되나_디자인프레임.html F5 참고.
@@ -89,6 +90,8 @@ function SectionHeader({ children }: { children: string }) {
 }
 
 export default function Details() {
+  useBackNavigation();
+
   const location = useLocation();
   const state = location.state as DetailsNavState | null;
 
@@ -134,7 +137,7 @@ export default function Details() {
 
   if (loading && !data) {
     return (
-      <div style={{ padding: "16px 24px" }}>
+      <div style={{ padding: "16px 24px", overflow: "hidden" }}>
         <Skeleton pattern="topList" repeatLastItemCount={3} />
       </div>
     );
