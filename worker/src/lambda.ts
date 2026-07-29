@@ -178,7 +178,10 @@ export const handler = async (event: FunctionUrlEvent): Promise<LambdaResponse> 
   // 호스트는 아무거나 상관없어요. index.ts는 pathname과 searchParams만 봐요.
   const request = new Request(`https://lambda.local${path}${qs}`, { method });
 
-  const env = { KMA_API_KEY: process.env.KMA_API_KEY ?? '' } as never;
+  const env = {
+    KMA_API_KEY: process.env.KMA_API_KEY ?? '',
+    KAKAO_REST_KEY: process.env.KAKAO_REST_KEY, // /region 역지오코딩용. 없으면 502 → 프론트 폴백
+  } as never;
 
   // Worker의 waitUntil은 "응답 뒤에 마저 처리"인데 Lambda는 응답과 동시에 얼어붙어요.
   // 그래서 끝까지 기다립니다.
