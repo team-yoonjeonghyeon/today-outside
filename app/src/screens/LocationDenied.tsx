@@ -6,6 +6,7 @@ import { MINT } from "../constants/judge";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { resolveMyLocationLabel } from "../lib/regions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
+import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
 import { ROUTES } from "../routes";
 
 // 앱빌더 F6("지역선택화면") 목업 기준 — 지도 위에 핀이 있는 아이콘이에요. 디자인프레임 html은
@@ -28,6 +29,7 @@ interface LocationDeniedNavState {
 
 export default function LocationDenied() {
   useBackNavigation();
+  useDisablePullToRefresh();
 
   const navigate = useNavigate();
   const location = useLocation();

@@ -5,6 +5,7 @@ import { adaptive } from "@toss/tds-colors";
 import { LEVEL_COLORS, METRIC_LABELS, MINT, type MetricKey, type Profile } from "../constants/judge";
 import { fetchJudge, JudgeApiError, type JudgeResponse, type Metrics } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
+import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { UV_ADVICE, uvTips, type UvLabel } from "../constants/uvAdvice";
 import { FEELS_ADVICE, feelsTips, feelsLikeBand } from "../constants/feelsLikeAdvice";
@@ -93,6 +94,7 @@ function SectionHeader({ children }: { children: string }) {
 
 export default function Details() {
   useBackNavigation();
+  useDisablePullToRefresh();
 
   const location = useLocation();
   const state = location.state as DetailsNavState | null;
