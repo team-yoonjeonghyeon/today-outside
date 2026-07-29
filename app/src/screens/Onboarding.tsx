@@ -19,6 +19,15 @@ import { useLastProfile } from "../hooks/useLastProfile";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { ROUTES } from "../routes";
 
+// 위치를 아직 몰라서 값이 없는 미리보기 3종 — Home의 지표 카드(노면온도·체감온도·자외선)와
+// 순서·구성을 맞춰요. 배열 하나로 관리해서 세 행이 아이콘 크기·줄 구성에서 서로 어긋나지
+// 않게 해요 (전엔 행마다 따로 적어서 노면온도만 3줄, 체감온도는 2줄로 어긋났던 적이 있어요).
+const PREVIEW_METRICS: { key: string; icon: string; label: string }[] = [
+  { key: "road", icon: "https://static.toss.im/2d-icons/emoji/png/4x/u1F6E4.png", label: "노면 온도" },
+  { key: "feelsLike", icon: "https://static.toss.im/2d-icons/emoji/png/4x/u1F321.png", label: "체감온도" },
+  { key: "uv", icon: "https://static.toss.im/2d-icons/emoji/png/4x/u2600.png", label: "자외선" },
+];
+
 // F1 최초 진입 · 위치 확인. docs/오늘나가도되나_디자인프레임.html F1 참고.
 // 프로필별 배타적 선택 화면은 없앴어요 — 홈과 같은 탭바 셸을 쓰고, 판정 카드 자리에 위치 권한 카드가 와요.
 // 자체 뒤로가기·설정 버튼은 화면 안에 만들지 않아요 — 내비게이션 바는 앱인토스가 제공해요 (기획서 §7-2).
@@ -113,51 +122,34 @@ export default function Onboarding() {
         </Paragraph.Text>
       </div>
 
-      {/* 위치를 아직 몰라서 값이 없는 미리보기 — 권한을 주면 뭘 얻는지 결과를 먼저 예고해요 */}
+      {/* 위치를 아직 몰라서 값이 없는 미리보기 — 권한을 주면 뭘 얻는지 결과를 먼저 예고해요. */}
       <div style={{ opacity: 0.45 }}>
         <List>
-          <ListRow
-            left={
-              <ListRow.AssetImage
-                src="https://static.toss.im/2d-icons/emoji/png/4x/u1F6E4.png"
-                shape="squircle"
-                backgroundColor={adaptive.greyOpacity100}
-                size="small"
-              />
-            }
-            contents={
-              <ListRow.Texts
-                type="3RowTypeD"
-                top="노면 온도"
-                topProps={{ color: adaptive.grey600 }}
-                middle={<Paragraph.Text>-- ℃</Paragraph.Text>}
-                middleProps={{ color: adaptive.grey800, fontWeight: "bold" }}
-                bottom="위치를 확인하면 보여드려요"
-                bottomProps={{ color: adaptive.grey600 }}
-              />
-            }
-            verticalPadding="large"
-          />
-          <ListRow
-            left={
-              <ListRow.AssetImage
-                src="https://static.toss.im/2d-icons/emoji/png/4x/u1F321.png"
-                shape="squircle"
-                backgroundColor={adaptive.greyOpacity100}
-                size="xsmall"
-              />
-            }
-            contents={
-              <ListRow.Texts
-                type="2RowTypeA"
-                top="체감온도"
-                topProps={{ color: adaptive.grey600 }}
-                bottom={<Paragraph.Text>-- ℃</Paragraph.Text>}
-                bottomProps={{ color: adaptive.grey800, fontWeight: "bold" }}
-              />
-            }
-            verticalPadding="large"
-          />
+          {PREVIEW_METRICS.map((metric) => (
+            <ListRow
+              key={metric.key}
+              left={
+                <ListRow.AssetImage
+                  src={metric.icon}
+                  shape="squircle"
+                  backgroundColor={adaptive.greyOpacity100}
+                  size="small"
+                />
+              }
+              contents={
+                <ListRow.Texts
+                  type="3RowTypeD"
+                  top={metric.label}
+                  topProps={{ color: adaptive.grey600 }}
+                  middle={<Paragraph.Text>--</Paragraph.Text>}
+                  middleProps={{ color: adaptive.grey800, fontWeight: "bold" }}
+                  bottom="위치를 확인하면 보여드려요"
+                  bottomProps={{ color: adaptive.grey600 }}
+                />
+              }
+              verticalPadding="large"
+            />
+          ))}
         </List>
       </div>
     </>

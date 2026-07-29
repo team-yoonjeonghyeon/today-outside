@@ -77,6 +77,7 @@ export default function Settings() {
               {PROFILE_ORDER.map((p) => (
                 <Menu.DropdownCheckItem
                   key={p}
+                  left={<span>{PROFILE_META[p].emoji}</span>}
                   checked={profile === p}
                   onCheckedChange={(checked) => {
                     if (checked) setProfile(p);
@@ -90,6 +91,11 @@ export default function Settings() {
           }
         >
           <ListRow
+            left={
+              <ListRow.AssetText shape="squircle" size="xsmall" backgroundColor={adaptive.greyOpacity100}>
+                {PROFILE_META[profile].emoji}
+              </ListRow.AssetText>
+            }
             contents={
               <ListRow.Texts
                 type="2RowTypeA"
