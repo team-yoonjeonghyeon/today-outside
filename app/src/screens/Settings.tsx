@@ -67,72 +67,75 @@ export default function Settings() {
       </div>
 
       <List>
-        <Menu.Trigger
-          open={startTabSheetOpen}
-          onOpen={() => setStartTabSheetOpen(true)}
-          onClose={() => setStartTabSheetOpen(false)}
-          placement="bottom"
-          dropdown={
-            <Menu.Dropdown header={<Menu.Header>시작 탭 고르기</Menu.Header>}>
-              {PROFILE_ORDER.map((p) => {
-                const isSelected = profile === p;
-                return (
-                  // Menu.DropdownCheckItem(checked/onCheckedChange)은 클릭해도 선택이 안 바뀌는
-                  // 버그가 있어서, Home.tsx 지역 드롭다운이랑 같은 방식(DropdownItem + onClick)으로
-                  // 바꿨어요 — 선택 표시는 체크박스 대신 텍스트 색으로만 줘요.
-                  <Menu.DropdownItem
-                    key={p}
-                    left={
-                      <img
-                        src={PROFILE_META[p].icon}
-                        alt=""
-                        width={20}
-                        height={20}
-                        style={{ borderRadius: 6, display: "block" }}
-                      />
-                    }
-                    onClick={() => {
-                      setProfile(p);
-                      setStartTabSheetOpen(false);
-                    }}
-                  >
-                    <span style={{ color: isSelected ? MINT[700] : undefined, fontWeight: isSelected ? 700 : undefined }}>
-                      {PROFILE_META[p].label}
-                    </span>
-                  </Menu.DropdownItem>
-                );
-              })}
-            </Menu.Dropdown>
-          }
-        >
-          {/* Menu.Trigger가 자식을 내용 크기만큼만 감싸서(inline-block 계열), ListRow를 바로
-              넣으면 화면 전체 너비를 못 채워 화살표(>)가 오른쪽 끝이 아니라 글자 바로 뒤에
-              붙어 보였어요. width:100%로 강제해서 다른 행들과 같은 폭이 되게 해요. */}
-          <div style={{ width: "100%" }}>
-            <ListRow
-              left={
-                <ListRow.AssetImage
-                  src={PROFILE_META[profile].icon}
-                  shape="squircle"
-                  backgroundColor={adaptive.greyOpacity100}
-                  size="xsmall"
-                />
-              }
-              contents={
-                <ListRow.Texts
-                  type="2RowTypeA"
-                  top={PROFILE_META[profile].label}
-                  topProps={{ color: adaptive.grey800, fontWeight: "bold" }}
-                  bottom="앱을 열면 이 탭부터 보여줘요"
-                  bottomProps={{ color: adaptive.grey600 }}
-                />
-              }
-              withArrow
-              verticalPadding="large"
-              onClick={() => setStartTabSheetOpen(true)}
-            />
-          </div>
-        </Menu.Trigger>
+        <div className="settings-start-tab-trigger">
+          {/* Menu.Trigger의 실제 루트 엘리먼트가 inline-block이라 내용 크기만큼만 차지해요.
+              그래서 화살표(>)가 데이터 출처 같은 일반 ListRow보다 훨씬 왼쪽에 붙어 보였어요.
+              Menu.Trigger 바로 바깥에서 그 루트를 block+100%로 강제해요. */}
+          <style>{`.settings-start-tab-trigger > div { display: block; width: 100%; }`}</style>
+          <Menu.Trigger
+            open={startTabSheetOpen}
+            onOpen={() => setStartTabSheetOpen(true)}
+            onClose={() => setStartTabSheetOpen(false)}
+            placement="bottom"
+            dropdown={
+              <Menu.Dropdown header={<Menu.Header>시작 탭 고르기</Menu.Header>}>
+                {PROFILE_ORDER.map((p) => {
+                  const isSelected = profile === p;
+                  return (
+                    // Menu.DropdownCheckItem(checked/onCheckedChange)은 클릭해도 선택이 안 바뀌는
+                    // 버그가 있어서, Home.tsx 지역 드롭다운이랑 같은 방식(DropdownItem + onClick)으로
+                    // 바꿨어요 — 선택 표시는 체크박스 대신 텍스트 색으로만 줘요.
+                    <Menu.DropdownItem
+                      key={p}
+                      left={
+                        <img
+                          src={PROFILE_META[p].icon}
+                          alt=""
+                          width={20}
+                          height={20}
+                          style={{ borderRadius: 6, display: "block" }}
+                        />
+                      }
+                      onClick={() => {
+                        setProfile(p);
+                        setStartTabSheetOpen(false);
+                      }}
+                    >
+                      <span style={{ color: isSelected ? MINT[700] : undefined, fontWeight: isSelected ? 700 : undefined }}>
+                        {PROFILE_META[p].label}
+                      </span>
+                    </Menu.DropdownItem>
+                  );
+                })}
+              </Menu.Dropdown>
+            }
+          >
+            <div style={{ width: "100%" }}>
+              <ListRow
+                left={
+                  <ListRow.AssetImage
+                    src={PROFILE_META[profile].icon}
+                    shape="squircle"
+                    backgroundColor={adaptive.greyOpacity100}
+                    size="xsmall"
+                  />
+                }
+                contents={
+                  <ListRow.Texts
+                    type="2RowTypeA"
+                    top={PROFILE_META[profile].label}
+                    topProps={{ color: adaptive.grey800, fontWeight: "bold" }}
+                    bottom="앱을 열면 이 탭부터 보여줘요"
+                    bottomProps={{ color: adaptive.grey600 }}
+                  />
+                }
+                withArrow
+                verticalPadding="large"
+                onClick={() => setStartTabSheetOpen(true)}
+              />
+            </div>
+          </Menu.Trigger>
+        </div>
       </List>
 
       <Spacing size={20} />
@@ -156,7 +159,14 @@ export default function Settings() {
                     e.stopPropagation();
                     void removeRegion(region.name);
                   }}
-                  style={{ fontWeight: 700, color: adaptive.grey400, marginLeft: 6 }}
+                  style={{
+                    fontWeight: 700,
+                    color: adaptive.grey400,
+                    marginLeft: 6,
+                    padding: "4px 6px",
+                    lineHeight: 1,
+                    cursor: "pointer",
+                  }}
                 >
                   ✕
                 </span>
