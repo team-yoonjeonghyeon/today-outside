@@ -6,6 +6,7 @@ import { MINT } from "../constants/judge";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { searchRegions, type RegionEntry } from "../lib/regions";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
+import { useBackNavigation } from "../hooks/useBackNavigation";
 
 // F9 지역 검색·추가. docs/오늘나가도되나_디자인프레임.html F9 참고.
 // 설정(F8)의 '추가' 칩, 또는 F6(위치 권한 거부)의 '다른 지역 찾기'에서 진입해요.
@@ -17,6 +18,8 @@ const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
 const CLOCK_EMOJI = "https://static.toss.im/2d-icons/emoji/png/4x/u1F557.png";
 
 export default function RegionSearch() {
+  useBackNavigation();
+
   const navigate = useNavigate();
   const { addRegion } = useSavedRegions();
   const [query, setQuery] = useState("");
@@ -34,8 +37,10 @@ export default function RegionSearch() {
 
   const results = useMemo(() => searchRegions(query), [query]);
 
-  const handleAddRegion = (region: RegionEntry) => {
-    addRegion({ name: `${region.sido} ${region.sigungu}`, nx: region.nx, ny: region.ny });
+  const handleAddRegion = async (region: RegionEntry) => {
+    // Storage 쓰기가 끝난 뒤에 navigate해야, 돌아간 화면이 다시 마운트되며 저장된 지역을
+    // 곧바로 읽어와요 (안 그러면 방금 추가한 지역이 안 보이는 레이스가 생겨요).
+    await addRegion({ name: `${region.sido} ${region.sigungu}`, nx: region.nx, ny: region.ny });
     setRecentSearch(region.sigungu);
     void setStoredJSON(STORAGE_KEYS.recentSearch, region.sigungu);
     navigate(-1);
