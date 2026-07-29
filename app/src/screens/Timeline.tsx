@@ -11,6 +11,7 @@ import {
 } from "../constants/judge";
 import { fetchJudge, JudgeApiError, type HourSlot, type JudgeResponse } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
+import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
 
 // F4 시간창 — 오늘 언제 나가나. docs/오늘나가도되나_디자인프레임.html F4 참고.
 // 18칸 스트립(06~23시). '보통 이하'가 이어지는 구간을 bestWindow로 서버가 골라줘요.
@@ -37,6 +38,7 @@ function barHeightPercent(level: number): number {
 
 export default function Timeline() {
   useBackNavigation();
+  useDisablePullToRefresh();
 
   const location = useLocation();
   const state = location.state as TimelineNavState | null;
