@@ -60,9 +60,7 @@ export default function Onboarding() {
 
   return (
     <>
-      {/* 다른 섹션은 24px 패딩을 쓰지만, 탭바는 3칸 라벨이 줄바꿈되지 않게 폭을 최대한
-          벌려야 해서 8px로 좁혀요 (ProfileTabs.tsx 주석 참고). */}
-      <div style={{ padding: "6px 8px 0" }}>
+      <div style={{ padding: "6px 24px 0" }}>
         <ProfileTabs value={profile} onChange={setProfile} disabled />
       </div>
 
