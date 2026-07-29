@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chip, ChipItem, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
+import { requestNotificationAgreement } from "@apps-in-toss/web-framework";
 import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useSavedRegions, MAX_SAVED_REGIONS } from "../hooks/useSavedRegions";
@@ -18,14 +19,44 @@ interface NotificationPrefs {
   walkTimeAlert: boolean;
 }
 
-// 실제로 알림을 보내는 백엔드(예약 발송)가 아직 없어서 전부 꺼진 상태로 시작해요 — 마치 이미
-// 구독 중인 것처럼 기본값을 켜두면 실제로는 아무것도 오지 않는데 왔다고 오해할 수 있어요
-// (정직성 원칙). 토글은 지금은 "받고 싶어요"라는 선호만 저장해요.
+// 앱인토스 콘솔 > 스마트 발송 > 알림 동의문에 등록해 둔 발송 코드예요.
+const NOTIFICATION_TEMPLATE_CODES: Record<keyof NotificationPrefs, string> = {
+  morningBriefing: "today-outside-morning-brief",
+  dangerAlert: "today-outside-danger-alert",
+  walkTimeAlert: "today-outside-walk-time",
+};
+
+// 실제로 알림을 예약 발송하는 서버 스케줄러(워커 쪽 크론 + 스마트 발송 API 호출)는 아직 없어요.
+// 그래서 토글을 켜도 지금은 "동의는 받았지만 아직 아무것도 오지 않는" 상태예요 — 다만 그 동의
+// 자체는 requestNotificationAgreement로 실제 동의 UI를 띄워서 진짜로 받아요(정직성 원칙:
+// 동의 UI도 안 띄우면서 켜진 것처럼 보이면 안 돼요). 기본값은 전부 꺼진 상태로 시작해요.
 const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   morningBriefing: false,
   dangerAlert: false,
   walkTimeAlert: false,
 };
+
+// 알림 동의 UI를 띄우고, 사용자가 실제로 동의했을 때만 true를 돌려줘요.
+// 브릿지가 없는 환경(브라우저 프리뷰 등)에서는 동기적으로 throw할 수 있어서 try/catch로 감싸요.
+function requestAgreement(key: keyof NotificationPrefs): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const cleanup = requestNotificationAgreement({
+        options: { templateCode: NOTIFICATION_TEMPLATE_CODES[key] },
+        onEvent: ({ type }) => {
+          cleanup();
+          resolve(type !== "agreementRejected");
+        },
+        onError: () => {
+          cleanup();
+          resolve(false);
+        },
+      });
+    } catch {
+      resolve(false);
+    }
+  });
+}
 
 export default function Settings() {
   useBackNavigation();
@@ -46,7 +77,13 @@ export default function Settings() {
     };
   }, []);
 
-  const togglePref = (key: keyof NotificationPrefs) => {
+  const togglePref = async (key: keyof NotificationPrefs) => {
+    // 끄는 건 로컬 선호를 바로 끄면 되지만, 켜는 건 실제 동의 UI를 띄우고 사용자가 동의해야만
+    // 켜져요. 거부하거나 동의 UI 자체를 못 띄우면(브릿지 없음 등) 켜지지 않아요.
+    if (!prefs[key]) {
+      const agreed = await requestAgreement(key);
+      if (!agreed) return;
+    }
     setPrefs((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       void setStoredJSON(STORAGE_KEYS.notificationPrefs, next);
@@ -222,7 +259,7 @@ export default function Settings() {
             />
           }
           right={
-            <Switch checked={prefs.morningBriefing} onChange={() => togglePref("morningBriefing")} />
+            <Switch checked={prefs.morningBriefing} onChange={() => void togglePref("morningBriefing")} />
           }
           verticalPadding="large"
         />
@@ -244,7 +281,7 @@ export default function Settings() {
               bottomProps={{ color: adaptive.grey600 }}
             />
           }
-          right={<Switch checked={prefs.dangerAlert} onChange={() => togglePref("dangerAlert")} />}
+          right={<Switch checked={prefs.dangerAlert} onChange={() => void togglePref("dangerAlert")} />}
           verticalPadding="large"
         />
         <ListRow
@@ -265,7 +302,7 @@ export default function Settings() {
               bottomProps={{ color: adaptive.grey600 }}
             />
           }
-          right={<Switch checked={prefs.walkTimeAlert} onChange={() => togglePref("walkTimeAlert")} />}
+          right={<Switch checked={prefs.walkTimeAlert} onChange={() => void togglePref("walkTimeAlert")} />}
           verticalPadding="large"
         />
       </List>
