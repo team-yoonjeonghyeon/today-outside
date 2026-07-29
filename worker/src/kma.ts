@@ -6,6 +6,10 @@ const VILAGE = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVil
 const UV = 'https://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getUVIdxV4';
 // 기상특보 조회서비스. 키에 이 서비스가 활성화돼 있어야 해요 (아니면 XML/에러 → 안전하게 null 폴백)
 const WARN = 'https://apis.data.go.kr/1360000/WthrWrnInfoService/getWthrWrnList';
+// 특보 통보문 상세. 본청(108) 통보문 t6에 전국 폭염 구역이 등급별로 나열돼요.
+const WARN_MSG = 'https://apis.data.go.kr/1360000/WthrWrnInfoService/getWthrWrnMsg';
+// 본청(전국 통보) 지점번호
+const STN_HQ = '108';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -218,30 +222,93 @@ export async function fetchLightning(env: Env, nx: number, ny: number): Promise<
   }
 }
 
+export type HeatLevel = '중대경보' | '경보' | '주의보';
+
 /**
- * 폭염특보. 기상특보 조회서비스에서 발효 중인 특보 목록을 받아 '폭염'을 찾아요.
- * 이 서비스가 키에 없거나 응답이 XML/에러면 안전하게 null을 돌려줘요 (배너 미노출).
- * stnId 없이 전국 목록을 받아 텍스트에 '폭염'이 있으면 노출 — 지역 필터는 areaNo/stnId 매핑이 생기면 정교화.
+ * 지역명("고양시 일산동구", "서울 강남구")에서 특보 구역 매칭 토큰을 뽑아요.
+ * 통보문 t6는 시/군 단위("경기도(고양, ...)", "부산")로 나열되므로 첫 어절의 시/군/구 접미사를 떼요.
+ * 예) "고양시 일산동구" → "고양", "서울 강남구" → "서울", "부산 해운대구" → "부산"
  */
-export async function fetchHeatWarning(env: Env): Promise<{ type: string; text: string } | null> {
+export function extractAreaToken(area: string): string {
+  const words = area.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '';
+  const strip = (w: string) =>
+    w.replace(/(특별자치도|특별자치시|특별시|광역시|자치도|시|군|구|도)$/u, '') || w;
+  // "강원도 평창", "경기도 고양시"처럼 도-접두면 t6는 시/군 단위로 나열되므로 두 번째 어절을 써요.
+  // "서울 강남구", "부산 해운대구", "고양시 일산동구"는 첫 어절(광역시/시)이 곧 t6 키예요.
+  if (/도$/u.test(words[0]) && words.length >= 2) return strip(words[1]);
+  return strip(words[0]);
+}
+
+/**
+ * 본청(108) 통보문 t6에서 특정 구역의 폭염특보 등급을 판정해요.
+ * t6 형식: "o 폭염중대경보 : ...\no 폭염경보 : 경기도(고양, ...), 서울(...)\no 폭염주의보 : ..."
+ * 중대경보 > 경보 > 주의보 우선. 어디에도 없으면 null.
+ */
+export function heatLevelForArea(t6: string, token: string): HeatLevel | null {
+  if (!token) return null;
+  const clause = (label: string): string => {
+    const m = t6.match(new RegExp(`폭염${label}\\s*:([^\\n]*)`, 'u'));
+    return m ? m[1] : '';
+  };
+  if (clause('중대경보').includes(token)) return '중대경보';
+  if (clause('경보').includes(token)) return '경보';
+  if (clause('주의보').includes(token)) return '주의보';
+  return null;
+}
+
+/** 전국(area 미지정)에 발효 중인 최고 등급 폭염특보. 하위호환 폴백용. */
+export function nationwideHeatLevel(t6: string): HeatLevel | null {
+  const has = (label: string) => new RegExp(`폭염${label}\\s*:\\s*\\S`, 'u').test(t6);
+  if (has('중대경보')) return '중대경보';
+  if (has('경보')) return '경보';
+  if (has('주의보')) return '주의보';
+  return null;
+}
+
+function heatAlertText(level: HeatLevel): { type: string; text: string } {
+  if (level === '주의보') {
+    return { type: 'heat', text: '폭염주의보가 발효 중이에요. 물을 자주 마시고 그늘에서 쉬어요' };
+  }
+  return { type: 'heat', text: '폭염경보가 발효 중이에요. 한낮 야외 활동을 줄여요' };
+}
+
+/**
+ * 폭염특보 — 지역 인식. 본청(108) 통보문 t6(전국 폭염 구역 목록)를 받아,
+ * area가 주어지면 그 구역의 등급을, 없으면 전국 최고 등급을 노출해요.
+ * 서비스 미신청/에러/폭염 없음이면 안전하게 null (배너 미노출).
+ */
+export async function fetchHeatWarning(
+  env: Env,
+  area?: string | null
+): Promise<{ type: string; text: string } | null> {
   const today = yyyymmdd(nowKst());
   const from = yyyymmdd(new Date(nowKst().getTime() - 2 * 86400000));
-  const url =
+  const listUrl =
     `${WARN}?serviceKey=${encodeURIComponent(env.KMA_API_KEY)}` +
-    `&pageNo=1&numOfRows=50&dataType=JSON&fromTmFc=${from}&toTmFc=${today}`;
+    `&pageNo=1&numOfRows=100&dataType=JSON&fromTmFc=${from}&toTmFc=${today}`;
   try {
-    const json = await cachedJson(url, 1800); // 30분
-    const rows = items(json);
-    // t1(제목)·t2(내용) 등에 '폭염'이 들어간 발효 특보를 찾아요
-    const hit = rows.find((r) => {
-      const blob = `${r.title ?? ''} ${r.t1 ?? ''} ${r.t2 ?? ''} ${r.tmFc ?? ''}`;
-      return blob.includes('폭염');
-    });
-    if (!hit) return null;
-    const warn = String(hit.title ?? hit.t1 ?? '폭염특보').includes('경보')
-      ? '폭염경보'
-      : '폭염주의보';
-    return { type: 'heat', text: `${warn}가 발효 중이에요. 한낮 야외 활동을 줄여요` };
+    // 1) 본청(108)의 최신 폭염 통보문 tmFc 찾기. 폭염 통보문이 없으면 전국에 폭염특보 없음.
+    const list = items(await cachedJson(listUrl, 1800)); // 30분
+    const heat108 = list.filter(
+      (r) => String(r.stnId) === STN_HQ && String(r.title ?? '').includes('폭염')
+    );
+    if (heat108.length === 0) return null;
+    const tmFc = heat108
+      .map((r) => String(r.tmFc))
+      .sort()
+      .at(-1)!;
+
+    // 2) 통보문 상세 → t6(현재 발효 특보 현황)
+    const msgUrl =
+      `${WARN_MSG}?serviceKey=${encodeURIComponent(env.KMA_API_KEY)}` +
+      `&pageNo=1&numOfRows=10&dataType=JSON&stnId=${STN_HQ}&tmFc=${tmFc}`;
+    const rows = items(await cachedJson(msgUrl, 1800));
+    if (rows.length === 0) return null;
+    const t6 = String(rows.map((r) => String(r.t6 ?? '')).sort((a, b) => b.length - a.length)[0]);
+
+    const level = area ? heatLevelForArea(t6, extractAreaToken(area)) : nationwideHeatLevel(t6);
+    return level ? heatAlertText(level) : null;
   } catch {
     return null;
   }

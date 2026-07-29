@@ -4,6 +4,7 @@ import worker from "../src/index";
 import { hazardGate, judge, sHeat, findBestWindow } from "../src/engine";
 import type { Computed } from "../src/engine";
 import type { Verdict } from "../src/types";
+import { extractAreaToken, heatLevelForArea, nationwideHeatLevel } from "../src/kma";
 
 const ctx = () => createExecutionContext();
 
@@ -125,5 +126,53 @@ describe("engine 회귀", () => {
 		};
 		const v = judge("dog", c, 32, 0);
 		expect(v.level).toBeGreaterThanOrEqual(4);
+	});
+});
+
+/* ────────── 폭염특보 지역 파싱 (본청 통보문 t6) ────────── */
+describe("heat warning area parsing", () => {
+	// 실제 108 통보문 t6 형식
+	const t6 =
+		"o 폭염중대경보 : 경상남도(양산, 의령, 창녕)\n" +
+		"o 폭염경보 : 경기도(고양, 남양주, 오산), 서울(서울동남권, 서울동북권), 부산, 대구\n" +
+		"o 폭염주의보 : 경기도(광명, 과천, 수원), 인천, 서해5도\n" +
+		"o 열대야주의보 : 서울, 인천";
+
+	it("extractAreaToken: 시/군/구 접미사 제거", () => {
+		expect(extractAreaToken("고양시 일산동구")).toBe("고양");
+		expect(extractAreaToken("서울 강남구")).toBe("서울");
+		expect(extractAreaToken("부산 해운대구")).toBe("부산");
+		expect(extractAreaToken("양산시")).toBe("양산");
+	});
+
+	it("extractAreaToken: 도-접두는 뒤 시/군을 씀", () => {
+		expect(extractAreaToken("강원도 평창")).toBe("평창");
+		expect(extractAreaToken("경기도 고양시")).toBe("고양");
+		expect(extractAreaToken("제주특별자치도 제주시")).toBe("제주");
+	});
+
+	it("heatLevelForArea: 경보 구역", () => {
+		expect(heatLevelForArea(t6, "고양")).toBe("경보");
+		expect(heatLevelForArea(t6, "부산")).toBe("경보");
+	});
+
+	it("heatLevelForArea: 중대경보 우선", () => {
+		expect(heatLevelForArea(t6, "양산")).toBe("중대경보");
+	});
+
+	it("heatLevelForArea: 주의보 구역", () => {
+		expect(heatLevelForArea(t6, "수원")).toBe("주의보");
+		expect(heatLevelForArea(t6, "인천")).toBe("주의보");
+	});
+
+	it("heatLevelForArea: 특보 없는 구역 → null", () => {
+		expect(heatLevelForArea(t6, "제주")).toBeNull();
+		expect(heatLevelForArea(t6, "")).toBeNull();
+	});
+
+	it("nationwideHeatLevel: 전국 최고 등급", () => {
+		expect(nationwideHeatLevel(t6)).toBe("중대경보");
+		expect(nationwideHeatLevel("o 폭염주의보 : 인천")).toBe("주의보");
+		expect(nationwideHeatLevel("o 강풍주의보 : 인천")).toBeNull();
 	});
 });
