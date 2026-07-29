@@ -4,8 +4,7 @@ import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { MINT } from "../constants/judge";
 import { useSavedRegions } from "../hooks/useSavedRegions";
-import { toGrid } from "../lib/geo";
-import { findNearestRegion } from "../lib/regions";
+import { resolveMyLocationLabel } from "../lib/regions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { ROUTES } from "../routes";
 
@@ -45,9 +44,8 @@ export default function LocationDenied() {
       if (status !== "allowed") return; // 'denied' — 이미 이 화면(F6)에 있으니 추가 안내 없이 그대로 둬요.
 
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny } = toGrid(coords.latitude, coords.longitude);
-      const nearest = findNearestRegion(coords.latitude, coords.longitude);
-      navigate(ROUTES.home, { state: { nx, ny, label: `내 위치(${nearest.sigungu})` } });
+      const { nx, ny, label } = await resolveMyLocationLabel(coords.latitude, coords.longitude);
+      navigate(ROUTES.home, { state: { nx, ny, label } });
     } catch {
       // 다이얼로그 호출 실패·권한은 허용됐지만 위치 조회 자체가 실패한 경우 등 — 이 화면에 그대로 머물러요.
     }

@@ -57,26 +57,18 @@ export const HERO_TINTS: Record<
 };
 
 // icon은 앱빌더가 실제로 쓰는 토스 2d-icons 에셋 URL이에요(F1 앱빌더 화면 코드 기준) —
-// 화면에 아이콘(예: ListRow 왼쪽 원)을 그릴 땐 이 값을 써요. emoji는 캡션 텍스트 안에
-// 인라인으로 넣을 때만 써요(예: Timeline 상단 "🏃 러닝·운동 · 강남구") — 텍스트라 이미지
-// URL을 넣을 수 없어서 따로 둬요.
-export const PROFILE_META: Record<
-  Profile,
-  { label: string; emoji: string; icon: string }
-> = {
+// 유니코드 이모지는 기기 기본 이모지 폰트로 렌더링돼서(예: 아이폰 이모지) 안 써요.
+export const PROFILE_META: Record<Profile, { label: string; icon: string }> = {
   runner: {
     label: "러닝·운동",
-    emoji: "🏃",
     icon: "https://static.toss.im/2d-icons/emoji/png/4x/u1F3C3.1.W.png",
   },
   dog: {
     label: "반려견 산책",
-    emoji: "🐕",
     icon: "https://static.toss.im/2d-icons/emoji/png/4x/u1F415_u1F9BA.png",
   },
   worker: {
     label: "야외 작업",
-    emoji: "🦺",
     icon: "https://static.toss.im/2d-icons/emoji/png/4x/u1F9BA.png",
   },
 };

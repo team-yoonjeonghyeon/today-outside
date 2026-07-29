@@ -3,6 +3,8 @@
  * 프론트 어디서도 지역명·nx/ny를 직접 하드코딩하지 말고 이 모듈을 통해서만 조회해요.
  */
 import regionsData from "../../../data/regions.json";
+import { fetchRegion } from "./judgeApi";
+import { toGrid } from "./geo";
 
 export interface RegionEntry {
   sido: string;
@@ -61,4 +63,29 @@ export function findNearestRegion(lat: number, lon: number): RegionEntry {
     }
   }
   return nearest;
+}
+
+export interface MyLocationResult {
+  nx: number;
+  ny: number;
+  label: string;
+}
+
+/**
+ * GPS 좌표로 "내 위치(...)" 라벨을 만들어요. 구 단위(findNearestRegion, 중심점 최근접)에서
+ * 동 단위(카카오 역지오코딩 /region, 경계 기반)로 바꿨어요 — 중심점 방식은 구 경계 근처
+ * 동네를 이웃 구로 잘못 잡을 수 있어서예요(공덕동인데 서대문구로 뜨는 식).
+ * 카카오 키 미설정·장애·미매칭으로 /region이 502를 주면 기존 구 단위 중심점 방식으로
+ * 폴백해요 — 위치 권한을 줬는데 지역을 하나도 못 보여주는 것보다는 나아요 (정책: 위치
+ * 기능이 부분 실패해도 전체 기능은 살아있어야 해요).
+ */
+export async function resolveMyLocationLabel(lat: number, lon: number): Promise<MyLocationResult> {
+  try {
+    const region = await fetchRegion(lat, lon);
+    return { nx: region.nx, ny: region.ny, label: `내 위치(${region.dong})` };
+  } catch {
+    const { nx, ny } = toGrid(lat, lon);
+    const nearest = findNearestRegion(lat, lon);
+    return { nx, ny, label: `내 위치(${nearest.sigungu})` };
+  }
 }

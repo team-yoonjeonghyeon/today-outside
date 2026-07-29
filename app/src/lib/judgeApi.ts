@@ -107,3 +107,26 @@ export async function fetchJudge({
   }
   return body as JudgeResponse;
 }
+
+export interface RegionLookup {
+  sido: string;
+  sigungu: string;
+  dong: string;
+  nx: number;
+  ny: number;
+}
+
+/**
+ * 좌표 → 행정구역(카카오 역지오코딩, 동 단위까지). 중심점 최근접 방식(findNearestRegion)은
+ * 경계 동네를 이웃 구로 잘못 잡을 수 있어서(공덕동→서대문구), GPS로 지역 라벨을 뽑을 땐 이 쪽이 더
+ * 정확해요. 카카오 키 미설정·장애·미매칭이면 502 REGION_UNAVAILABLE — 그때만 호출부가
+ * findNearestRegion으로 폴백해요 (docs/judge-api-spec.md GET /region 계약).
+ */
+export async function fetchRegion(lat: number, lon: number): Promise<RegionLookup> {
+  const query = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+  const res = await fetch(`${API_BASE_URL}/region?${query.toString()}`);
+  if (!res.ok) {
+    throw new Error(`region lookup failed: ${res.status}`);
+  }
+  return (await res.json()) as RegionLookup;
+}

@@ -112,7 +112,7 @@ export default function Timeline() {
     <>
       <div style={{ padding: "14px 24px 0" }}>
         <Paragraph.Text color={adaptive.grey500} fontWeight="bold">
-          {`${PROFILE_META[profile].emoji} ${PROFILE_META[profile].label} · ${label}`}
+          {`${PROFILE_META[profile].label} · ${label}`}
         </Paragraph.Text>
 
         <Spacing size={7} />

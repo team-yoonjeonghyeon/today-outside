@@ -13,8 +13,7 @@ import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
 import { PRIMARY_BUTTON_STYLE, GHOST_BUTTON_STYLE } from "../constants/theme";
-import { toGrid } from "../lib/geo";
-import { findNearestRegion } from "../lib/regions";
+import { resolveMyLocationLabel } from "../lib/regions";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { ROUTES } from "../routes";
@@ -44,9 +43,8 @@ export default function Onboarding() {
     setLocating(true);
     try {
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny } = toGrid(coords.latitude, coords.longitude);
-      const nearest = findNearestRegion(coords.latitude, coords.longitude);
-      navigate(ROUTES.home, { state: { nx, ny, label: `내 위치(${nearest.sigungu})` } });
+      const { nx, ny, label } = await resolveMyLocationLabel(coords.latitude, coords.longitude);
+      navigate(ROUTES.home, { state: { nx, ny, label } });
     } catch {
       // 권한 거부·미결정·조회 실패 — 어떤 이유든 지역 직접 선택으로 안내해요.
       // (제약: 위치 권한을 거부해도 전 기능이 동작해야 함)
