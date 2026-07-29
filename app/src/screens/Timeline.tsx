@@ -200,7 +200,7 @@ function HourRow({ slot, profile, isNow }: { slot: HourSlot; profile: Profile; i
   // 반려견은 노면, 러너·야외 작업은 체감온도가 그 시간대를 가장 잘 설명해요 (Home과 동일한 기준).
   const value = profile === "dog" ? `${slot.roadTemp}℃` : `${slot.feelsLike}℃`;
 
-  return (
+  const row = (
     <ListRow
       left={
         <ListRow.LeftText color={isNow ? MINT[700] : adaptive.grey700}>{`${slot.hour}시`}</ListRow.LeftText>
@@ -212,14 +212,23 @@ function HourRow({ slot, profile, isNow }: { slot: HourSlot; profile: Profile; i
           top={
             <span style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
               <span>{value}</span>
-              <span style={{ color: isNow ? MINT[700] : LEVEL_COLORS[slot.level], fontWeight: 700 }}>
-                {isNow ? "지금" : LEVEL_LABELS[slot.level]}
+              <span style={{ color: LEVEL_COLORS[slot.level], fontWeight: 700 }}>
+                {LEVEL_LABELS[slot.level]}
               </span>
             </span>
           }
         />
       }
       verticalPadding="medium"
+      border={isNow ? "none" : "indented"}
     />
+  );
+
+  // "지금" 행은 라벨을 따로 바꾸지 않고, 나가기 좋은 시간 카드(MINT[50] 박스)와 같은 브랜드
+  // 색으로 배경만 강조해요 — 등급 라벨(좋음/보통/주의 등)은 다른 행과 똑같이 그대로 보여줘요.
+  if (!isNow) return row;
+
+  return (
+    <div style={{ background: MINT[50], borderRadius: 10, margin: "2px 0" }}>{row}</div>
   );
 }
