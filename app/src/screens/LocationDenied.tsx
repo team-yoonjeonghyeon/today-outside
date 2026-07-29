@@ -1,7 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Asset, List, ListRow, Paragraph, Spacing, Text, TextButton } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
+import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { MINT, SAVED_REGIONS } from "../constants/judge";
+import { toGrid } from "../lib/geo";
 import { ROUTES } from "../routes";
 
 // F6 위치 권한 거부 · 지역 고르기. docs/오늘나가도되나_디자인프레임.html F6 참고.
@@ -24,8 +26,17 @@ export default function LocationDenied() {
     navigate(ROUTES.regionSearch);
   };
 
-  const handleReRequestPermission = () => {
-    // TODO: getCurrentLocation.openPermissionDialog() 연동 — 사용자가 이 링크를 눌렀을 때만 재요청해요 (디자인프레임 F6 SDK 메모).
+  const handleReRequestPermission = async () => {
+    try {
+      const status = await getCurrentLocation.openPermissionDialog();
+      if (status !== "allowed") return; // 'denied' — 이미 이 화면(F6)에 있으니 추가 안내 없이 그대로 둬요.
+
+      const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+      const { nx, ny } = toGrid(coords.latitude, coords.longitude);
+      navigate(ROUTES.home, { state: { nx, ny, label: "내 위치" } });
+    } catch {
+      // 다이얼로그 호출 실패·권한은 허용됐지만 위치 조회 자체가 실패한 경우 등 — 이 화면에 그대로 머물러요.
+    }
   };
 
   return (

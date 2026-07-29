@@ -10,9 +10,11 @@ import {
   Spacing,
 } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
+import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
 import { DEFAULT_PROFILE, type Profile } from "../constants/judge";
 import { PRIMARY_BUTTON_STYLE, GHOST_BUTTON_STYLE } from "../constants/theme";
+import { toGrid } from "../lib/geo";
 import { ROUTES } from "../routes";
 
 // F1 최초 진입 · 위치 확인. docs/오늘나가도되나_디자인프레임.html F1 참고.
@@ -21,13 +23,20 @@ import { ROUTES } from "../routes";
 export default function Onboarding() {
   // TODO: Storage에서 마지막으로 본 탭을 읽어와 초기값으로 사용 (재방문 시)
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
+  const [locating, setLocating] = useState(false);
   const navigate = useNavigate();
 
-  const handleUseLocation = () => {
-    // TODO: getCurrentLocation({ accuracy: Accuracy.Balanced }) 연동해서
-    // 허용/거부에 따라 분기 (거부 시 ROUTES.locationDenied). 지금은 위치 확인 없이 홈으로 바로 이동해요 —
-    // 홈이 기본 위치(DEFAULT_NX/NY)로 API를 호출하니 화면 확인엔 지장 없어요.
-    navigate(ROUTES.home);
+  const handleUseLocation = async () => {
+    setLocating(true);
+    try {
+      const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+      const { nx, ny } = toGrid(coords.latitude, coords.longitude);
+      navigate(ROUTES.home, { state: { nx, ny, label: "내 위치" } });
+    } catch {
+      // 권한 거부·미결정·조회 실패 — 어떤 이유든 지역 직접 선택으로 안내해요.
+      // (제약: 위치 권한을 거부해도 전 기능이 동작해야 함)
+      navigate(ROUTES.locationDenied);
+    }
   };
 
   const handlePickRegion = () => {
@@ -70,10 +79,22 @@ export default function Onboarding() {
       <Spacing size={12} />
 
       <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <Button display="block" style={PRIMARY_BUTTON_STYLE} onClick={handleUseLocation}>
+        <Button
+          display="block"
+          style={PRIMARY_BUTTON_STYLE}
+          loading={locating}
+          disabled={locating}
+          onClick={handleUseLocation}
+        >
           내 위치로 시작하기
         </Button>
-        <Button variant="weak" display="block" style={GHOST_BUTTON_STYLE} onClick={handlePickRegion}>
+        <Button
+          variant="weak"
+          display="block"
+          style={GHOST_BUTTON_STYLE}
+          disabled={locating}
+          onClick={handlePickRegion}
+        >
           지역 직접 고르기
         </Button>
       </div>

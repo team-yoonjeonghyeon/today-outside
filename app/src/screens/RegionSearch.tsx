@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { List, ListRow, Paragraph, SearchField, Spacing } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { MINT } from "../constants/judge";
-import { ROUTES } from "../routes";
 
 // F9 지역 검색·추가. docs/오늘나가도되나_디자인프레임.html F9 참고.
 // 설정(F8)의 '추가' 칩, 또는 F6(위치 권한 거부)의 '다른 지역 찾기'에서 진입해요.
