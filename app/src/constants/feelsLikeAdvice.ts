@@ -37,7 +37,7 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
       "목마르기 전에 물을 마셔요",
       "얇고 통풍 잘 되는 옷을 입어요",
     ],
-    dog: ["그늘 위주로 걷고 물을 챙겨줘요"],
+    dog: ["물을 넉넉히 챙기고, 그늘 위주로 걸어요"],
   },
   주의: {
     headline: "더위가 부담되는 온도예요. 무리하지 않게 해요",
@@ -47,7 +47,10 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
     ],
     runner: ["강도를 낮추고 짧게 뛰어요"],
     worker: ["그늘이나 냉방 공간에서 자주 쉬어요"],
-    dog: ["그늘 위주로 짧게 걷고 물을 자주 챙겨줘요"],
+    dog: [
+      "물을 자주 마시게 해줘요",
+      "그늘 위주로 짧게 걸어요",
+    ],
   },
   위험: {
     headline: "많이 더워요. 한낮 활동은 짧게, 그늘 위주로 해요",
@@ -58,8 +61,9 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
     runner: ["이른 아침이나 해 진 뒤로 옮기면 좋아요"],
     worker: ["2시간마다 그늘에서 20분 이상 쉬어요"],
     dog: [
+      "물을 충분히, 자주 줘요",
       "숨을 헐떡이면 그늘에서 쉬게 해줘요",
-      "산책은 짧게, 물을 자주 줘요",
+      "산책은 짧게 다녀와요",
     ],
   },
   매우위험: {
@@ -71,6 +75,7 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
     runner: ["오늘 러닝은 실내나 저녁으로 미루면 좋아요"],
     worker: ["가장 더운 시간은 피하고 그늘에서 자주 쉬어요"],
     dog: [
+      "물을 충분히 자주 줘요",
       "한낮 산책은 미루고 배변만 짧게 다녀와요",
       "안고 이동해도 좋아요",
     ],
