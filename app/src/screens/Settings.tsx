@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chip, ChipItem, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
-import { PROFILE_META, PROFILE_ORDER } from "../constants/judge";
+import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useSavedRegions, MAX_SAVED_REGIONS } from "../hooks/useSavedRegions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
@@ -74,27 +74,34 @@ export default function Settings() {
           placement="bottom"
           dropdown={
             <Menu.Dropdown header={<Menu.Header>시작 탭 고르기</Menu.Header>}>
-              {PROFILE_ORDER.map((p) => (
-                <Menu.DropdownCheckItem
-                  key={p}
-                  left={
-                    <img
-                      src={PROFILE_META[p].icon}
-                      alt=""
-                      width={20}
-                      height={20}
-                      style={{ borderRadius: 6, display: "block" }}
-                    />
-                  }
-                  checked={profile === p}
-                  onCheckedChange={(checked) => {
-                    if (checked) setProfile(p);
-                    setStartTabSheetOpen(false);
-                  }}
-                >
-                  {PROFILE_META[p].label}
-                </Menu.DropdownCheckItem>
-              ))}
+              {PROFILE_ORDER.map((p) => {
+                const isSelected = profile === p;
+                return (
+                  // Menu.DropdownCheckItem(checked/onCheckedChange)은 클릭해도 선택이 안 바뀌는
+                  // 버그가 있어서, Home.tsx 지역 드롭다운이랑 같은 방식(DropdownItem + onClick)으로
+                  // 바꿨어요 — 선택 표시는 체크박스 대신 텍스트 색으로만 줘요.
+                  <Menu.DropdownItem
+                    key={p}
+                    left={
+                      <img
+                        src={PROFILE_META[p].icon}
+                        alt=""
+                        width={20}
+                        height={20}
+                        style={{ borderRadius: 6, display: "block" }}
+                      />
+                    }
+                    onClick={() => {
+                      setProfile(p);
+                      setStartTabSheetOpen(false);
+                    }}
+                  >
+                    <span style={{ color: isSelected ? MINT[700] : undefined, fontWeight: isSelected ? 700 : undefined }}>
+                      {PROFILE_META[p].label}
+                    </span>
+                  </Menu.DropdownItem>
+                );
+              })}
             </Menu.Dropdown>
           }
         >
@@ -149,7 +156,7 @@ export default function Settings() {
                     e.stopPropagation();
                     void removeRegion(region.name);
                   }}
-                  style={{ fontWeight: 700, color: adaptive.grey400 }}
+                  style={{ fontWeight: 700, color: adaptive.grey400, marginLeft: 6 }}
                 >
                   ✕
                 </span>
