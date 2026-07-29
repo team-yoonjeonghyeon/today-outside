@@ -4,7 +4,7 @@
  */
 import type { JudgeLevel, Profile } from "../constants/judge";
 
-const API_BASE_URL = "https://today-outside-api.yoonjeonghyeon.workers.dev";
+const API_BASE_URL = "https://p3645aoqlgvlatlhgueesj4mt40ukhdc.lambda-url.ap-northeast-2.on.aws";
 
 export interface Verdict {
   level: JudgeLevel;
