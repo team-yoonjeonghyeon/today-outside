@@ -15,12 +15,17 @@ import { ProfileTabs } from "../components/ProfileTabs";
 import { DEFAULT_PROFILE, type Profile } from "../constants/judge";
 import { PRIMARY_BUTTON_STYLE, GHOST_BUTTON_STYLE } from "../constants/theme";
 import { toGrid } from "../lib/geo";
+import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { ROUTES } from "../routes";
 
 // F1 최초 진입 · 위치 확인. docs/오늘나가도되나_디자인프레임.html F1 참고.
 // 프로필별 배타적 선택 화면은 없앴어요 — 홈과 같은 탭바 셸을 쓰고, 판정 카드 자리에 위치 권한 카드가 와요.
-// 자체 뒤로가기·설정 버튼은 만들지 않아요 — 내비게이션 바는 앱인토스가 제공해요 (기획서 §7-2).
+// 자체 뒤로가기·설정 버튼은 화면 안에 만들지 않아요 — 내비게이션 바는 앱인토스가 제공해요 (기획서 §7-2).
+// ⚙ 설정 진입은 내비게이션 바 액세서리 아이콘(useSettingsAccessoryButton)으로 처리해요 —
+// 화면흐름도가 F1·F2·F3·F7에서만 "⚙ 설정 → F8"을 명시해서, 그 화면들에서만 이 훅을 써요.
 export default function Onboarding() {
+  useSettingsAccessoryButton();
+
   // TODO: Storage에서 마지막으로 본 탭을 읽어와 초기값으로 사용 (재방문 시)
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
   const [locating, setLocating] = useState(false);

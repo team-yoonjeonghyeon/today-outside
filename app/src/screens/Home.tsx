@@ -21,10 +21,13 @@ import {
   type Metrics,
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
+import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { ROUTES } from "../routes";
 
 // F2·F3·F7 홈 — 탭으로 묶인 허브. 프로필만 바꿔도 위계와 문장이 달라져요.
 // docs/오늘나가도되나_디자인프레임.html F2(반려견)·F3(야외 작업)·F7(러너) 참고.
+// ⚙ 설정 진입은 내비게이션 바 액세서리 아이콘(useSettingsAccessoryButton)으로 처리해요 —
+// F4~F9 등 다른 화면에는 안 쓰여서 그 화면들에선 자동으로 사라져요.
 
 // TODO: 위치 권한 연동 전까지 저장된 지역 목록의 첫 번째(고양시 일산동구)를 기본값으로 써요.
 // data/ 격자 매핑 완성 후 실제 위치 기반 nx/ny로 교체해요.
@@ -126,6 +129,8 @@ interface RegionNavState {
 }
 
 export default function Home() {
+  useSettingsAccessoryButton();
+
   const navigate = useNavigate();
   const location = useLocation();
   // TODO: Storage에서 마지막으로 본 탭을 읽어와 초기값으로 사용 (재방문 시)
