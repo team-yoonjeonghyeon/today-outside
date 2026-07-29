@@ -12,9 +12,10 @@
  * 최종 판정이 아니라 "기상청 원본"을 캐싱하는 게 핵심이에요.
  * profile만 다른 요청 3건이 캐시 하나를 같이 쓰게 됩니다.
  */
-import { DynamoDBClient, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { DeleteItemCommand, DynamoDBClient, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import worker from './index';
 import { toGrid } from './geo';
+import type { Profile } from './types';
 
 const TABLE = process.env.CACHE_TABLE ?? '';
 const ddb = TABLE ? new DynamoDBClient({}) : null;
@@ -115,6 +116,15 @@ async function ddbPut(key: string, entry: Entry): Promise<void> {
   }
 }
 
+async function ddbDelete(key: string): Promise<void> {
+  if (!ddb) return;
+  try {
+    await ddb.send(new DeleteItemCommand({ TableName: TABLE, Key: { cacheKey: { S: key } } }));
+  } catch (e) {
+    console.error('[cache] delete 실패', e);
+  }
+}
+
 /* ────────────────────────────────── fetch 가로채기 */
 
 const originalFetch = globalThis.fetch;
@@ -165,6 +175,8 @@ interface FunctionUrlEvent {
   rawPath?: string;
   rawQueryString?: string;
   requestContext?: { http?: { method?: string } };
+  body?: string;
+  isBase64Encoded?: boolean;
 }
 
 interface LambdaResponse {
@@ -179,7 +191,7 @@ interface LambdaResponse {
 const CORS_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -341,6 +353,111 @@ async function handleSearch(q: string): Promise<LambdaResponse> {
   return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ results }) };
 }
 
+/* ────────────────────────────────── 알림 구독 (Phase 1) */
+
+// requestNotificationAgreement로 실제 동의를 받은 사용자의 식별키·지역·프로필만 저장해요.
+// 이미 배포돼 있는 캐시 테이블(CACHE_TABLE)을 그대로 재사용해요 — 새 테이블을 만들 필요가
+// 없고, cacheKey 파티션 키 하나만 있으면 되는 스키마라 그대로 맞아요. 캐시처럼 짧은 TTL로
+// 지워지면 안 되니 expiresAt을 2년 뒤로 멀리 둬요.
+//
+// 조건 판정(매일 8시·체감온도 위험 단계·산책 좋은 시간대)과 실제 발송(스마트 발송
+// sendMessage 호출)은 여기 없어요 — mTLS 인증서 발급, 그리고 토스가 요구하는 고정 IP(방화벽
+// 허용)를 이 Lambda에 어떻게 붙일지(NAT Gateway 등)부터 정리돼야 안전하게 붙일 수 있어요.
+
+const NOTIFICATION_TYPES = ['morningBriefing', 'dangerAlert', 'walkTimeAlert'] as const;
+type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+interface SubscribeBody {
+  anonKey: string;
+  type: NotificationType;
+  profile: Profile;
+  regions: { name: string; nx: number; ny: number }[];
+}
+
+function subscriptionKey(type: NotificationType, anonKey: string): string {
+  return `sub:${type}:${anonKey}`;
+}
+
+function parseEventBody(event: FunctionUrlEvent): unknown {
+  if (!event.body) return null;
+  const text = event.isBase64Encoded
+    ? Buffer.from(event.body, 'base64').toString('utf-8')
+    : event.body;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function isSubscribeBody(body: unknown): body is SubscribeBody {
+  if (!body || typeof body !== 'object') return false;
+  const b = body as Record<string, unknown>;
+  if (typeof b.anonKey !== 'string' || b.anonKey.length === 0) return false;
+  if (typeof b.type !== 'string' || !NOTIFICATION_TYPES.includes(b.type as NotificationType)) {
+    return false;
+  }
+  if (typeof b.profile !== 'string') return false;
+  if (!Array.isArray(b.regions)) return false;
+  return b.regions.every(
+    (r) =>
+      r &&
+      typeof r === 'object' &&
+      typeof (r as Record<string, unknown>).name === 'string' &&
+      typeof (r as Record<string, unknown>).nx === 'number' &&
+      typeof (r as Record<string, unknown>).ny === 'number'
+  );
+}
+
+async function handleNotifySubscribe(event: FunctionUrlEvent): Promise<LambdaResponse> {
+  const body = parseEventBody(event);
+  if (!isSubscribeBody(body)) {
+    return {
+      statusCode: 400,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        error: 'INVALID_PARAM',
+        message: 'anonKey, type, profile, regions를 확인해 주세요',
+      }),
+    };
+  }
+
+  const record = {
+    profile: body.profile,
+    regions: body.regions,
+    subscribedAt: new Date().toISOString(),
+  };
+  const expiresAt = Math.floor(Date.now() / 1000) + 2 * 365 * 86400; // 2년 뒤
+  await ddbPut(subscriptionKey(body.type, body.anonKey), {
+    body: JSON.stringify(record),
+    expiresAt,
+  });
+
+  return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ ok: true }) };
+}
+
+async function handleNotifyUnsubscribe(event: FunctionUrlEvent): Promise<LambdaResponse> {
+  const body = parseEventBody(event) as Record<string, unknown> | null;
+  const anonKey = body?.anonKey;
+  const type = body?.type;
+  if (
+    typeof anonKey !== 'string' ||
+    anonKey.length === 0 ||
+    typeof type !== 'string' ||
+    !NOTIFICATION_TYPES.includes(type as NotificationType)
+  ) {
+    return {
+      statusCode: 400,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'INVALID_PARAM', message: 'anonKey, type을 확인해 주세요' }),
+    };
+  }
+
+  await ddbDelete(subscriptionKey(type as NotificationType, anonKey));
+
+  return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ ok: true }) };
+}
+
 export const handler = async (event: FunctionUrlEvent): Promise<LambdaResponse> => {
   const method = event.requestContext?.http?.method ?? 'GET';
   const path = event.rawPath ?? '/';
@@ -385,6 +502,13 @@ export const handler = async (event: FunctionUrlEvent): Promise<LambdaResponse> 
         body: JSON.stringify({ error: 'KAKAO_UNAVAILABLE', message: '위치 정보를 가져오지 못했어요' }),
       };
     }
+  }
+
+  if (path === '/notify/subscribe' && method === 'POST') {
+    return handleNotifySubscribe(event);
+  }
+  if (path === '/notify/subscribe' && method === 'DELETE') {
+    return handleNotifyUnsubscribe(event);
   }
 
   // 호스트는 아무거나 상관없어요. index.ts는 pathname과 searchParams만 봐요.
