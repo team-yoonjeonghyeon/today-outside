@@ -160,10 +160,18 @@ export default function Settings() {
                     void removeRegion(region.name);
                   }}
                   style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 18,
+                    height: 18,
+                    marginLeft: 8,
+                    marginRight: 8,
+                    borderRadius: "50%",
+                    background: adaptive.grey200,
+                    color: adaptive.grey600,
+                    fontSize: 11,
                     fontWeight: 700,
-                    color: adaptive.grey400,
-                    marginLeft: 6,
-                    padding: "4px 6px",
                     lineHeight: 1,
                     cursor: "pointer",
                   }}
