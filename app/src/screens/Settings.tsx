@@ -77,7 +77,15 @@ export default function Settings() {
               {PROFILE_ORDER.map((p) => (
                 <Menu.DropdownCheckItem
                   key={p}
-                  left={<span>{PROFILE_META[p].emoji}</span>}
+                  left={
+                    <img
+                      src={PROFILE_META[p].icon}
+                      alt=""
+                      width={20}
+                      height={20}
+                      style={{ borderRadius: 6, display: "block" }}
+                    />
+                  }
                   checked={profile === p}
                   onCheckedChange={(checked) => {
                     if (checked) setProfile(p);
@@ -90,25 +98,33 @@ export default function Settings() {
             </Menu.Dropdown>
           }
         >
-          <ListRow
-            left={
-              <ListRow.AssetText shape="squircle" size="xsmall" backgroundColor={adaptive.greyOpacity100}>
-                {PROFILE_META[profile].emoji}
-              </ListRow.AssetText>
-            }
-            contents={
-              <ListRow.Texts
-                type="2RowTypeA"
-                top={PROFILE_META[profile].label}
-                topProps={{ color: adaptive.grey800, fontWeight: "bold" }}
-                bottom="앱을 열면 이 탭부터 보여줘요"
-                bottomProps={{ color: adaptive.grey600 }}
-              />
-            }
-            withArrow
-            verticalPadding="large"
-            onClick={() => setStartTabSheetOpen(true)}
-          />
+          {/* Menu.Trigger가 자식을 내용 크기만큼만 감싸서(inline-block 계열), ListRow를 바로
+              넣으면 화면 전체 너비를 못 채워 화살표(>)가 오른쪽 끝이 아니라 글자 바로 뒤에
+              붙어 보였어요. width:100%로 강제해서 다른 행들과 같은 폭이 되게 해요. */}
+          <div style={{ width: "100%" }}>
+            <ListRow
+              left={
+                <ListRow.AssetImage
+                  src={PROFILE_META[profile].icon}
+                  shape="squircle"
+                  backgroundColor={adaptive.greyOpacity100}
+                  size="xsmall"
+                />
+              }
+              contents={
+                <ListRow.Texts
+                  type="2RowTypeA"
+                  top={PROFILE_META[profile].label}
+                  topProps={{ color: adaptive.grey800, fontWeight: "bold" }}
+                  bottom="앱을 열면 이 탭부터 보여줘요"
+                  bottomProps={{ color: adaptive.grey600 }}
+                />
+              }
+              withArrow
+              verticalPadding="large"
+              onClick={() => setStartTabSheetOpen(true)}
+            />
+          </div>
         </Menu.Trigger>
       </List>
 

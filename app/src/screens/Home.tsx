@@ -277,7 +277,7 @@ export default function Home() {
             >
               <button
                 type="button"
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", outline: "none" }}
               >
                 <Paragraph.Text color={adaptive.grey500} fontWeight="bold">
                   {`${formatKstTime(showData.observedAt)} · ${region.label} ▾`}

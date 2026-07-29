@@ -1,7 +1,15 @@
+/* 화면 폭에 상관없이 내부 요소가 자기 너비 계산을 잘못해서(예: 100vw 버그) 옆으로 삐져나와도
+   화면 전체가 오른쪽으로 밀려 보이는 일이 없도록, 가로 스크롤 자체를 항상 막아요. */
+html,
+body {
+  overflow-x: hidden;
+}
+
 #root {
   width: 100%;
   min-height: 100vh;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 @media (min-width: 481px) {
