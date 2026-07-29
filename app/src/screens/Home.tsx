@@ -22,6 +22,7 @@ import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
+import { requireRegionBySigungu } from "../lib/regions";
 import { ROUTES } from "../routes";
 
 // F2·F3·F7 홈 — 탭으로 묶인 허브. 프로필만 바꿔도 위계와 문장이 달라져요.
@@ -60,10 +61,9 @@ function formatKstTime(iso: string): string {
   const match = iso.match(/T(\d{2}):(\d{2})/);
   if (!match) return "";
   const hour = Number(match[1]);
-  const minute = match[2];
   const period = hour < 12 ? "오전" : "오후";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${period} ${hour12}시 ${minute}분`;
+  return `${period} ${hour12}시`;
 }
 
 function minutesAgo(iso: string): number {
@@ -93,6 +93,8 @@ function buildMetricCards(profile: Profile, data: JudgeResponse): MetricCard[] {
       profile === "worker"
         ? `기온 ${metrics.airTemp}℃ · 습도 ${metrics.humidity}% · 바람 ${metrics.windSpeed}m/s`
         : `기온 ${metrics.airTemp}℃ · 습도 ${metrics.humidity}%`,
+    // 체감온도도 기온·습도·바람으로부터 서버가 계산한 값이라 '추정' 배지를 붙여요.
+    estimated: true,
   };
 
   const uvCard: MetricCard = {
@@ -124,6 +126,11 @@ interface RegionNavState {
   label: string;
 }
 
+// 홈은 항상 Onboarding·F6에서 nx/ny/label을 state로 들고 진입해서 실제로는 안 쓰이지만,
+// 새로고침 등으로 state 없이 곧장 들어오는 경우를 대비한 타입 안전용 기본값이에요.
+// savedRegions(사용자가 저장한 지역)에 기대지 않아요 — 그건 비어 있을 수 있어서요.
+const FALLBACK_REGION = requireRegionBySigungu("고양시 일산동구");
+
 export default function Home() {
   useSettingsAccessoryButton();
 
@@ -136,12 +143,12 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   // F6(지역 설정 전체보기)에서 지역을 고르고 돌아오면 router state로 넘어와요.
-  // state가 없으면 저장된 지역 목록의 첫 번째를 기본값으로 써요.
+  // state가 없을 때만 FALLBACK_REGION을 써요 (정상 흐름에서는 항상 state가 있어요).
   const [region, setRegion] = useState<RegionNavState>(
     (location.state as RegionNavState | null) ?? {
-      nx: savedRegions[0].nx,
-      ny: savedRegions[0].ny,
-      label: savedRegions[0].name,
+      nx: FALLBACK_REGION.nx,
+      ny: FALLBACK_REGION.ny,
+      label: `${FALLBACK_REGION.sido} ${FALLBACK_REGION.sigungu}`,
     },
   );
 
@@ -201,7 +208,10 @@ export default function Home() {
       )}
 
       {loading && !showData && (
-        <div style={{ padding: "16px 24px" }}>
+        // TDS Skeleton의 내부 flex 컨테이너가 부모 너비를 무시하고 100vw로 렌더링되는 버그가 있어서
+        // (부모가 432px여도 스켈레톤은 뷰포트 전체 너비로 늘어나 오른쪽으로 삐져나가요),
+        // 화면 밖으로 넘치는 부분을 잘라내야 로딩 후 콘텐츠와 같은 폭으로 보여요.
+        <div style={{ padding: "16px 24px", overflow: "hidden" }}>
           <Skeleton pattern="cardOnly" repeatLastItemCount={3} />
         </div>
       )}

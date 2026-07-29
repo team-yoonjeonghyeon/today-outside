@@ -42,3 +42,23 @@ export function requireRegionBySigungu(sigungu: string): RegionEntry {
   if (!region) throw new Error(`data/regions.json에서 "${sigungu}"를 찾을 수 없어요`);
   return region;
 }
+
+/**
+ * GPS 좌표(lat/lon)와 가장 가까운 지역을 찾아요. "내 위치(${sigungu})"처럼
+ * 위치 기반 라벨에 실제 지역명을 붙일 때 써요 — 위경도 단순 유클리드 거리라 정밀하진 않지만,
+ * 화면에 보여줄 인근 시/군/구 이름을 고르는 용도로는 충분해요.
+ */
+export function findNearestRegion(lat: number, lon: number): RegionEntry {
+  let nearest = REGIONS[0];
+  let nearestDistSq = Infinity;
+  for (const region of REGIONS) {
+    const dLat = region.lat - lat;
+    const dLon = region.lon - lon;
+    const distSq = dLat * dLat + dLon * dLon;
+    if (distSq < nearestDistSq) {
+      nearestDistSq = distSq;
+      nearest = region;
+    }
+  }
+  return nearest;
+}

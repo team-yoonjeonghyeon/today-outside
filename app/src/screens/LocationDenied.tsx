@@ -5,6 +5,8 @@ import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { MINT } from "../constants/judge";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { toGrid } from "../lib/geo";
+import { findNearestRegion } from "../lib/regions";
+import { useBackNavigation } from "../hooks/useBackNavigation";
 import { ROUTES } from "../routes";
 
 // 앱빌더 F6("지역선택화면") 목업 기준 — 지도 위에 핀이 있는 아이콘이에요. 디자인프레임 html은
@@ -26,6 +28,8 @@ interface LocationDeniedNavState {
 }
 
 export default function LocationDenied() {
+  useBackNavigation();
+
   const navigate = useNavigate();
   const location = useLocation();
   const { savedRegions } = useSavedRegions();
@@ -42,7 +46,8 @@ export default function LocationDenied() {
 
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
       const { nx, ny } = toGrid(coords.latitude, coords.longitude);
-      navigate(ROUTES.home, { state: { nx, ny, label: "내 위치" } });
+      const nearest = findNearestRegion(coords.latitude, coords.longitude);
+      navigate(ROUTES.home, { state: { nx, ny, label: `내 위치(${nearest.sigungu})` } });
     } catch {
       // 다이얼로그 호출 실패·권한은 허용됐지만 위치 조회 자체가 실패한 경우 등 — 이 화면에 그대로 머물러요.
     }
@@ -68,9 +73,7 @@ export default function LocationDenied() {
         <Spacing size={11} />
 
         <Paragraph.Text color={adaptive.grey700} fontWeight="medium">
-          {permissionGranted
-            ? "자주 가는 곳을 3개까지 저장해 둘 수 있어요."
-            : "지금 위치를 확인할 수 없어요. 자주 가는 곳을 3개까지 저장해 둘 수 있어요."}
+          자주 가는 곳을 3개까지 저장해 둘 수 있어요.
         </Paragraph.Text>
       </div>
 
@@ -78,7 +81,7 @@ export default function LocationDenied() {
 
       <div style={{ padding: "0 24px" }}>
         <Paragraph.Text color={adaptive.grey500} fontWeight="bold">
-          최근에 본 지역
+          {savedRegions.length > 0 ? "저장한 지역" : "아직 저장한 지역이 없어요"}
         </Paragraph.Text>
       </div>
 
