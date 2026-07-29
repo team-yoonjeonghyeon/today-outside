@@ -7,6 +7,9 @@ export interface StoredRegion {
   name: string;
   nx: number;
   ny: number;
+  // 기본 3개 지역만 앱빌더 목업 기준 아이콘을 갖고 있어요. 검색해서 새로 추가한 지역엔
+  // 없어서 화면에서 공용 핀 아이콘으로 대체해요.
+  emojiSrc?: string;
   // 실제 판정 API를 호출해야 채워지는 값이라 지금은 옵션이에요 — 처음 3개 기본 지역만
   // 표시용 목업으로 갖고 있고, 검색해서 새로 추가한 지역은 이 값이 없어서 배지를 안 그려요
   // (모르는 값을 "보통"으로 지어내지 않아요 — 정직성 원칙).
@@ -17,23 +20,27 @@ export interface StoredRegion {
 const MAX_SAVED_REGIONS = 3;
 
 // 최초 진입 시 보여줄 기본 3개 — data/regions.json 기준이라 nx/ny가 정확해요.
-// 사용자가 지역을 저장하기 시작하면 Storage 값이 이걸 덮어써요.
+// 아이콘은 앱빌더 F6("지역선택화면") 목업 그대로예요. 사용자가 지역을 저장하기
+// 시작하면 Storage 값이 이걸 덮어써요.
 const DEFAULT_SAVED_REGIONS: StoredRegion[] = [
   {
     name: "고양시 일산동구",
     ...requireRegionBySigungu("고양시 일산동구"),
+    emojiSrc: "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E1.png",
     levelLabel: "좋음",
     levelColor: LEVEL_COLORS[1],
   },
   {
     name: "서울 강남구",
     ...requireRegionBySigungu("강남구"),
+    emojiSrc: "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png",
     levelLabel: "주의",
     levelColor: LEVEL_COLORS[3],
   },
   {
     name: "부산 해운대구",
     ...requireRegionBySigungu("해운대구"),
+    emojiSrc: "https://static.toss.im/2d-icons/emoji/png/4x/u1F30A.png",
     levelLabel: "보통",
     levelColor: "#8B95A1",
   },
