@@ -67,14 +67,16 @@ interface MetricCard {
   estimated?: boolean;
 }
 
-// 관측 시각(observedAt) 대신 "지금 몇 시인지"를 보여줘요 — 기상청 실황은 매시 40분에
-// 발표돼서 observedAt이 실제 지금 시각보다 최대 1시간 가까이 뒤처질 수 있는데(정상이에요,
-// docs/judge-api-spec.md 참고), 사용자가 보고 싶은 건 "지금" 기준이라 기기 시각을 써요.
-function formatKstTime(): string {
-  const hour = new Date().getHours();
+// observedAt(관측 시각)을 다시 기준으로 써요 — 기상청 실황은 매시 40분에 발표돼서
+// 지금 시각보다 최대 1시간 가까이 뒤처질 수 있는데, 그게 정상이에요(docs/judge-api-spec.md
+// 참고). 대신 "(측정)"을 붙여서 이게 지금 시각이 아니라 값을 측정한 시각이라는 걸 명확히 해요.
+function formatKstTime(iso: string): string {
+  const match = iso.match(/T(\d{2}):(\d{2})/);
+  if (!match) return "";
+  const hour = Number(match[1]);
   const period = hour < 12 ? "오전" : "오후";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${period} ${hour12}시`;
+  return `${period} ${hour12}시(측정)`;
 }
 
 function minutesAgo(iso: string): number {
@@ -304,7 +306,7 @@ export default function Home() {
                 style={{ background: "none", border: "none", padding: 0, cursor: "pointer", outline: "none" }}
               >
                 <Paragraph.Text color={adaptive.grey500} fontWeight="bold">
-                  {`${formatKstTime()} · ${region.label} ▾`}
+                  {`${formatKstTime(showData.observedAt)} · ${region.label} ▾`}
                 </Paragraph.Text>
               </button>
             </Menu.Trigger>
@@ -333,11 +335,14 @@ export default function Home() {
                 }}
               >
                 {/* 서버가 "A. B" 형태(마침표+공백으로 두 문장 이어붙임)로 내려주는데,
-                    한 줄에 다 넣는 대신 문장별로 줄을 나누고 마침표는 빼서 보여줘요. */}
+                    한 줄에 다 넣는 대신 문장별로 줄을 나누고 마침표는 빼서 보여줘요.
+                    Paragraph.Text는 인라인이라 그냥 나열하면 줄바꿈이 안 돼서 div로 감싸요. */}
                 {showData.alert.text.split(". ").map((line, i) => (
-                  <Paragraph.Text key={i} color={LEVEL_COLORS[5]} fontWeight="bold">
-                    {line.replace(/\.$/, "")}
-                  </Paragraph.Text>
+                  <div key={i}>
+                    <Paragraph.Text color={LEVEL_COLORS[5]} fontWeight="bold">
+                      {line.replace(/\.$/, "")}
+                    </Paragraph.Text>
+                  </div>
                 ))}
               </div>
             </div>
