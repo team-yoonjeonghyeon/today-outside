@@ -8,6 +8,7 @@ import {
   LEVEL_COLORS,
   METRIC_EMOJI,
   MINT,
+  PROFILE_META,
   type MetricKey,
   type Profile,
 } from "../constants/judge";
@@ -40,10 +41,18 @@ const METRIC_ICON_TINTS: Record<MetricKey, string> = {
 
 // wcta(다음 행동) 카드의 프로필별 아이콘·보조 문구. 구체적인 수치는 API 응답(bestWindow)에서만 가져오고,
 // 여기 문구는 수치를 포함하지 않는 일반 안내로만 둬요 (정직성 원칙 — 근거 없는 수치를 지어내지 않아요).
-const WCTA_COPY: Record<Profile, { emoji: string; caption: string }> = {
-  runner: { emoji: "🏃", caption: "무리하지 않는 선에서 움직여요" },
-  dog: { emoji: "🌙", caption: "그늘 위주로 코스를 잡아요" },
-  worker: { emoji: "⏱", caption: "그늘이나 냉방 공간에서 잠깐 쉬어요" },
+// icon은 유니코드 이모지 대신 실제 토스 2d-icons PNG예요 — 유니코드로 두면 기기 기본 이모지 폰트로
+// 렌더링돼서(예: 아이폰 이모지) 앱 다른 곳의 토스 아이콘 스타일이랑 안 맞았어요.
+const WCTA_COPY: Record<Profile, { icon: string; caption: string }> = {
+  runner: { icon: PROFILE_META.runner.icon, caption: "무리하지 않는 선에서 움직여요" },
+  dog: {
+    icon: "https://static.toss.im/2d-icons/emoji/png/4x/u1F31B.png",
+    caption: "그늘 위주로 코스를 잡아요",
+  },
+  worker: {
+    icon: "https://static.toss.im/2d-icons/emoji/png/4x/u23F3.png",
+    caption: "그늘이나 냉방 공간에서 잠깐 쉬어요",
+  },
 };
 
 interface MetricCard {
@@ -320,9 +329,12 @@ export default function Home() {
             <div style={{ margin: "0 24px 16px", background: MINT[50], borderRadius: 16 }}>
               <ListRow
                 left={
-                  <ListRow.AssetText shape="squircle" size="small" backgroundColor={MINT[400]} color={MINT[900]}>
-                    {WCTA_COPY[profile].emoji}
-                  </ListRow.AssetText>
+                  <ListRow.AssetImage
+                    src={WCTA_COPY[profile].icon}
+                    shape="squircle"
+                    size="small"
+                    backgroundColor={MINT[400]}
+                  />
                 }
                 contents={
                   <ListRow.Texts
