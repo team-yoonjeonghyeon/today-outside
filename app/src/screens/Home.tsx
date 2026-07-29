@@ -7,8 +7,10 @@ import {
   DEFAULT_PROFILE,
   HERO_TINTS,
   LEVEL_COLORS,
+  METRIC_EMOJI,
   MINT,
   SAVED_REGIONS,
+  type MetricKey,
   type Profile,
 } from "../constants/judge";
 import {
@@ -27,14 +29,6 @@ import { ROUTES } from "../routes";
 // TODO: 위치 권한 연동 전까지 저장된 지역 목록의 첫 번째(고양시 일산동구)를 기본값으로 써요.
 // data/ 격자 매핑 완성 후 실제 위치 기반 nx/ny로 교체해요.
 const DEFAULT_REGION = SAVED_REGIONS[0];
-
-type MetricKey = "feelsLike" | "uv" | "road";
-
-const EMOJI: Record<MetricKey, string> = {
-  feelsLike: "https://static.toss.im/2d-icons/emoji/png/4x/u1F321.png",
-  uv: "https://static.toss.im/2d-icons/emoji/png/4x/u2600.png",
-  road: "https://static.toss.im/2d-icons/emoji/png/4x/u1F6E4.png",
-};
 
 // 히어로가 아닐 때 지표 아이콘 배경. 디자인프레임 F2·F3·F7의 지표별 고정 톤 —
 // 히어로로 뽑히면 HERO_TINTS(판정 등급색)로 덮어써요.
@@ -93,7 +87,7 @@ function buildMetricCards(profile: Profile, data: JudgeResponse): MetricCard[] {
 
   const feelsLikeCard: MetricCard = {
     key: "feelsLike",
-    emojiSrc: EMOJI.feelsLike,
+    emojiSrc: METRIC_EMOJI.feelsLike,
     label: profile === "dog" ? "체감온도 · 몸높이 보정" : "체감온도",
     value: `${metrics.feelsLike}℃`,
     sub:
@@ -104,7 +98,7 @@ function buildMetricCards(profile: Profile, data: JudgeResponse): MetricCard[] {
 
   const uvCard: MetricCard = {
     key: "uv",
-    emojiSrc: EMOJI.uv,
+    emojiSrc: METRIC_EMOJI.uv,
     label: "자외선",
     value: `${metrics.uvi} ${metrics.uviLabel}`,
     sub: "자외선지수",
@@ -112,7 +106,7 @@ function buildMetricCards(profile: Profile, data: JudgeResponse): MetricCard[] {
 
   const roadCard: MetricCard = {
     key: "road",
-    emojiSrc: EMOJI.road,
+    emojiSrc: METRIC_EMOJI.road,
     label: "노면 온도",
     value: `${metrics.roadTemp}℃`,
     sub: buildRoadSub(profile, metrics, hourly),
@@ -309,7 +303,6 @@ export default function Home() {
           {/* 다음 행동 카드 — 최적 시간창(bestWindow)이 있으면 강조, 없으면 담백하게 안내 (기획서 §3-7) */}
           {showData.bestWindow ? (
             <div style={{ margin: "0 24px 16px", background: MINT[50], borderRadius: 16 }}>
-              {/* TODO: F4(시간창)로 이동 */}
               <ListRow
                 left={
                   <ListRow.AssetText shape="squircle" size="small" backgroundColor={MINT[400]} color={MINT[900]}>
@@ -327,6 +320,11 @@ export default function Home() {
                 }
                 withArrow
                 verticalPadding="large"
+                onClick={() =>
+                  navigate(ROUTES.timeline, {
+                    state: { nx: region.nx, ny: region.ny, profile, label: region.label },
+                  })
+                }
               />
             </div>
           ) : (
@@ -359,7 +357,6 @@ export default function Home() {
                     marginBottom: 8,
                   }}
                 >
-                  {/* TODO: F5(지표 상세)로 이동 */}
                   <ListRow
                     left={
                       <ListRow.AssetImage
@@ -394,6 +391,11 @@ export default function Home() {
                     }
                     withArrow
                     verticalPadding={card.hero ? "xlarge" : "large"}
+                    onClick={() =>
+                      navigate(ROUTES.details, {
+                        state: { nx: region.nx, ny: region.ny, profile, metricKey: card.key, label: region.label },
+                      })
+                    }
                   />
                 </div>
               );
