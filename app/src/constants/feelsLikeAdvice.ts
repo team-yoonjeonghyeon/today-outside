@@ -22,12 +22,14 @@ interface FeelsAdvice {
   tips: string[]; // 공통
   runner?: string[]; // 러닝·운동 추가
   worker?: string[]; // 야외 작업 추가
+  dog?: string[]; // 반려견 전용 (사람 팁 대신). 강아지 더위 관점 — 그늘·물·짧게·헐떡임
 }
 
 export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
   쾌적: {
     headline: "활동하기 좋은 온도예요",
     tips: ["가볍게 물만 챙기면 충분해요"],
+    dog: ["시원해서 산책하기 좋아요"],
   },
   보통: {
     headline: "덥지만 견딜 만해요. 수분을 미리 챙겨요",
@@ -35,6 +37,7 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
       "목마르기 전에 물을 마셔요",
       "얇고 통풍 잘 되는 옷을 입어요",
     ],
+    dog: ["그늘 위주로 걷고 물을 챙겨줘요"],
   },
   주의: {
     headline: "더위가 부담되는 온도예요. 무리하지 않게 해요",
@@ -44,6 +47,7 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
     ],
     runner: ["강도를 낮추고 짧게 뛰어요"],
     worker: ["그늘이나 냉방 공간에서 자주 쉬어요"],
+    dog: ["그늘 위주로 짧게 걷고 물을 자주 챙겨줘요"],
   },
   위험: {
     headline: "많이 더워요. 한낮 활동은 짧게, 그늘 위주로 해요",
@@ -53,6 +57,10 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
     ],
     runner: ["이른 아침이나 해 진 뒤로 옮기면 좋아요"],
     worker: ["2시간마다 그늘에서 20분 이상 쉬어요"],
+    dog: [
+      "숨을 헐떡이면 그늘에서 쉬게 해줘요",
+      "산책은 짧게, 물을 자주 줘요",
+    ],
   },
   매우위험: {
     headline: "매우 더워요. 가능하면 실내가 좋아요",
@@ -62,12 +70,17 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
     ],
     runner: ["오늘 러닝은 실내나 저녁으로 미루면 좋아요"],
     worker: ["가장 더운 시간은 피하고 그늘에서 자주 쉬어요"],
+    dog: [
+      "한낮 산책은 미루고 배변만 짧게 다녀와요",
+      "안고 이동해도 좋아요",
+    ],
   },
 };
 
-/** 프로필별로 공통 + 추가 팁을 합쳐서 돌려줘요. */
+/** 프로필별 팁. 반려견은 dog 전용 팁만, 사람은 공통 + 프로필 추가. */
 export function feelsTips(band: FeelsBand, profile: Profile): string[] {
   const a = FEELS_ADVICE[band];
+  if (profile === "dog") return a.dog ?? [];
   return [
     ...a.tips,
     ...(profile === "runner" ? a.runner ?? [] : []),
