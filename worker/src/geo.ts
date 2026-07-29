@@ -32,6 +32,22 @@ function lccParams() {
   return { re, sn, sf, ro, olon };
 }
 
+/** 기상청 동네예보 격자 유효 범위 (한반도를 덮는 5km 격자) */
+export const GRID_NX_MAX = 149;
+export const GRID_NY_MAX = 253;
+
+/** nx, ny가 유효한 격자 정수 좌표인지. 범위 밖·비정수·NaN·누락(0)은 전부 false */
+export function isValidGrid(nx: number, ny: number): boolean {
+  return (
+    Number.isInteger(nx) &&
+    Number.isInteger(ny) &&
+    nx >= 1 &&
+    nx <= GRID_NX_MAX &&
+    ny >= 1 &&
+    ny <= GRID_NY_MAX
+  );
+}
+
 /** 위경도 -> 격자 */
 export function toGrid(lat: number, lon: number): { nx: number; ny: number } {
   const { re, sn, sf, ro, olon } = lccParams();
