@@ -12,12 +12,19 @@ interface ProfileTabsProps {
 // F1/F2/F3/F7 공통 프로필 스위처. 디자인프레임 .tabbar 참고.
 // 홈(F2·F3·F7)과 F1(진입) 모두 이 탭바를 얹은 같은 셸을 써요 — 화면 흐름도 참고.
 // 라벨은 이모지 없이 텍스트만 써요 — 이모지를 붙이면 좁은 화면에서 두 줄로 줄바꿈됐어요.
+//
+// SegmentedControl.Item은 style prop을 받긴 하지만(InputHTMLAttributes 상속) 그건 숨겨진
+// <input>에만 적용되고, 실제 보이는 글자는 내부의 .tds-mobile-paragraph__text 스팬이 그려요 —
+// 그 스팬엔 prop으로 직접 손댈 방법이 없어서, 이 컴포넌트 안에서만 적용되는 스코프 CSS로
+// 폰트 크기를 줄여요. "반려견 산책"이 기본 크기(17px)에서 좁은 화면이면 두 줄로 줄바꿈됐어요.
 export function ProfileTabs({ value, onChange, disabled = false }: ProfileTabsProps) {
   return (
     <div
+      className="profile-tabs"
       aria-disabled={disabled}
       style={disabled ? { opacity: 0.45, pointerEvents: "none" } : undefined}
     >
+      <style>{`.profile-tabs .tds-mobile-paragraph__text { font-size: 13px; }`}</style>
       <SegmentedControl value={value} onChange={(v) => onChange(v as Profile)}>
         {PROFILE_ORDER.map((profile) => (
           <SegmentedControl.Item key={profile} value={profile}>
