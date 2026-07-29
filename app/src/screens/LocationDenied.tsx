@@ -7,10 +7,12 @@ import { useSavedRegions } from "../hooks/useSavedRegions";
 import { toGrid } from "../lib/geo";
 import { ROUTES } from "../routes";
 
-const PIN_EMOJI = "https://static.toss.im/2d-icons/emoji/png/4x/u1F4CD.png";
 // 앱빌더 F6("지역선택화면") 목업 기준 — 지도 위에 핀이 있는 아이콘이에요. 디자인프레임 html은
 // 이 자리를 간단히 📍로만 적어놨는데, 실제 앱빌더 에셋은 uE116(지도+핀)이라 이쪽을 따랐어요.
 const MAP_PIN_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/uE116.png";
+// 지역 리스트 아이템 아이콘 — 193개 전 지역에 형평 있게, 건물 아이콘 하나로 통일해요
+// (RegionSearch.tsx 검색 결과와 동일한 아이콘).
+const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
 
 // F6 위치 권한 거부 · 지역 고르기. docs/오늘나가도되나_디자인프레임.html F6 참고.
 // 정책: 권한을 안 줘도 나머지 기능이 100% 같아야 해요 — 저장한 지역(최대 3개) 목록이 그 대안이에요.
@@ -86,7 +88,7 @@ export default function LocationDenied() {
             key={region.name}
             left={
               <ListRow.AssetImage
-                src={region.emojiSrc ?? PIN_EMOJI}
+                src={REGION_ICON}
                 shape="squircle"
                 backgroundColor={adaptive.greyOpacity100}
                 size="xsmall"

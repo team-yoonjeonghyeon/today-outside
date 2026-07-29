@@ -12,7 +12,8 @@ import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 // 정책: 위치 권한을 거부해도 이 화면 하나로 F6의 대안이 완성돼야 해요.
 // 자체 뒤로가기·타이틀은 렌더링하지 않아요 — 내비게이션 바는 앱인토스가 제공해요 (CLAUDE.md 제약).
 
-const PIN_EMOJI = "https://static.toss.im/2d-icons/emoji/png/4x/u1F4CD.png";
+// 193개 전 지역에 형평 있게, 건물 아이콘 하나로 통일해요 (LocationDenied.tsx와 동일).
+const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
 const CLOCK_EMOJI = "https://static.toss.im/2d-icons/emoji/png/4x/u1F557.png";
 
 export default function RegionSearch() {
@@ -74,7 +75,7 @@ export default function RegionSearch() {
                   key={`${region.sido}-${region.sigungu}`}
                   left={
                     <ListRow.AssetImage
-                      src={PIN_EMOJI}
+                      src={REGION_ICON}
                       shape="squircle"
                       backgroundColor={adaptive.greyOpacity100}
                       size="xsmall"
