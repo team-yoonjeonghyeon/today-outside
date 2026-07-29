@@ -245,17 +245,36 @@ export default function Details() {
           <SectionHeader>이렇게 준비해요</SectionHeader>
 
           <div style={{ margin: "0 24px" }}>
-            <div style={{ background: MINT[50], border: `1px solid ${MINT.border}`, borderRadius: 12, padding: 14 }}>
-              <Paragraph.Text color={MINT[900]} fontWeight="bold" typography="t7">
+            <div style={{ background: MINT[50], border: `1px solid ${MINT.border}`, borderRadius: 12, padding: 16 }}>
+              {/* 헤드라인을 크게(t6) — 한눈에 들어오는 요약. 팁은 진짜 불릿 + 매달림 들여쓰기로 스캔 쉽게 */}
+              <Paragraph.Text color={MINT[900]} fontWeight="bold" typography="t6">
                 {advice.headline}
               </Paragraph.Text>
               {advice.tips.length > 0 && (
                 <>
-                  <Spacing size={8} />
-                  {advice.tips.map((tip) => (
-                    <div key={tip} style={{ padding: "3px 0" }}>
+                  <Spacing size={12} />
+                  {advice.tips.map((tip, i) => (
+                    <div
+                      key={tip}
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "flex-start",
+                        paddingTop: i === 0 ? 0 : 8,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 4,
+                          height: 4,
+                          borderRadius: "50%",
+                          background: MINT[700],
+                          marginTop: 8,
+                          flexShrink: 0,
+                        }}
+                      />
                       <Paragraph.Text color={MINT[900]} typography="t7">
-                        {`· ${tip}`}
+                        {tip}
                       </Paragraph.Text>
                     </div>
                   ))}
