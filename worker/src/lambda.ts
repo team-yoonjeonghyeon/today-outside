@@ -13,6 +13,7 @@
  * profile만 다른 요청 3건이 캐시 하나를 같이 쓰게 됩니다.
  */
 import { DeleteItemCommand, DynamoDBClient, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import * as https from 'node:https';
 import worker from './index';
 import { toGrid } from './geo';
 import type { Profile } from './types';
@@ -456,6 +457,92 @@ async function handleNotifyUnsubscribe(event: FunctionUrlEvent): Promise<LambdaR
   await ddbDelete(subscriptionKey(type as NotificationType, anonKey));
 
   return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ ok: true }) };
+}
+
+/* ────────────────────────────────── 스마트 발송 (Phase 2 — 아직 아무도 안 불러요) */
+
+// 인증서·개인키는 절대 코드/커밋에 넣지 않아요 — Lambda 환경변수에 base64로 저장해두고
+// 여기서만 디코딩해요. PEM은 여러 줄이라 환경변수에 그대로 넣으면 도구마다 줄바꿈 처리가
+// 달라서 깨지기 쉬워요 — base64 한 줄로 저장하면 어떤 배포 도구를 써도 안전해요.
+//   TOSS_MTLS_CERT = cert.pem 파일을 base64로 인코딩한 값
+//   TOSS_MTLS_KEY  = key.pem 파일을 base64로 인코딩한 값
+function mtlsCredentials(): { cert: string; key: string } | null {
+  const certB64 = process.env.TOSS_MTLS_CERT;
+  const keyB64 = process.env.TOSS_MTLS_KEY;
+  if (!certB64 || !keyB64) return null;
+  return {
+    cert: Buffer.from(certB64, 'base64').toString('utf-8'),
+    key: Buffer.from(keyB64, 'base64').toString('utf-8'),
+  };
+}
+
+const TOSS_API_HOST = 'apps-in-toss-api.toss.im';
+
+interface SendSmartMessageParams {
+  templateSetCode: string;
+  context: Record<string, unknown>;
+  /** 사용자 식별 — 앱에서 getAnonymousKey()로 받은 해시. anonKey/userKey 중 하나는 있어야 해요. */
+  anonKey?: string;
+  userKey?: string;
+}
+
+interface SendSmartMessageResult {
+  ok: boolean;
+  status: number;
+  body: string;
+}
+
+/**
+ * 스마트 발송 sendMessage 호출. 아직 아무 데서도 안 불러요 — Phase 2(조건 판정 크론)가
+ * 생기면 그때 여기를 호출하게 돼요. 지금은 다음 두 가지가 없어서 실제로 성공은 못 해요.
+ *   1) TOSS_MTLS_CERT / TOSS_MTLS_KEY 환경변수 (인증서 발급받아 base64로 등록해야 함)
+ *   2) 토스가 요구하는 고정 IP 방화벽 허용 (이 Lambda가 NAT Gateway로 나가도록 설정해야 함,
+ *      안 하면 인증서가 있어도 방화벽에서 막혀요)
+ */
+export async function sendSmartMessage(
+  params: SendSmartMessageParams
+): Promise<SendSmartMessageResult> {
+  const creds = mtlsCredentials();
+  if (!creds) {
+    return { ok: false, status: 0, body: 'TOSS_MTLS_CERT/TOSS_MTLS_KEY가 설정 안 됐어요' };
+  }
+  if (!params.anonKey && !params.userKey) {
+    return { ok: false, status: 0, body: 'anonKey 또는 userKey 중 하나는 있어야 해요' };
+  }
+
+  const requestBody = JSON.stringify({
+    templateSetCode: params.templateSetCode,
+    context: params.context,
+  });
+
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        hostname: TOSS_API_HOST,
+        path: '/api-partner/v1/apps-in-toss/messenger/send-message',
+        method: 'POST',
+        cert: creds.cert,
+        key: creds.key,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(requestBody),
+          ...(params.anonKey ? { 'x-anon-key': params.anonKey } : {}),
+          ...(params.userKey ? { 'x-toss-user-key': params.userKey } : {}),
+        },
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          const status = res.statusCode ?? 0;
+          resolve({ ok: status >= 200 && status < 300, status, body: data });
+        });
+      }
+    );
+    req.on('error', (e) => resolve({ ok: false, status: 0, body: String(e) }));
+    req.write(requestBody);
+    req.end();
+  });
 }
 
 export const handler = async (event: FunctionUrlEvent): Promise<LambdaResponse> => {
