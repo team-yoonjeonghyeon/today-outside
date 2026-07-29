@@ -6,6 +6,8 @@ import { LEVEL_COLORS, METRIC_LABELS, MINT, type MetricKey, type Profile } from 
 import { fetchJudge, JudgeApiError, type JudgeResponse, type Metrics } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
+import { UV_ADVICE, uvTips, type UvLabel } from "../constants/uvAdvice";
+import { FEELS_ADVICE, feelsTips, feelsLikeBand } from "../constants/feelsLikeAdvice";
 
 // F5 지표 상세 — 왜 이 판정인가. docs/오늘나가도되나_디자인프레임.html F5 참고.
 // 이 화면의 스타일(.sect-h/.calc/.calcrow/.surf/.notice/.badge)은 그 파일 <style> 블록의
@@ -46,6 +48,26 @@ function subCopy(metricKey: MetricKey, profile: Profile, metrics: Metrics): stri
   }
   if (metricKey === "uv") return `${metrics.uviLabel} 단계예요`;
   return "아스팔트 기준이에요";
+}
+
+// 체감·자외선 상세의 "이렇게 해요" 조언. 규칙 기반 문구(constants).
+// 노면(road)은 표면 비교·손등7초 등 자체 상세가 있어 조언 섹션을 두지 않아요.
+function metricAdvice(
+  metricKey: MetricKey,
+  profile: Profile,
+  metrics: Metrics,
+): { headline: string; tips: string[] } | null {
+  if (metricKey === "uv") {
+    const label = metrics.uviLabel as UvLabel;
+    const a = UV_ADVICE[label];
+    if (!a) return null;
+    return { headline: a.headline, tips: uvTips(label, profile) };
+  }
+  if (metricKey === "feelsLike") {
+    const band = feelsLikeBand(metrics.feelsLike);
+    return { headline: FEELS_ADVICE[band].headline, tips: feelsTips(band, profile) };
+  }
+  return null;
 }
 
 function calcRows(metricKey: MetricKey, metrics: Metrics): CalcRow[] {
@@ -161,6 +183,7 @@ export default function Details() {
   const rows = calcRows(metricKey, metrics);
   const totalLabel = isRoad ? "아스팔트 표면" : METRIC_LABELS[metricKey];
   const surfaceMax = Math.max(...surfaceRows(metrics).map((r) => r.value));
+  const advice = metricAdvice(metricKey, profile, metrics);
 
   return (
     <>
@@ -223,6 +246,28 @@ export default function Details() {
           </div>
         </div>
       </div>
+
+      {advice && (
+        <>
+          <SectionHeader>이렇게 해요</SectionHeader>
+          <div style={{ padding: "0 24px" }}>
+            <Paragraph.Text color={adaptive.grey800} fontWeight="bold">
+              {advice.headline}
+            </Paragraph.Text>
+            <Spacing size={8} />
+            {advice.tips.map((tip) => (
+              <div key={tip} style={{ display: "flex", gap: 8, padding: "5px 0" }}>
+                <Text color={levelColor} fontWeight="bold" typography="t7" style={{ lineHeight: 1.5 }}>
+                  •
+                </Text>
+                <Paragraph.Text color={adaptive.grey700} typography="t7">
+                  {tip}
+                </Paragraph.Text>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {isRoad && (
         <>
