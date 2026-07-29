@@ -6,8 +6,7 @@ import type {
   Profile,
   WeatherPoint,
 } from './types';
-import { isValidGrid, kstParts, nowKst, solarAltitude, toGrid, toLatLon, yyyymmdd } from './geo';
-import { fetchRegion } from './kakao';
+import { isValidGrid, kstParts, nowKst, solarAltitude, toLatLon, yyyymmdd } from './geo';
 import {
   compute,
   findBestWindow,
@@ -67,23 +66,7 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
-
-    // 좌표 → 행정구역 역지오코딩 (카카오). 프론트가 GPS 라벨을 정확히 뽑을 때 써요.
-    if (url.pathname === '/region') {
-      const latRaw = url.searchParams.get('lat');
-      const lonRaw = url.searchParams.get('lon');
-      const lat = Number(latRaw);
-      const lon = Number(lonRaw);
-      if (latRaw === null || lonRaw === null || !Number.isFinite(lat) || !Number.isFinite(lon)) {
-        return err('INVALID_PARAM', 'lat, lon을 확인해 주세요', 400);
-      }
-      const region = await fetchRegion(env, lat, lon);
-      // 카카오 미설정·장애·미매칭 → 502. 프론트는 이때 기존 중심점 방식으로 폴백해요.
-      if (!region) return err('REGION_UNAVAILABLE', '지역을 확인할 수 없어요', 502);
-      const { nx, ny } = toGrid(lat, lon);
-      return json({ ...region, nx, ny });
-    }
-
+    // /region·/search 역지오코딩은 Lambda 어댑터(lambda.ts)가 자체 처리해요.
     if (url.pathname !== '/judge') return err('NOT_FOUND', '없는 경로예요', 404);
 
     // 파라미터 검증. get()은 누락 시 null → Number(null)=0이라 그냥 두면 통과해버려요.

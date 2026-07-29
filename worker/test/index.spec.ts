@@ -6,7 +6,6 @@ import type { Computed } from "../src/engine";
 import type { Verdict } from "../src/types";
 import { extractAreaToken, heatLevelForArea, nationwideHeatLevel } from "../src/kma";
 import { isValidGrid } from "../src/geo";
-import { pickRegion } from "../src/kakao";
 
 const ctx = () => createExecutionContext();
 
@@ -69,46 +68,8 @@ describe("routing & validation", () => {
 		expect(res.status).toBe(400);
 	});
 
-	it("/region: lat/lon 누락 → 400", async () => {
-		const c = ctx();
-		const res = await worker.fetch(req("/region"), env, c);
-		await waitOnExecutionContext(c);
-		expect(res.status).toBe(400);
-	});
-
-	it("/region: 카카오 키 없으면 → 502 (프론트 폴백 신호)", async () => {
-		const c = ctx();
-		const res = await worker.fetch(req("/region?lat=37.5443&lon=126.9515"), env, c);
-		await waitOnExecutionContext(c);
-		expect(res.status).toBe(502);
-		expect(((await res.json()) as { error: string }).error).toBe("REGION_UNAVAILABLE");
-	});
 });
 
-/* ────────── 카카오 역지오코딩 파싱 ────────── */
-describe("pickRegion", () => {
-	it("행정동(H) 우선", () => {
-		const docs = [
-			{ region_type: "B", region_1depth_name: "서울특별시", region_2depth_name: "마포구", region_3depth_name: "공덕동" },
-			{ region_type: "H", region_1depth_name: "서울특별시", region_2depth_name: "마포구", region_3depth_name: "공덕제1동" },
-		];
-		expect(pickRegion(docs)).toEqual({ sido: "서울특별시", sigungu: "마포구", dong: "공덕제1동" });
-	});
-
-	it("H 없으면 첫 항목", () => {
-		const docs = [{ region_type: "B", region_1depth_name: "부산광역시", region_2depth_name: "해운대구", region_3depth_name: "우동" }];
-		expect(pickRegion(docs)?.sigungu).toBe("해운대구");
-	});
-
-	it("시군구 비면 시도로 대체 (세종 등)", () => {
-		const docs = [{ region_type: "H", region_1depth_name: "세종특별자치시", region_2depth_name: "", region_3depth_name: "" }];
-		expect(pickRegion(docs)).toEqual({ sido: "세종특별자치시", sigungu: "세종특별자치시", dong: "" });
-	});
-
-	it("빈 배열 → null", () => {
-		expect(pickRegion([])).toBeNull();
-	});
-});
 
 /* ────────── 격자 범위 검증 ────────── */
 describe("isValidGrid", () => {
