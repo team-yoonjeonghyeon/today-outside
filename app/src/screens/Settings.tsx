@@ -136,75 +136,77 @@ export default function Settings() {
       </div>
 
       <List>
-        <div className="settings-start-tab-trigger">
-          {/* Menu.Trigger의 실제 루트 엘리먼트가 inline-block이라 내용 크기만큼만 차지해요.
-              그래서 화살표(>)가 데이터 출처 같은 일반 ListRow보다 훨씬 왼쪽에 붙어 보였어요.
-              Menu.Trigger 바로 바깥에서 그 루트를 block+100%로 강제해요. */}
-          <style>{`.settings-start-tab-trigger > div { display: block; width: 100%; }`}</style>
-          <Menu.Trigger
-            open={startTabSheetOpen}
-            onOpen={() => setStartTabSheetOpen(true)}
-            onClose={() => setStartTabSheetOpen(false)}
-            placement="bottom"
-            dropdown={
-              <Menu.Dropdown header={<Menu.Header>시작 탭 고르기</Menu.Header>}>
-                {PROFILE_ORDER.map((p) => {
-                  const isSelected = profile === p;
-                  return (
-                    // Menu.DropdownCheckItem(checked/onCheckedChange)은 클릭해도 선택이 안 바뀌는
-                    // 버그가 있어서, Home.tsx 지역 드롭다운이랑 같은 방식(DropdownItem + onClick)으로
-                    // 바꿨어요 — 선택 표시는 체크박스 대신 텍스트 색으로만 줘요.
-                    <Menu.DropdownItem
-                      key={p}
-                      left={
-                        <img
-                          src={PROFILE_META[p].icon}
-                          alt=""
-                          width={20}
-                          height={20}
-                          style={{ borderRadius: 6, display: "block" }}
-                        />
-                      }
-                      onClick={() => {
-                        setProfile(p);
-                        setStartTabSheetOpen(false);
-                      }}
-                    >
-                      <span style={{ color: isSelected ? MINT[700] : undefined, fontWeight: isSelected ? 700 : undefined }}>
-                        {PROFILE_META[p].label}
-                      </span>
-                    </Menu.DropdownItem>
-                  );
-                })}
-              </Menu.Dropdown>
-            }
-          >
-            <div style={{ width: "100%" }}>
-              <ListRow
-                left={
-                  <ListRow.AssetImage
-                    src={PROFILE_META[profile].icon}
-                    shape="squircle"
-                    backgroundColor={adaptive.greyOpacity100}
-                    size="xsmall"
-                  />
-                }
-                contents={
-                  <ListRow.Texts
-                    type="2RowTypeA"
-                    top={PROFILE_META[profile].label}
-                    topProps={{ color: adaptive.grey800, fontWeight: "bold" }}
-                    bottom="앱을 열면 이 탭부터 보여줘요"
-                    bottomProps={{ color: adaptive.grey600 }}
-                  />
-                }
-                withArrow
-                verticalPadding="large"
-                onClick={() => setStartTabSheetOpen(true)}
-              />
-            </div>
-          </Menu.Trigger>
-        </div>
+        <Menu.Trigger
+          // Menu.Trigger의 루트 엘리먼트가 inline-block이라 내용 크기만큼만 차지해서, 화살표(>)가
+          // 데이터 출처 같은 일반 ListRow보다 왼쪽에 붙어 보였어요. `> div` 셀렉터로 override하는
+          // 대신(라이브러리 내부 DOM 구조·클래스가 버전마다 바뀌면 깨져요) style prop을 직접 넘겨요 —
+          // MenuTriggerProps가 ComponentPropsWithoutRef<'div'>를 확장해서 인라인 스타일로 전달되고,
+          // 인라인 스타일은 라이브러리 내부 클래스 우선순위와 무관하게 항상 이겨요.
+          style={{ display: "block", width: "100%" }}
+          open={startTabSheetOpen}
+          onOpen={() => setStartTabSheetOpen(true)}
+          onClose={() => setStartTabSheetOpen(false)}
+          placement="bottom"
+          dropdown={
+            <Menu.Dropdown header={<Menu.Header>시작 탭 고르기</Menu.Header>}>
+              {PROFILE_ORDER.map((p) => {
+                const isSelected = profile === p;
+                return (
+                  // Menu.DropdownCheckItem(checked/onCheckedChange)은 클릭해도 선택이 안 바뀌는
+                  // 버그가 있어서, Home.tsx 지역 드롭다운이랑 같은 방식(DropdownItem + onClick)으로
+                  // 바꿨어요 — 선택 표시는 체크박스 대신 텍스트 색으로만 줘요.
+                  <Menu.DropdownItem
+                    key={p}
+                    left={
+                      <img
+                        src={PROFILE_META[p].icon}
+                        alt=""
+                        width={20}
+                        height={20}
+                        style={{ borderRadius: 6, display: "block" }}
+                      />
+                    }
+                    onClick={() => {
+                      setProfile(p);
+                      setStartTabSheetOpen(false);
+                    }}
+                  >
+                    <span style={{ color: isSelected ? MINT[700] : undefined, fontWeight: isSelected ? 700 : undefined }}>
+                      {PROFILE_META[p].label}
+                    </span>
+                  </Menu.DropdownItem>
+                );
+              })}
+            </Menu.Dropdown>
+          }
+        >
+          {/* Menu.Trigger가 이 자식을 cloneElement로 감싸 id·aria-* props를 얹기 때문에, ListRow에
+              직접 얹기보다 div로 한 번 더 감싸서 받아요 — width:100%도 여기서 함께 보장돼요. */}
+          <div style={{ width: "100%" }}>
+            <ListRow
+              left={
+                <ListRow.AssetImage
+                  src={PROFILE_META[profile].icon}
+                  shape="squircle"
+                  backgroundColor={adaptive.greyOpacity100}
+                  size="xsmall"
+                />
+              }
+              contents={
+                <ListRow.Texts
+                  type="2RowTypeA"
+                  top={PROFILE_META[profile].label}
+                  topProps={{ color: adaptive.grey800, fontWeight: "bold" }}
+                  bottom="앱을 열면 이 탭부터 보여줘요"
+                  bottomProps={{ color: adaptive.grey600 }}
+                />
+              }
+              withArrow
+              verticalPadding="large"
+              onClick={() => setStartTabSheetOpen(true)}
+            />
+          </div>
+        </Menu.Trigger>
       </List>
 
       <Spacing size={20} />
