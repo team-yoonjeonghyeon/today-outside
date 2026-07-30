@@ -8,6 +8,7 @@ import { searchRegions } from "../lib/regions";
 import { searchRegionsRemote } from "../lib/judgeApi";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { useBackNavigation } from "../hooks/useBackNavigation";
+import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
 import { ROUTES } from "../routes";
 
 // F9 지역 검색·추가. docs/오늘나가도되나_디자인프레임.html F9 참고.
@@ -40,6 +41,7 @@ interface SearchResultItem {
 
 export default function RegionSearch() {
   useBackNavigation();
+  useDisablePullToRefresh();
 
   const navigate = useNavigate();
   const { addRegion } = useSavedRegions();
