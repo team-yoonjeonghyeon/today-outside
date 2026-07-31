@@ -12,11 +12,18 @@
  * 최종 판정이 아니라 "기상청 원본"을 캐싱하는 게 핵심이에요.
  * profile만 다른 요청 3건이 캐시 하나를 같이 쓰게 됩니다.
  */
-import { DeleteItemCommand, DynamoDBClient, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import {
+  type AttributeValue,
+  DeleteItemCommand,
+  DynamoDBClient,
+  GetItemCommand,
+  PutItemCommand,
+  ScanCommand,
+} from '@aws-sdk/client-dynamodb';
 import * as https from 'node:https';
 import worker from './index';
 import { toGrid } from './geo';
-import type { Profile } from './types';
+import type { JudgeResponse, Profile } from './types';
 
 const TABLE = process.env.CACHE_TABLE ?? '';
 const ddb = TABLE ? new DynamoDBClient({}) : null;
@@ -368,6 +375,15 @@ async function handleSearch(q: string): Promise<LambdaResponse> {
 const NOTIFICATION_TYPES = ['morningBriefing', 'dangerAlert', 'walkTimeAlert'] as const;
 type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+// 앱인토스 콘솔 > 스마트 발송 > 알림 동의문에 등록해 둔 발송 코드예요.
+// app/src/screens/Settings.tsx의 NOTIFICATION_TEMPLATE_CODES와 값이 같아야 해요 — 프론트가
+// 동의를 요청할 때 쓰는 코드랑 여기서 실제로 발송할 때 쓰는 코드가 다르면 발송이 실패해요.
+const NOTIFICATION_TEMPLATE_CODES: Record<NotificationType, string> = {
+  morningBriefing: 'today-outside-morning-brief',
+  dangerAlert: 'today-outside-danger-alert',
+  walkTimeAlert: 'today-outside-walk-time',
+};
+
 interface SubscribeBody {
   anonKey: string;
   type: NotificationType;
@@ -545,7 +561,145 @@ export async function sendSmartMessage(
   });
 }
 
-export const handler = async (event: FunctionUrlEvent): Promise<LambdaResponse> => {
+/* ────────────────────────────────── 아침 브리핑 (Phase 2) */
+
+// EventBridge Scheduler가 매일 08:00(Asia/Seoul) 크론으로 이 Lambda를 아래 입력으로 호출하도록
+// 등록하면 돼요: { "task": "morningBriefing" }. Function URL(API Gateway/ALB) 요청은
+// requestContext가 항상 있어서, 이 필드로 "스케줄 호출인지 HTTP 요청인지"를 구분해요.
+interface ScheduledEvent {
+  task: 'morningBriefing';
+}
+
+function isScheduledEvent(event: unknown): event is ScheduledEvent {
+  return !!event && typeof event === 'object' && (event as Record<string, unknown>).task === 'morningBriefing';
+}
+
+interface SubscriptionRecord {
+  profile: Profile;
+  regions: { name: string; nx: number; ny: number }[];
+  subscribedAt: string;
+}
+
+/**
+ * `sub:{type}:{anonKey}` 형태의 구독 레코드를 전부 훑어요. CACHE_TABLE이 기상청·카카오 캐시랑
+ * 같이 쓰는 테이블이라(파티션 키 하나뿐, GSI 없음) Scan이 테이블 전체를 읽고 나서
+ * FilterExpression으로 걸러요 — 구독자·캐시 항목이 많아지면 비용·속도가 부담될 수 있어요.
+ * 그때는 구독 전용 테이블이나 GSI(예: type을 파티션 키로)로 옮기는 걸 권장해요. 지금 규모
+ * (Phase 1, 발송 대상 최대 수백 명)에서는 이 정도로 충분해요.
+ */
+async function scanSubscriptions(type: NotificationType): Promise<{ anonKey: string; record: SubscriptionRecord }[]> {
+  if (!ddb) return [];
+  const prefix = subscriptionKey(type, '');
+  const results: { anonKey: string; record: SubscriptionRecord }[] = [];
+  let ExclusiveStartKey: Record<string, AttributeValue> | undefined;
+
+  do {
+    const out = await ddb.send(
+      new ScanCommand({
+        TableName: TABLE,
+        FilterExpression: 'begins_with(cacheKey, :prefix)',
+        ExpressionAttributeValues: { ':prefix': { S: prefix } },
+        ExclusiveStartKey,
+      })
+    );
+    for (const item of out.Items ?? []) {
+      const cacheKey = item.cacheKey?.S;
+      const body = item.body?.S;
+      const expiresAt = Number(item.expiresAt?.N ?? '0');
+      if (!cacheKey || !body) continue;
+      if (expiresAt * 1000 <= Date.now()) continue; // 만료(2년 지난) 구독은 건너뛰어요.
+      const anonKey = cacheKey.slice(prefix.length);
+      try {
+        results.push({ anonKey, record: JSON.parse(body) as SubscriptionRecord });
+      } catch {
+        // 손상된 레코드는 건너뛰어요.
+      }
+    }
+    ExclusiveStartKey = out.LastEvaluatedKey;
+  } while (ExclusiveStartKey);
+
+  return results;
+}
+
+/** index.ts의 /judge 핸들러를 그대로 재사용해요(캐시·판정 로직 중복 방지) — Function URL
+ *  요청과 동일하게 합성 Request를 만들어 worker.fetch에 직접 넘겨요. */
+async function fetchJudgeInternal(nx: number, ny: number, profile: Profile): Promise<JudgeResponse | null> {
+  const request = new Request(`https://lambda.local/judge?nx=${nx}&ny=${ny}&profile=${profile}`);
+  const env = { KMA_API_KEY: process.env.KMA_API_KEY ?? '' } as never;
+  const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as never;
+  const res = await worker.fetch(request, env, ctx);
+  if (!res.ok) return null;
+  return (await res.json()) as JudgeResponse;
+}
+
+/**
+ * 아침 브리핑 발송 본체. 구독자마다 저장 지역의 첫 번째(가장 먼저 등록한 대표 지역) 하나만
+ * 요약해서 보내요 — 여러 지역을 각각 보낼지는 사용자 반응 보고 나중에 정해요.
+ *
+ * context에 넣는 필드 이름(regionLabel·headline·reason·feelsLike·roadTemp)은 임시로 정한
+ * 값이에요. 앱인토스 콘솔 > 스마트 발송에 등록한 today-outside-morning-brief 템플릿의 실제
+ * 변수 이름과 반드시 맞춰야 발송이 성공해요 — 다르면 여기 필드 이름을 수정해 주세요.
+ */
+export async function runMorningBriefing(): Promise<{ sent: number; failed: number; skipped: number; total: number }> {
+  const subs = await scanSubscriptions('morningBriefing');
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  // 기상청 호출·스마트 발송 API에 한 번에 너무 많이 몰리지 않게 5명씩 나눠 처리해요.
+  const CONCURRENCY = 5;
+  for (let i = 0; i < subs.length; i += CONCURRENCY) {
+    const batch = subs.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async ({ anonKey, record }) => {
+        const region = record.regions[0];
+        if (!region) {
+          skipped++;
+          return;
+        }
+        try {
+          const judgeResult = await fetchJudgeInternal(region.nx, region.ny, record.profile);
+          if (!judgeResult) {
+            failed++;
+            return;
+          }
+          const result = await sendSmartMessage({
+            templateSetCode: NOTIFICATION_TEMPLATE_CODES.morningBriefing,
+            anonKey,
+            context: {
+              regionLabel: region.name,
+              headline: judgeResult.now.headline,
+              reason: judgeResult.now.reason,
+              feelsLike: judgeResult.metrics.feelsLike,
+              roadTemp: judgeResult.metrics.roadTemp,
+            },
+          });
+          if (result.ok) {
+            sent++;
+          } else {
+            failed++;
+            console.error('[morningBriefing] 발송 실패', anonKey, result.status, result.body);
+          }
+        } catch (e) {
+          failed++;
+          console.error('[morningBriefing] 처리 실패', anonKey, e);
+        }
+      })
+    );
+  }
+
+  console.log(`[morningBriefing] 완료 sent=${sent} failed=${failed} skipped=${skipped} total=${subs.length}`);
+  return { sent, failed, skipped, total: subs.length };
+}
+
+export const handler = async (
+  event: FunctionUrlEvent | ScheduledEvent
+): Promise<LambdaResponse | { ok: boolean; sent: number; failed: number; skipped: number; total: number }> => {
+  if (isScheduledEvent(event)) {
+    const result = await runMorningBriefing();
+    return { ok: true, ...result };
+  }
+
   const method = event.requestContext?.http?.method ?? 'GET';
   const path = event.rawPath ?? '/';
   const qs = event.rawQueryString ? `?${event.rawQueryString}` : '';
