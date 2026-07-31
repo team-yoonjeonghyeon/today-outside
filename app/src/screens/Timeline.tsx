@@ -12,6 +12,7 @@ import {
 import { fetchJudge, JudgeApiError, type HourSlot, type JudgeResponse } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
+import { setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 
 // F4 시간창 — 오늘 언제 나가나. docs/오늘나가도되나_디자인프레임.html F4 참고.
 // 18칸 스트립(06~23시). '보통 이하'가 이어지는 구간을 bestWindow로 서버가 골라줘요.
@@ -46,6 +47,11 @@ export default function Timeline() {
   const [data, setData] = useState<JudgeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // useReviewPrompt(Home)가 "기능을 충분히 활용했는지" 판단하는 근거 중 하나예요.
+  useEffect(() => {
+    void setStoredJSON(STORAGE_KEYS.usedDetailFeature, true);
+  }, []);
 
   useEffect(() => {
     if (!state) return;

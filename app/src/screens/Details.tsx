@@ -6,6 +6,7 @@ import { LEVEL_COLORS, METRIC_LABELS, MINT, type MetricKey, type Profile } from 
 import { fetchJudge, JudgeApiError, type JudgeResponse, type Metrics } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
+import { setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { UV_ADVICE, uvTips, type UvLabel } from "../constants/uvAdvice";
 import { FEELS_ADVICE, feelsTips, feelsLikeBand } from "../constants/feelsLikeAdvice";
@@ -102,6 +103,11 @@ export default function Details() {
   const [data, setData] = useState<JudgeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // useReviewPrompt(Home)가 "기능을 충분히 활용했는지" 판단하는 근거 중 하나예요.
+  useEffect(() => {
+    void setStoredJSON(STORAGE_KEYS.usedDetailFeature, true);
+  }, []);
 
   useEffect(() => {
     if (!state) return;

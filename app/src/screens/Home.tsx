@@ -22,6 +22,7 @@ import {
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { useLastProfile } from "../hooks/useLastProfile";
+import { useReviewPrompt } from "../hooks/useReviewPrompt";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { requireRegionBySigungu } from "../lib/regions";
@@ -238,6 +239,8 @@ export default function Home() {
   const showData = data && data.profile === profile ? data : null;
   const levelColor = showData ? LEVEL_COLORS[showData.now.level] : adaptive.grey900;
   const metricCards = showData ? buildMetricCards(profile, showData) : [];
+
+  useReviewPrompt(Boolean(showData));
 
   return (
     <>

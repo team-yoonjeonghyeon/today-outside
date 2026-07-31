@@ -33,4 +33,9 @@ export const STORAGE_KEYS = {
   // 홈으로 바로 이어지게 하는 용도예요. MemoryRouter라 라우팅 자체는 항상 F1부터 다시
   // 시작하는데, Onboarding이 이 값을 읽어서 있으면 곧장 Home으로 넘겨요.
   lastRegion: "todayoutside:lastRegion",
+  // 아래 세 개는 useReviewPrompt 전용이에요 — 몇 번째 홈 방문인지, 시간창(F4)·지표 상세(F5)
+  // 같은 기능을 실제로 써봤는지, 리뷰를 이미 요청한 적 있는지(평생 한 번만).
+  homeVisitCount: "todayoutside:homeVisitCount",
+  usedDetailFeature: "todayoutside:usedDetailFeature",
+  reviewRequested: "todayoutside:reviewRequested",
 } as const;
