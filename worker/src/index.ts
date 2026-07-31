@@ -1,4 +1,5 @@
 import type {
+  Alert,
   HourSlot,
   JudgeResponse,
   Level,
@@ -60,6 +61,54 @@ function estimateSunsetHour(
   return 19.5;
 }
 
+/**
+ * fetchHeatWarning은 기상청 특보 목록 → 통보문 상세, 이렇게 KMA를 순차로 2번 불러요
+ * (kma.ts 참고). 나머지 4개 병렬 호출은 전부 1번씩이라, 캐시가 없는 새 좌표에서는 이
+ * 브랜치 혼자 전체 /judge 응답 시간을 2배 가까이 끌어올려요 — 실측으로 4~6초까지 걸렸어요.
+ * 폭염특보는 홈 상단 배너용 부가 정보고 실패해도 이미 null로 조용히 넘어가게 설계돼 있어서
+ * (fetchHeatWarning 자체 try/catch), 판정 핵심 데이터까지 붙잡아둘 이유가 없어요.
+ *
+ * 그래서 여기서 타임아웃을 걸어요: timeoutMs 안에 못 끝내면 이번 응답은 null로 먼저 내보내고,
+ * 원래 요청은 ctx.waitUntil로 응답 이후에도 계속 흘러가게 둬서 — 다음 요청부턴 캐시로
+ * 빠르게 뜨게 해요(KMA 응답 캐시는 fetchHeatWarning 내부 cachedJson이 이미 채워줘요).
+ */
+function heatWarningWithTimeout(
+  env: Env,
+  area: string | null,
+  ctx: ExecutionContext,
+  timeoutMs = 1500
+): Promise<Alert | null> {
+  const task = fetchHeatWarning(env, area);
+  ctx.waitUntil(task.then(() => undefined, () => undefined));
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(null);
+      }
+    }, timeoutMs);
+
+    task.then(
+      (result) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(result);
+        }
+      },
+      () => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
+      }
+    );
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
@@ -100,7 +149,7 @@ export default {
         fetchVilage(env, nx, ny),
         fetchUvi(env, areaNo),
         fetchLightning(env, nx, ny),
-        fetchHeatWarning(env, area),
+        heatWarningWithTimeout(env, area, ctx),
       ]);
 
       const dateParts = { year: p.year, month: p.month, day: p.day };
