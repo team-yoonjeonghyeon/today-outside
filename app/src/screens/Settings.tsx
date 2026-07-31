@@ -146,38 +146,43 @@ export default function Settings() {
           open={startTabSheetOpen}
           onOpen={() => setStartTabSheetOpen(true)}
           onClose={() => setStartTabSheetOpen(false)}
-          placement="bottom"
+          placement="bottom-start"
           dropdown={
-            <Menu.Dropdown header={<Menu.Header>시작 탭 고르기</Menu.Header>}>
-              {PROFILE_ORDER.map((p) => {
-                const isSelected = profile === p;
-                return (
-                  // Menu.DropdownCheckItem(checked/onCheckedChange)은 클릭해도 선택이 안 바뀌는
-                  // 버그가 있어서, Home.tsx 지역 드롭다운이랑 같은 방식(DropdownItem + onClick)으로
-                  // 바꿨어요 — 선택 표시는 체크박스 대신 텍스트 색으로만 줘요.
-                  <Menu.DropdownItem
-                    key={p}
-                    left={
-                      <img
-                        src={PROFILE_META[p].icon}
-                        alt=""
-                        width={20}
-                        height={20}
-                        style={{ borderRadius: 6, display: "block" }}
-                      />
-                    }
-                    onClick={() => {
-                      setProfile(p);
-                      setStartTabSheetOpen(false);
-                    }}
-                  >
-                    <span style={{ color: isSelected ? MINT[700] : undefined, fontWeight: isSelected ? 700 : undefined }}>
-                      {PROFILE_META[p].label}
-                    </span>
-                  </Menu.DropdownItem>
-                );
-              })}
-            </Menu.Dropdown>
+            // placement="bottom-start"는 Trigger(행 전체)의 왼쪽 끝, 즉 화면 벽에 드롭다운을
+            // 붙여요. 그래서 드롭다운 쪽에 라벨 텍스트가 시작하는 지점(아이콘 폭 + 여백)만큼
+            // 왼쪽 여백을 줘서, 화면 벽이 아니라 "반려견 산책" 글자 아래에서 뜨는 것처럼 보이게 해요.
+            <div style={{ marginLeft: 44 }}>
+              <Menu.Dropdown header={<Menu.Header>시작 탭 고르기</Menu.Header>}>
+                {PROFILE_ORDER.map((p) => {
+                  const isSelected = profile === p;
+                  return (
+                    // Menu.DropdownCheckItem(checked/onCheckedChange)은 클릭해도 선택이 안 바뀌는
+                    // 버그가 있어서, Home.tsx 지역 드롭다운이랑 같은 방식(DropdownItem + onClick)으로
+                    // 바꿨어요 — 선택 표시는 체크박스 대신 텍스트 색으로만 줘요.
+                    <Menu.DropdownItem
+                      key={p}
+                      left={
+                        <img
+                          src={PROFILE_META[p].icon}
+                          alt=""
+                          width={20}
+                          height={20}
+                          style={{ borderRadius: 6, display: "block" }}
+                        />
+                      }
+                      onClick={() => {
+                        setProfile(p);
+                        setStartTabSheetOpen(false);
+                      }}
+                    >
+                      <span style={{ color: isSelected ? MINT[700] : undefined, fontWeight: isSelected ? 700 : undefined }}>
+                        {PROFILE_META[p].label}
+                      </span>
+                    </Menu.DropdownItem>
+                  );
+                })}
+              </Menu.Dropdown>
+            </div>
           }
         >
           {/* Menu.Trigger가 이 자식을 cloneElement로 감싸 id·aria-* props를 얹기 때문에, ListRow에
