@@ -3,7 +3,6 @@
  * 프론트 어디서도 지역명·nx/ny를 직접 하드코딩하지 말고 이 모듈을 통해서만 조회해요.
  */
 import regionsData from "../../../data/regions.json";
-import { fetchRegion } from "./judgeApi";
 import { toGrid } from "./geo";
 
 export interface RegionEntry {
@@ -72,22 +71,17 @@ export interface MyLocationResult {
 }
 
 /**
- * GPS 좌표로 "내 위치(...)" 라벨을 만들어요. 구 단위(findNearestRegion, 중심점 최근접)에서
- * 동 단위(카카오 역지오코딩 /region, 경계 기반)로 바꿨어요 — 중심점 방식은 구 경계 근처
- * 동네를 이웃 구로 잘못 잡을 수 있어서예요(공덕동인데 서대문구로 뜨는 식).
- * 카카오 키 미설정·장애·미매칭으로 /region이 502를 주면 기존 구 단위 중심점 방식으로
- * 폴백해요 — 위치 권한을 줬는데 지역을 하나도 못 보여주는 것보다는 나아요 (정책: 위치
- * 기능이 부분 실패해도 전체 기능은 살아있어야 해요).
+ * GPS 좌표로 "내 위치(...)" 결과를 네트워크 없이 즉시 만들어요. nx/ny는 좌표만 있으면 되는
+ * 순수 계산(toGrid)이라 서버가 /region에서 계산하는 값과 완전히 같아요 — 판정에 쓰는
+ * 데이터의 정확도엔 전혀 영향 없어요.
+ *
+ * 라벨은 구 단위(findNearestRegion, 중심점 최근접)라 동 경계 근처에서는 부정확할 수 있어요
+ * (예: 공덕동인데 서대문구로 뜨는 식). 정확한 동 단위 라벨(카카오 역지오코딩 /region)은
+ * 화면 진입을 막지 않도록 Home이 백그라운드에서 따로 조회해서 나중에 갈아끼워요
+ * (Home.tsx의 지역 라벨 정밀화 로직 참고) — 이 함수는 그 전까지 보여줄 즉시 라벨을 줘요.
  */
-export async function resolveMyLocationLabel(lat: number, lon: number): Promise<MyLocationResult> {
-  try {
-    const region = await fetchRegion(lat, lon);
-    // region.label은 서버가 "구 동"으로 이미 조합해 준 값이에요(구가 없는 지역은 시로 폴백돼 있어요) —
-    // 프론트에서 dong만 따로 쓰면 세종시 같은 곳에서 부자연스러워질 수 있어 서버 값을 그대로 써요.
-    return { nx: region.nx, ny: region.ny, label: `내 위치(${region.label})` };
-  } catch {
-    const { nx, ny } = toGrid(lat, lon);
-    const nearest = findNearestRegion(lat, lon);
-    return { nx, ny, label: `내 위치(${nearest.sigungu})` };
-  }
+export function coarseLocationLabel(lat: number, lon: number): MyLocationResult {
+  const { nx, ny } = toGrid(lat, lon);
+  const nearest = findNearestRegion(lat, lon);
+  return { nx, ny, label: `내 위치(${nearest.sigungu})` };
 }

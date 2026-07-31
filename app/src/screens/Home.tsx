@@ -14,6 +14,7 @@ import {
 } from "../constants/judge";
 import {
   fetchJudge,
+  fetchRegion,
   JudgeApiError,
   type HourSlot,
   type JudgeResponse,
@@ -137,6 +138,10 @@ interface RegionNavState {
   nx: number;
   ny: number;
   label: string;
+  // GPS로 막 들어온 경우에만 Onboarding·LocationDenied가 함께 넘겨줘요 — 구 단위 임시 라벨을
+  // 동 단위 정밀 라벨로 백그라운드에서 갈아끼우는 용도예요(아래 이펙트 참고).
+  lat?: number;
+  lon?: number;
 }
 
 // 홈은 항상 Onboarding·F6에서 nx/ny/label을 state로 들고 진입해서 실제로는 안 쓰이지만,
@@ -170,6 +175,37 @@ export default function Home() {
   useEffect(() => {
     void setStoredJSON(STORAGE_KEYS.lastRegion, region);
   }, [region]);
+
+  // GPS로 막 들어온 경우(Onboarding·LocationDenied가 lat/lon을 함께 넘겨줬을 때)에만, 구 단위
+  // 임시 라벨을 동 단위 정밀 라벨(카카오 역지오코딩)로 백그라운드에서 갈아끼워요. 판정 데이터
+  // 조회(nx/ny)를 기다리게 하지 않으려고 진입 시점엔 이 조회를 아예 안 기다렸어요 — 그 몫을
+  // 여기서 마운트 후에 따로 해요. mount 시점 한 번만 실행해요(지역을 바꾸면 이 이펙트가 아니라
+  // 드롭다운·검색 클릭이 새 label을 바로 확정해줘요).
+  useEffect(() => {
+    const initial = location.state as RegionNavState | null;
+    if (!initial?.lat || !initial?.lon) return;
+
+    const { nx: targetNx, ny: targetNy, lat, lon } = initial;
+    let cancelled = false;
+
+    fetchRegion(lat, lon)
+      .then((precise) => {
+        if (cancelled) return;
+        const preciseLabel = `내 위치(${precise.label})`;
+        // 조회가 끝나기 전에 사용자가 다른 지역으로 바꿨으면 정밀 라벨로 덮어쓰지 않아요.
+        setRegion((prev) =>
+          prev.nx === targetNx && prev.ny === targetNy ? { ...prev, label: preciseLabel } : prev,
+        );
+      })
+      .catch(() => {
+        // 정밀 라벨 조회 실패 — 이미 보여주고 있는 구 단위 임시 라벨을 그대로 둬요.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

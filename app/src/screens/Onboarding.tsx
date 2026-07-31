@@ -14,7 +14,7 @@ import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
 import { PRIMARY_BUTTON_STYLE, GHOST_BUTTON_STYLE } from "../constants/theme";
-import { resolveMyLocationLabel } from "../lib/regions";
+import { coarseLocationLabel } from "../lib/regions";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { getStoredJSON, STORAGE_KEYS } from "../lib/storage";
@@ -45,21 +45,45 @@ export default function Onboarding() {
 
   const [profile, setProfile] = useLastProfile();
   const [locating, setLocating] = useState(false);
-  // 새로고침·미니앱 재실행 시 매번 여기(F1)로 돌아오는 게 아니라, 마지막으로 보던 지역이
-  // 있으면 곧장 그 지역의 홈으로 넘어가요. 확인하는 동안 잠깐 로더만 보여줘요.
-  const [checkingLastRegion, setCheckingLastRegion] = useState(true);
+  // 진입할 때마다 항상 최신 GPS 위치로 시작해요 — 저장된 지역(savedRegions, 최대 3개)은
+  // 사용자가 타지 날씨를 보고 싶을 때 쓰는 별개 기능이고, lastRegion은 "지금 위치"를 대신하는
+  // 값이 아니라 GPS 조회가 안 될 때(권한 거부·오류)만 쓰는 폴백이에요. 조회하는 동안 잠깐
+  // 로더만 보여줘요.
+  const [resolving, setResolving] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
-    getStoredJSON<LastRegion | null>(STORAGE_KEYS.lastRegion, null).then((last) => {
+
+    async function resolveInitialRegion() {
+      try {
+        const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+        // nx/ny·구 단위 라벨은 네트워크 없이 즉시 계산해요 — 동 단위 정밀 라벨은 Home이
+        // 백그라운드에서 따로 조회해서 갈아끼워요(카카오 역지오코딩 응답을 기다리느라
+        // 진입이 늦어지지 않게 하려는 용도).
+        const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+        if (!cancelled) {
+          navigate(ROUTES.home, {
+            state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude },
+            replace: true,
+          });
+        }
+        return;
+      } catch {
+        // 권한 거부·미결정·조회 실패 — 마지막으로 봤던 지역이 있으면 그걸로 폴백하고,
+        // 그마저 없으면 아래 F1 안내(위치 권한 카드)를 보여줘요.
+      }
+
+      const last = await getStoredJSON<LastRegion | null>(STORAGE_KEYS.lastRegion, null);
       if (cancelled) return;
       if (last) {
         navigate(ROUTES.home, { state: last, replace: true });
       } else {
-        setCheckingLastRegion(false);
+        setResolving(false);
       }
-    });
+    }
+
+    void resolveInitialRegion();
     return () => {
       cancelled = true;
     };
@@ -70,8 +94,8 @@ export default function Onboarding() {
     setLocating(true);
     try {
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny, label } = await resolveMyLocationLabel(coords.latitude, coords.longitude);
-      navigate(ROUTES.home, { state: { nx, ny, label } });
+      const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+      navigate(ROUTES.home, { state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude } });
     } catch {
       // 권한 거부·미결정·조회 실패 — 어떤 이유든 지역 직접 선택으로 안내해요.
       // (제약: 위치 권한을 거부해도 전 기능이 동작해야 함)
@@ -83,7 +107,7 @@ export default function Onboarding() {
     navigate(ROUTES.locationDenied);
   };
 
-  if (checkingLastRegion) {
+  if (resolving) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: "64px 24px" }}>
         <Loader size="medium" />
