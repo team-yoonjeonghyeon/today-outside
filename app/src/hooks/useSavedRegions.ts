@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { placeNameFromLabel } from "../lib/regions";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 
 export interface StoredRegion {
@@ -63,8 +64,19 @@ function ensureHydrated() {
   void Promise.all([
     getStoredJSON<StoredRegion[]>(STORAGE_KEYS.savedRegions, []),
     getStoredJSON<boolean>(STORAGE_KEYS.shareBonus, false),
-  ]).then(([regions, bonus]) => {
-    savedRegions = regions;
+    // lastRegion은 화면용 모양이라 이름 필드가 name이 아니라 label이에요(Home이 저장해요).
+    getStoredJSON<{ nx: number; ny: number; label: string } | null>(STORAGE_KEYS.lastRegion, null),
+  ]).then(([regions, bonus, last]) => {
+    // 이 목록의 [0]번이 곧 내 장소(알림 기준)가 되기 전까지는, GPS로만 쓰던 사용자의 목록이
+    // 계속 비어 있었어요(지역을 저장하는 경로가 F9 검색뿐이었거든요). 그 사용자들이 갑자기
+    // 내 장소 없는 상태가 되지 않도록, 목록이 비어 있으면 마지막으로 보던 지역을 첫 장소로
+    // 옮겨와요. 한 번 옮겨오면 아래 저장으로 영속화돼서 다시 탈 일이 없어요.
+    if (regions.length === 0 && last) {
+      savedRegions = [{ name: placeNameFromLabel(last.label), nx: last.nx, ny: last.ny }];
+      void setStoredJSON(STORAGE_KEYS.savedRegions, savedRegions);
+    } else {
+      savedRegions = regions;
+    }
     shareBonusClaimed = bonus;
     loaded = true;
     notify();
@@ -77,6 +89,11 @@ function ensureHydrated() {
  * 떠야 해서 기본값은 빈 배열이에요 — 예전엔 고양시·강남구·해운대구를 하드코딩된 "기본 3개"로
  * 보여줬는데, 아무것도 저장 안 해도 항상 같은 지역이 뜨는 게 하드코딩처럼 보인다는 피드백을
  * 받아서 없앴어요.
+ *
+ * **목록의 [0]번이 곧 "내 장소"예요** — 앱을 열면 여기서 시작하고, 아침 브리핑 같은 알림도
+ * 이 한 곳을 기준으로 와요(primaryRegion). 한때 내 장소를 별도 Storage 값으로 따로 뒀었는데,
+ * 화면에 "저장한 지역"과 "내 장소"라는 개념이 둘로 보여서 하나로 합쳤어요. 대신 내 장소가
+ * 조용히 바뀌면 안 되니, addRegion을 부르기 전에 화면에서 확인을 받아요(Home의 ↻ · F9 검색).
  */
 export function useSavedRegions() {
   ensureHydrated();
@@ -87,8 +104,8 @@ export function useSavedRegions() {
   const maxRegions = BASE_SAVED_REGIONS + (hasShareBonus ? SHARE_BONUS_REGIONS : 0);
 
   const addRegion = useCallback((region: StoredRegion) => {
-    // 확인 없이 최신순으로 앞에 넣고, 현재 한도를 넘으면 가장 오래된 것부터 잘라요.
-    // (기본 1개, 공유 보너스를 받았으면 2개 — currentMax가 최신 보너스 상태를 반영해요.)
+    // 맨 앞에 넣어요 — 즉 방금 추가한 곳이 내 장소가 돼요. 현재 한도를 넘으면 가장 오래된
+    // 것부터 잘라요(기본 1개, 공유 보너스를 받았으면 2개 — currentMax가 최신 상태를 반영해요).
     const next = [region, ...savedRegions.filter((r) => r.name !== region.name)].slice(
       0,
       currentMax(),
@@ -116,6 +133,8 @@ export function useSavedRegions() {
 
   return {
     savedRegions: regions,
+    // 내 장소 — 목록의 첫 칸이에요. 아직 아무것도 저장 안 했으면 null.
+    primaryRegion: regions[0] ?? null,
     addRegion,
     removeRegion,
     loaded: isLoaded,

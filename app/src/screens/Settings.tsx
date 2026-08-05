@@ -1,41 +1,19 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chip, ChipItem, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
-import { getAnonymousKey, requestNotificationAgreement, share } from "@apps-in-toss/web-framework";
+import { share } from "@apps-in-toss/web-framework";
 import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
+import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
-import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
-import { subscribeNotification, unsubscribeNotification } from "../lib/judgeApi";
+import { getAnonKey, requestAgreement } from "../lib/notifications";
+import { subscribeNotification, unsubscribeNotification, type NotificationType } from "../lib/judgeApi";
 import { ROUTES } from "../routes";
 
 // F8 설정. 앱빌더에서 파트너가 준 화면 코드를 기준으로 만들었어요(docs 목업 대신).
 // 자체 뒤로가기·타이틀은 렌더링하지 않아요 — 내비게이션 바는 앱인토스가 제공해요 (CLAUDE.md 제약).
-
-interface NotificationPrefs {
-  morningBriefing: boolean;
-  dangerAlert: boolean;
-  walkTimeAlert: boolean;
-}
-
-// 앱인토스 콘솔 > 스마트 발송 > 알림 동의문에 등록해 둔 발송 코드예요.
-const NOTIFICATION_TEMPLATE_CODES: Record<keyof NotificationPrefs, string> = {
-  morningBriefing: "today-outside-morning-brief",
-  dangerAlert: "today-outside-danger-alert",
-  walkTimeAlert: "today-outside-walk-time",
-};
-
-// 실제로 알림을 예약 발송하는 서버 스케줄러(워커 쪽 크론 + 스마트 발송 API 호출)는 아직 없어요.
-// 그래서 토글을 켜도 지금은 "동의는 받았지만 아직 아무것도 오지 않는" 상태예요 — 다만 그 동의
-// 자체는 requestNotificationAgreement로 실제 동의 UI를 띄워서 진짜로 받아요(정직성 원칙:
-// 동의 UI도 안 띄우면서 켜진 것처럼 보이면 안 돼요). 기본값은 전부 꺼진 상태로 시작해요.
-const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
-  morningBriefing: false,
-  dangerAlert: false,
-  walkTimeAlert: false,
-};
 
 // 저장 장소는 기본 1개예요. 친구에게 한 번 공유하면(공유 시트에서 실제로 공유를 마치면)
 // 보너스로 1개가 더 열려서 총 2개까지 저장할 수 있어요.
@@ -53,62 +31,18 @@ async function runShare(): Promise<boolean> {
   }
 }
 
-// 알림 동의 UI를 띄우고, 사용자가 실제로 동의했을 때만 true를 돌려줘요.
-// 브릿지가 없는 환경(브라우저 프리뷰 등)에서는 동기적으로 throw할 수 있어서 try/catch로 감싸요.
-function requestAgreement(key: keyof NotificationPrefs): Promise<boolean> {
-  return new Promise((resolve) => {
-    try {
-      const cleanup = requestNotificationAgreement({
-        options: { templateCode: NOTIFICATION_TEMPLATE_CODES[key] },
-        onEvent: ({ type }) => {
-          cleanup();
-          resolve(type !== "agreementRejected");
-        },
-        onError: () => {
-          cleanup();
-          resolve(false);
-        },
-      });
-    } catch {
-      resolve(false);
-    }
-  });
-}
-
-// 서버가 "누가 동의했는지" 알아야 나중에 보낼 수 있어서, 동의/해제 시점마다 식별키를 새로
-// 받아요. 식별키를 못 받으면(브릿지 없음·비게임 미니앱 아님·구버전 등) null — 이때는 서버
-// 저장을 건너뛰고 로컬 토글만 반영해요.
-async function getAnonKey(): Promise<string | null> {
-  try {
-    const result = await getAnonymousKey();
-    if (result && typeof result === "object" && result.type === "HASH") return result.hash;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 export default function Settings() {
   useBackNavigation();
 
   const navigate = useNavigate();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions, removeRegion, maxRegions, hasShareBonus, grantShareBonus } = useSavedRegions();
+  const { savedRegions, primaryRegion, removeRegion, maxRegions, hasShareBonus, grantShareBonus } =
+    useSavedRegions();
+  const { prefs, setPrefs } = useNotificationPrefs();
   const [startTabSheetOpen, setStartTabSheetOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
 
-  useEffect(() => {
-    let cancelled = false;
-    getStoredJSON(STORAGE_KEYS.notificationPrefs, DEFAULT_NOTIFICATION_PREFS).then((stored) => {
-      if (!cancelled) setPrefs(stored);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const togglePref = async (key: keyof NotificationPrefs) => {
+  const togglePref = async (key: NotificationType) => {
     const turningOn = !prefs[key];
 
     // 끄는 건 로컬 선호를 바로 끄면 되지만, 켜는 건 실제 동의 UI를 띄우고 사용자가 동의해야만
@@ -118,22 +52,22 @@ export default function Settings() {
       if (!agreed) return;
     }
 
-    setPrefs((prev) => {
-      const next = { ...prev, [key]: turningOn };
-      void setStoredJSON(STORAGE_KEYS.notificationPrefs, next);
-      return next;
-    });
+    void setPrefs({ ...prefs, [key]: turningOn });
 
     // 동의는 이미 받았으니(또는 끄는 거니) 토글은 반영하고, 서버 구독 저장/해제는
     // best-effort로 뒤에서 처리해요 — 실패해도 화면엔 영향 없어요.
     const anonKey = await getAnonKey();
     if (!anonKey) return;
     if (turningOn) {
+      // 알림 기준은 내 장소 한 곳이에요 — 저장한 지역 전부가 아니라요. 예전엔 savedRegions를
+      // 통째로 보냈는데, GPS로만 쓰던 사용자는 그 목록이 비어 있어서 보낼 대상이 없는 구독이
+      // 만들어졌어요. 내 장소는 Onboarding·↻·F9에서 항상 확정되니 그 구멍이 없어요.
+      if (!primaryRegion) return;
       void subscribeNotification({
         anonKey,
         type: key,
         profile,
-        regions: savedRegions.map((r) => ({ name: r.name, nx: r.nx, ny: r.ny })),
+        regions: [primaryRegion],
       });
     } else {
       void unsubscribeNotification(anonKey, key);
@@ -284,7 +218,28 @@ export default function Settings() {
                 </span>
               }
             >
-              {region.name}
+              {/* 목록의 첫 칸이 곧 내 장소(알림 기준)예요. 자리가 2개일 땐 어느 쪽이 기준인지
+                  글자만 봐선 알 수 없어서 배지를 붙여요. 1개뿐이면 물어볼 것도 없어서 생략해요. */}
+              {region.name === primaryRegion?.name && maxRegions > 1 ? (
+                <>
+                  {region.name}
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      padding: "2px 6px",
+                      borderRadius: 6,
+                      background: MINT[50],
+                      color: MINT[700],
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }}
+                  >
+                    내 장소
+                  </span>
+                </>
+              ) : (
+                region.name
+              )}
             </ChipItem>
           ))}
           <ChipItem
@@ -333,8 +288,15 @@ export default function Settings() {
       <Spacing size={20} />
 
       <div style={{ padding: "0 24px" }}>
-        <Post.Paragraph paddingBottom={8} color={adaptive.grey500} typography="st9" fontWeight="bold">
+        <Post.Paragraph paddingBottom={2} color={adaptive.grey500} typography="st9" fontWeight="bold">
           알림
+        </Post.Paragraph>
+        {/* 알림이 어디 기준으로 오는지 안 보이면 사용자는 알 방법이 없어요 (정직성 원칙).
+            내 장소는 홈의 ↻ 또는 지역 검색에서 바꿀 수 있다는 것도 같이 적어줘요. */}
+        <Post.Paragraph paddingBottom={8} color={adaptive.grey500} typography="st12">
+          {primaryRegion
+            ? `${primaryRegion.name} 기준이에요 · 홈의 ↻로 바꿀 수 있어요`
+            : "내 장소를 먼저 정하면 알림을 받을 수 있어요"}
         </Post.Paragraph>
       </div>
 

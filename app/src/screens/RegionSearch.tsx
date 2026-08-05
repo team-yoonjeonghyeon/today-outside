@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, ListRow, Loader, Paragraph, SearchField, Spacing } from "@toss/tds-mobile";
+import { ConfirmDialog, List, ListRow, Loader, Paragraph, SearchField, Spacing } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { MINT } from "../constants/judge";
-import { useSavedRegions } from "../hooks/useSavedRegions";
+import { useLastProfile } from "../hooks/useLastProfile";
+import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
+import { useSavedRegions, type StoredRegion } from "../hooks/useSavedRegions";
+import { syncSubscriptions } from "../lib/notifications";
 import { searchRegions } from "../lib/regions";
 import { searchRegionsRemote } from "../lib/judgeApi";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
@@ -44,7 +47,11 @@ export default function RegionSearch() {
   useDisablePullToRefresh();
 
   const navigate = useNavigate();
-  const { addRegion } = useSavedRegions();
+  const { addRegion, primaryRegion, maxRegions } = useSavedRegions();
+  const { prefs } = useNotificationPrefs();
+  const [profile] = useLastProfile();
+  // 저장한 지역을 내 장소로 바꿀지 물어볼 후보. null이면 확인 창이 닫힌 상태예요.
+  const [pendingPrimary, setPendingPrimary] = useState<StoredRegion | null>(null);
   const [query, setQuery] = useState("");
   const [recentSearch, setRecentSearch] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResultItem[]>([]);
@@ -117,16 +124,40 @@ export default function RegionSearch() {
     };
   }, [query]);
 
+  // 검색해서 지역을 골랐다는 건 그 지역이 궁금하다는 뜻이라, 이전 화면(F6·F8)으로 돌아가는
+  // 대신 바로 그 지역의 홈 화면으로 이동해요.
+  const goHome = (region: StoredRegion) => {
+    navigate(ROUTES.home, { state: { nx: region.nx, ny: region.ny, label: region.name } });
+  };
+
   const handleAddRegion = async (item: SearchResultItem) => {
     const name = item.sub ? `${item.sub} ${item.name}`.trim() : item.name;
-    // Storage 쓰기가 끝난 뒤에 navigate해야, 돌아간 화면이 다시 마운트되며 저장된 지역을
-    // 곧바로 읽어와요 (안 그러면 방금 추가한 지역이 안 보이는 레이스가 생겨요).
-    await addRegion({ name, nx: item.nx, ny: item.ny });
+    const region: StoredRegion = { name, nx: item.nx, ny: item.ny };
     setRecentSearch(item.name);
     void setStoredJSON(STORAGE_KEYS.recentSearch, item.name);
-    // 검색해서 지역을 골랐다는 건 그 지역이 궁금하다는 뜻이라, 이전 화면(F6·F8)으로 돌아가는
-    // 대신 바로 그 지역의 홈 화면으로 이동해요.
-    navigate(ROUTES.home, { state: { nx: item.nx, ny: item.ny, label: name } });
+
+    // 저장하면 목록 맨 앞으로 들어가고, 그 첫 칸이 곧 내 장소(알림 기준)예요. 그래서 아래
+    // 확인을 받기 전에는 저장하지 않아요 — 다른 동네를 잠깐 보려던 것뿐인데 알림 기준까지
+    // 따라 옮겨가면 안 되니까요.
+    //
+    // 아직 내 장소가 없거나(위치 권한을 거부하고 지역을 직접 고르는 흐름) 고른 곳이 이미 내
+    // 장소면 물어볼 게 없어서 바로 저장해요.
+    if (!primaryRegion || (primaryRegion.nx === region.nx && primaryRegion.ny === region.ny)) {
+      // Storage 쓰기가 끝난 뒤에 navigate해야, 돌아간 화면이 다시 마운트되며 저장된 지역을
+      // 곧바로 읽어와요 (안 그러면 방금 추가한 지역이 안 보이는 레이스가 생겨요).
+      await addRegion(region);
+      goHome(region);
+      return;
+    }
+    setPendingPrimary(region);
+  };
+
+  const handleConfirmPrimary = async () => {
+    if (!pendingPrimary) return;
+    await addRegion(pendingPrimary);
+    void syncSubscriptions({ profile, region: pendingPrimary, prefs });
+    setPendingPrimary(null);
+    goHome(pendingPrimary);
   };
 
   return (
@@ -242,6 +273,44 @@ export default function RegionSearch() {
           </List>
         </>
       )}
+
+      {/* 저장 = 내 장소 지정이라 저장 전에 확인해요. "지금만 보기"를 누르면 저장하지 않고
+          그 지역 화면만 보여줘요. */}
+      <ConfirmDialog
+        open={pendingPrimary != null}
+        title={<ConfirmDialog.Title>여기를 내 장소로 할까요?</ConfirmDialog.Title>}
+        description={
+          <ConfirmDialog.Description>
+            {[
+              `아침 브리핑 같은 알림이 ${pendingPrimary?.name} 기준으로 와요.`,
+              maxRegions === 1
+                ? `저장 장소가 1개라 ${primaryRegion?.name} 자리를 대신해요.`
+                : `${primaryRegion?.name} 두 번째 장소로 남아요.`,
+            ].join("\n")}
+          </ConfirmDialog.Description>
+        }
+        cancelButton={
+          <ConfirmDialog.CancelButton
+            onClick={() => {
+              const region = pendingPrimary;
+              setPendingPrimary(null);
+              if (region) goHome(region);
+            }}
+          >
+            지금만 보기
+          </ConfirmDialog.CancelButton>
+        }
+        confirmButton={
+          <ConfirmDialog.ConfirmButton onClick={() => void handleConfirmPrimary()}>
+            내 장소로 하기
+          </ConfirmDialog.ConfirmButton>
+        }
+        onClose={() => {
+          const region = pendingPrimary;
+          setPendingPrimary(null);
+          if (region) goHome(region);
+        }}
+      />
     </>
   );
 }

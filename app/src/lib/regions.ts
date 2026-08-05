@@ -85,3 +85,12 @@ export function coarseLocationLabel(lat: number, lon: number): MyLocationResult 
   const nearest = findNearestRegion(lat, lon);
   return { nx, ny, label: `내 위치(${nearest.sigungu})` };
 }
+
+/**
+ * 화면용 라벨("내 위치(공덕동)")에서 장소 이름만 뽑아요("공덕동").
+ * 내 장소는 한번 정하면 계속 그 자리에 머무는 값이라, "내 위치"라는 말이 붙어 있으면
+ * 나중에 다른 동네에서 앱을 열었을 때 거짓말이 돼요. 저장할 땐 지역명만 남겨요.
+ */
+export function placeNameFromLabel(label: string): string {
+  return label.match(/^내 위치\((.+)\)$/)?.[1] ?? label;
+}

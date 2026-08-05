@@ -17,7 +17,7 @@ const MAP_PIN_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/uE116.png";
 const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
 
 // F6 위치 권한 거부 · 지역 고르기. docs/오늘나가도되나_디자인프레임.html F6 참고.
-// 정책: 권한을 안 줘도 나머지 기능이 100% 같아야 해요 — 저장한 지역(최대 3개) 목록이 그 대안이에요.
+// 정책: 권한을 안 줘도 나머지 기능이 100% 같아야 해요 — 저장한 지역 목록이 그 대안이에요.
 // 자체 뒤로가기·타이틀은 렌더링하지 않아요 — 내비게이션 바는 앱인토스가 제공해요 (CLAUDE.md 제약).
 //
 // 홈의 지역 바꾸기 바텀시트 "지역 설정 전체보기"에서도 이 화면을 재사용해요 — 그때는 위치 권한이
@@ -33,7 +33,7 @@ export default function LocationDenied() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { savedRegions, removeRegion } = useSavedRegions();
+  const { savedRegions, removeRegion, maxRegions } = useSavedRegions();
   const permissionGranted = Boolean((location.state as LocationDeniedNavState | null)?.permissionGranted);
 
   const handleFindOtherRegion = () => {
@@ -73,7 +73,7 @@ export default function LocationDenied() {
         <Spacing size={11} />
 
         <Paragraph.Text color={adaptive.grey700} fontWeight="medium">
-          자주 가는 곳을 3개까지 저장해 둘 수 있어요.
+          {`자주 가는 곳을 ${maxRegions}개까지 저장해 둘 수 있어요.`}
         </Paragraph.Text>
       </div>
 

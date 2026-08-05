@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ListRow, Loader, Menu, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
+import { ConfirmDialog, ListRow, Loader, Menu, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
+import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
 import {
   HERO_TINTS,
@@ -22,10 +23,12 @@ import {
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { useLastProfile } from "../hooks/useLastProfile";
+import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useReviewPrompt } from "../hooks/useReviewPrompt";
-import { useSavedRegions } from "../hooks/useSavedRegions";
+import { useSavedRegions, type StoredRegion } from "../hooks/useSavedRegions";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
-import { requireRegionBySigungu } from "../lib/regions";
+import { syncSubscriptions } from "../lib/notifications";
+import { coarseLocationLabel, placeNameFromLabel, requireRegionBySigungu } from "../lib/regions";
 import { setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { ROUTES } from "../routes";
 
@@ -156,11 +159,18 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions } = useSavedRegions();
+  const { savedRegions, primaryRegion, addRegion, maxRegions } = useSavedRegions();
+  const { prefs } = useNotificationPrefs();
   const [data, setData] = useState<JudgeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
+  const [pinning, setPinning] = useState(false);
+  // ↻로 GPS를 다시 찍었을 때, 내 장소로 바꿀지 물어볼 후보예요. null이면 확인 창이 닫힌 상태.
+  const [pendingPrimary, setPendingPrimary] = useState<StoredRegion | null>(null);
+  // 같은 자리에서 ↻를 눌렀을 땐 nx/ny가 그대로라 조회 이펙트가 안 돌아요. 이 값을 올려서
+  // "위치는 같지만 값은 다시 받아오기"를 만들어요.
+  const [refreshKey, setRefreshKey] = useState(0);
   // F6(지역 설정 전체보기)에서 지역을 고르고 돌아오면 router state로 넘어와요.
   // state가 없을 때만 FALLBACK_REGION을 써요 (정상 흐름에서는 항상 state가 있어요).
   const [region, setRegion] = useState<RegionNavState>(
@@ -177,36 +187,72 @@ export default function Home() {
     void setStoredJSON(STORAGE_KEYS.lastRegion, region);
   }, [region]);
 
-  // GPS로 막 들어온 경우(Onboarding·LocationDenied가 lat/lon을 함께 넘겨줬을 때)에만, 구 단위
-  // 임시 라벨을 동 단위 정밀 라벨(카카오 역지오코딩)로 백그라운드에서 갈아끼워요. 판정 데이터
-  // 조회(nx/ny)를 기다리게 하지 않으려고 진입 시점엔 이 조회를 아예 안 기다렸어요 — 그 몫을
-  // 여기서 마운트 후에 따로 해요. mount 시점 한 번만 실행해요(지역을 바꾸면 이 이펙트가 아니라
-  // 드롭다운·검색 클릭이 새 label을 바로 확정해줘요).
-  useEffect(() => {
-    const initial = location.state as RegionNavState | null;
-    if (!initial?.lat || !initial?.lon) return;
-
-    const { nx: targetNx, ny: targetNy, lat, lon } = initial;
-    let cancelled = false;
-
+  // 구 단위 임시 라벨을 동 단위 정밀 라벨(카카오 역지오코딩)로 백그라운드에서 갈아끼워요.
+  // 판정 데이터 조회(nx/ny)를 기다리게 하지 않으려고 GPS 시점엔 이 조회를 안 기다리거든요 —
+  // 그 몫을 여기서 뒤늦게 해요. 진입 직후(아래 이펙트)와 ↻로 다시 찍었을 때 둘 다 써요.
+  const refinePreciseLabel = useCallback((lat: number, lon: number, targetNx: number, targetNy: number) => {
     fetchRegion(lat, lon)
       .then((precise) => {
-        if (cancelled) return;
-        const preciseLabel = `내 위치(${precise.label})`;
         // 조회가 끝나기 전에 사용자가 다른 지역으로 바꿨으면 정밀 라벨로 덮어쓰지 않아요.
         setRegion((prev) =>
-          prev.nx === targetNx && prev.ny === targetNy ? { ...prev, label: preciseLabel } : prev,
+          prev.nx === targetNx && prev.ny === targetNy
+            ? { ...prev, label: `내 위치(${precise.label})` }
+            : prev,
         );
       })
       .catch(() => {
         // 정밀 라벨 조회 실패 — 이미 보여주고 있는 구 단위 임시 라벨을 그대로 둬요.
       });
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
+  // GPS로 막 들어온 경우(Onboarding·LocationDenied가 lat/lon을 함께 넘겨줬을 때)에만 실행해요.
+  // mount 시점 한 번만이에요(지역을 바꾸면 이 이펙트가 아니라 드롭다운·검색 클릭·↻가 새 label을
+  // 바로 확정해줘요).
+  useEffect(() => {
+    const initial = location.state as RegionNavState | null;
+    if (!initial?.lat || !initial?.lon) return;
+    refinePreciseLabel(initial.lat, initial.lon, initial.nx, initial.ny);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * ↻ — 지금 위치로 다시 맞춰요.
+   *
+   * 화면은 곧바로 새 위치로 바꾸되, 내 장소(알림 기준)는 건드리지 않아요. 다른 곳이면 아래
+   * 확인 창을 띄워서 사용자가 "네"를 눌렀을 때만 기준을 옮겨요 — 여행지에서 한 번 눌렀다고
+   * 매일 아침 알림이 통째로 여행지 기준이 되면 안 되니까요.
+   */
+  const handleRepin = async () => {
+    if (pinning) return;
+    setPinning(true);
+    try {
+      const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+      const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+      setRegion({ nx, ny, label });
+      refinePreciseLabel(coords.latitude, coords.longitude, nx, ny);
+      setRefreshKey((key) => key + 1);
+
+      if (!primaryRegion || primaryRegion.nx !== nx || primaryRegion.ny !== ny) {
+        setPendingPrimary({ name: placeNameFromLabel(label), nx, ny });
+      }
+    } catch {
+      // 권한 거부·미결정·조회 실패 — 지역을 직접 고를 수 있게 F6으로 안내해요
+      // (제약: 위치 권한을 거부해도 전 기능이 동작해야 함).
+      navigate(ROUTES.locationDenied);
+    } finally {
+      setPinning(false);
+    }
+  };
+
+  const handleConfirmPrimary = async () => {
+    if (!pendingPrimary) return;
+    // 목록 맨 앞에 넣으면 그게 곧 내 장소예요(useSavedRegions 참고).
+    await addRegion(pendingPrimary);
+    setPendingPrimary(null);
+    // 켜져 있는 알림들의 기준 지역도 서버에 다시 올려요 — 이걸 빼먹으면 화면상 내 장소만
+    // 바뀌고 알림은 옛 동네 기준으로 계속 와요. best-effort라 실패해도 화면엔 영향 없어요.
+    void syncSubscriptions({ profile, region: pendingPrimary, prefs });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -233,7 +279,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [profile, region.nx, region.ny]);
+  }, [profile, region.nx, region.ny, refreshKey]);
 
   // 프로필 전환 중에는 이전 프로필의 데이터가 남아있을 수 있어 화면이 잠깐 어긋나 보일 수 있어요 — 그 값은 쓰지 않아요.
   const showData = data && data.profile === profile ? data : null;
@@ -283,7 +329,10 @@ export default function Home() {
       {showData && (
         <>
           <div style={{ padding: "10px 24px 20px" }}>
-            {/* 저장한 지역(최대 3개)을 바로 바꿀 수 있는 작은 드롭다운 — 설정까지 안 가도 되게 */}
+            {/* 저장한 지역을 바로 바꿀 수 있는 작은 드롭다운 — 설정까지 안 가도 되게.
+                오른쪽 ↻는 지금 위치로 다시 맞추는 버튼이에요. Menu.Trigger 자식으로 넣으면
+                눌렀을 때 드롭다운이 같이 열려버려서, 밖에 나란히 둬요. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <Menu.Trigger
               open={regionSheetOpen}
               onOpen={() => setRegionSheetOpen(true)}
@@ -349,6 +398,28 @@ export default function Home() {
                 </Paragraph.Text>
               </button>
             </Menu.Trigger>
+
+            <button
+              type="button"
+              aria-label="지금 위치로 다시 맞추기"
+              disabled={pinning}
+              onClick={() => void handleRepin()}
+              style={{
+                background: "none",
+                border: "none",
+                padding: "2px 4px",
+                cursor: pinning ? "default" : "pointer",
+                outline: "none",
+                lineHeight: 1,
+                fontSize: 14,
+                fontWeight: 700,
+                color: adaptive.grey500,
+                opacity: pinning ? 0.4 : 1,
+              }}
+            >
+              ↻
+            </button>
+            </div>
 
             <Spacing size={6} />
 
@@ -510,6 +581,41 @@ export default function Home() {
           )}
         </>
       )}
+
+      {/* ↻로 찍은 위치가 내 장소와 다를 때만 떠요. 화면은 이미 새 위치로 바뀐 상태이고,
+          여기서 "네"를 눌러야 알림 기준까지 옮겨가요 — 잠깐 다른 동네를 보는 것과
+          기준을 아예 옮기는 걸 구분하려고요. */}
+      <ConfirmDialog
+        open={pendingPrimary != null}
+        title={<ConfirmDialog.Title>여기를 내 장소로 할까요?</ConfirmDialog.Title>}
+        description={
+          <ConfirmDialog.Description>
+            {[
+              `아침 브리핑 같은 알림이 ${pendingPrimary?.name} 기준으로 와요.`,
+              // 내 장소는 저장 목록의 첫 칸이라, 자리가 1개뿐이면 기존 장소가 목록에서 빠져요.
+              // 그 결과를 미리 알려주고 확인받아요.
+              primaryRegion && maxRegions === 1
+                ? `저장 장소가 1개라 ${primaryRegion.name} 자리를 대신해요.`
+                : primaryRegion
+                  ? `${primaryRegion.name} 두 번째 장소로 남아요.`
+                  : null,
+            ]
+              .filter(Boolean)
+              .join("\n")}
+          </ConfirmDialog.Description>
+        }
+        cancelButton={
+          <ConfirmDialog.CancelButton onClick={() => setPendingPrimary(null)}>
+            지금만 보기
+          </ConfirmDialog.CancelButton>
+        }
+        confirmButton={
+          <ConfirmDialog.ConfirmButton onClick={() => void handleConfirmPrimary()}>
+            내 장소로 하기
+          </ConfirmDialog.ConfirmButton>
+        }
+        onClose={() => setPendingPrimary(null)}
+      />
     </>
   );
 }
