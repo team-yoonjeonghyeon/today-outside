@@ -27,9 +27,14 @@ const SHARE_MESSAGE =
 // granite.config.ts의 appName("today-outside")이 그대로 스킴 뒤에 와요. 예전엔 "/"를 넘겨서
 // 호출이 실패했고, 실패를 조용히 삼키느라 링크 없이 문구만 나갔어요.
 const SHARE_DEEP_LINK = "intoss://today-outside";
-// 공유 미리보기(OG)에 쓰는 이미지. https 절대 경로여야 해요 — 홈의 노면온도 카드와 같은
-// 아이콘을 써서, 받은 사람이 무슨 앱인지 바로 알아보게 해요.
-const SHARE_OG_IMAGE = "https://static.toss.im/2d-icons/emoji/png/4x/u1F6E4.png";
+// 공유 미리보기(OG)에 쓰는 이미지. https 절대 경로여야 해요.
+//
+// 미니앱 로고를 써요 — granite.config.ts의 brand.icon과 같은 값이에요(콘솔에 등록된 그
+// 로고). 예전엔 노면온도 카드의 도로 이모지를 넣었는데, 카톡 썸네일로 보면 무슨 앱인지
+// 알 수 없어서 로고로 바꿨어요. brand.icon을 바꾸면 여기도 같이 맞춰야 해요 — 설정
+// 파일이라 런타임에서 불러오면 빌드 설정까지 번들에 끌려와서 값만 복사해 뒀어요.
+const SHARE_OG_IMAGE =
+  "https://static.toss.im/appsintoss/53451/0d4c2328-5d7d-43ea-80cd-1ff0d00de016.png";
 
 /**
  * 네이티브 공유 시트(카톡·메시지·문자 등)를 띄우고, 공유를 마치면 true를 돌려줘요.
