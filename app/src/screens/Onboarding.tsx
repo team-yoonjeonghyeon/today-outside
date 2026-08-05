@@ -101,7 +101,7 @@ export default function Onboarding() {
       <Top
         title={
           <Top.TitleParagraph size={22} color={adaptive.grey900}>
-            위치를 알려주면 우리 동네 값으로 보여드려요
+            위치를 알려주면 우리 동네 위치로 보여드려요
           </Top.TitleParagraph>
         }
         subtitleBottom={
