@@ -32,6 +32,15 @@ export interface Metrics {
   roadTempEstimated: boolean;
   roadBasis: string;
   roadBySurface: RoadBySurface;
+  /**
+   * 강수형태 0 없음 / 1 비 / 2 비눈 / 3 눈 / 4 소나기, 그리고 1시간 강수량(mm).
+   *
+   * 서버가 이 필드를 내보내기 시작한 게 화면보다 나중이라 옵션이에요 — 배포가 아직 안 된
+   * 서버는 이 값 없이 응답해요. 없으면 비 안내를 아예 안 그려요(있지도 않은 값을 0으로
+   * 단정해서 "비 안 와요"라고 말하면 안 되니까요).
+   */
+  pty?: number;
+  rain?: number;
 }
 
 export interface HourSlot {
@@ -39,6 +48,8 @@ export interface HourSlot {
   level: JudgeLevel;
   feelsLike: number;
   roadTemp: number;
+  /** 강수형태. 위 Metrics.pty와 같은 이유로 옵션이에요. */
+  pty?: number;
 }
 
 export interface BestWindow {
@@ -105,7 +116,39 @@ export async function fetchJudge({
   if (!res.ok) {
     throw new JudgeApiError(body as JudgeErrorBody);
   }
-  return body as JudgeResponse;
+  return withRainPreview(body as JudgeResponse);
+}
+
+/**
+ * 개발 중에만 도는 강수 미리보기. 주소에 `?rain=1`을 붙이면 응답에 비를 끼워 넣어요.
+ *
+ * 강수 필드는 워커에 막 넣은 거라 배포된 서버는 아직 안 내려줘요. 그렇다고 실제 비가 올
+ * 때까지 기다려서 화면을 확인할 수도 없어서, 개발 중에만 쓰는 확인용 스위치를 뒀어요.
+ *
+ * `import.meta.env.DEV`는 프로덕션 빌드에서 false로 상수 폴딩돼서 이 블록 전체가 번들에서
+ * 사라져요 — 출시본에는 들어가지 않아요.
+ */
+function withRainPreview(body: JudgeResponse): JudgeResponse {
+  if (!import.meta.env.DEV) return body;
+  if (typeof window === "undefined") return body;
+  if (new URLSearchParams(window.location.search).get("rain") !== "1") return body;
+
+  const nowHour = Number(body.generatedAt.match(/T(\d{2}):/)?.[1] ?? 0);
+  return {
+    ...body,
+    // 지금은 비, 1시간 2.5mm.
+    metrics: { ...body.metrics, pty: 1, rain: 2.5 },
+    // 지금부터 3시간은 비, 그 뒤 두 칸 쉬었다가 저녁에 소나기 — 연속/불연속을 같이 봐요.
+    hourly: body.hourly.map((slot) => ({
+      ...slot,
+      pty:
+        slot.hour >= nowHour && slot.hour < nowHour + 3
+          ? 1
+          : slot.hour >= nowHour + 5 && slot.hour < nowHour + 7
+            ? 4
+            : 0,
+    })),
+  };
 }
 
 export interface RegionLookup {

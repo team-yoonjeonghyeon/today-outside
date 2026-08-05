@@ -218,6 +218,7 @@ export default {
           level: v.level,
           feelsLike: c.feelsLike,
           roadTemp: c.roadTemp,
+          pty: point.pty,
         });
       }
 
@@ -237,6 +238,8 @@ export default {
         roadTempEstimated: true,
         roadBasis: roadBasis(ncst.airTemp, nowC.srNorm, ncst.windSpeed),
         roadBySurface: nowC.roadBySurface,
+        pty: ncst.pty,
+        rain: ncst.rain,
       };
 
       const body: JudgeResponse = {

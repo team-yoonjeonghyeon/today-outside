@@ -9,6 +9,7 @@ import {
   PROFILE_META,
   type Profile,
 } from "../constants/judge";
+import { isWet, precipitationLabel } from "../constants/rain";
 import { fetchJudge, JudgeApiError, type HourSlot, type JudgeResponse } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
@@ -164,6 +165,32 @@ export default function Timeline() {
             />
           ))}
         </div>
+
+        {/* 비 오는 시간대를 막대 아래 점으로 표시해요. 판정 엔진이 이미 비를 등급에 반영하고
+            있었는데(비 오면 한 단계 올려요) 화면엔 근거가 안 보여서, 왜 그 시간만 등급이
+            높은지 알 수 없었어요. 서버가 강수 필드를 안 내려주면 줄 자체를 안 그려요. */}
+        {hourly.some((slot) => slot.pty !== undefined) && (
+          <div style={{ display: "flex", gap: 3, marginTop: 4 }}>
+            {hourly.map((slot) => (
+              <div key={slot.hour} style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+                {isWet(slot.pty) ? (
+                  <span
+                    aria-label={`${slot.hour}시 ${precipitationLabel(slot.pty)}`}
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: "#3A7BD5",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <span style={{ width: 5, height: 5, display: "block" }} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
           {axisTicks.map((slot) => (

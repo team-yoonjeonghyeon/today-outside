@@ -21,6 +21,10 @@ export interface Metrics {
   roadTempEstimated: boolean;
   roadBasis: string;
   roadBySurface: Record<Surface, number>;
+  /** 지금 강수형태(초단기실황 PTY). 0 없음 / 1 비 / 2 비눈 / 3 눈 / 4 소나기 */
+  pty: number;
+  /** 지금 1시간 강수량(mm). 초단기실황 RN1 — '강수없음'이면 0이에요. */
+  rain: number;
 }
 
 export interface HourSlot {
@@ -28,6 +32,13 @@ export interface HourSlot {
   level: Level;
   feelsLike: number;
   roadTemp: number;
+  /**
+   * 강수형태 0 없음 / 1 비 / 2 비눈 / 3 눈 / 4 소나기.
+   *
+   * 판정 엔진은 예전부터 이 값을 쓰고 있었는데(비 오면 등급을 올려요) 응답에는 안 실려서
+   * 화면이 "왜 등급이 올랐는지"를 보여줄 수 없었어요. 시간별로 그대로 내보내요.
+   */
+  pty: number;
 }
 
 export interface BestWindow {
