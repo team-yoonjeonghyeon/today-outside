@@ -159,7 +159,7 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions, primaryRegion, addRegion, maxRegions } = useSavedRegions();
+  const { savedRegions, primaryRegion, addRegion, renameRegion, maxRegions } = useSavedRegions();
   const { prefs } = useNotificationPrefs();
   const [data, setData] = useState<JudgeResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,20 +190,27 @@ export default function Home() {
   // 구 단위 임시 라벨을 동 단위 정밀 라벨(카카오 역지오코딩)로 백그라운드에서 갈아끼워요.
   // 판정 데이터 조회(nx/ny)를 기다리게 하지 않으려고 GPS 시점엔 이 조회를 안 기다리거든요 —
   // 그 몫을 여기서 뒤늦게 해요. 진입 직후(아래 이펙트)와 ↻로 다시 찍었을 때 둘 다 써요.
-  const refinePreciseLabel = useCallback((lat: number, lon: number, targetNx: number, targetNy: number) => {
-    fetchRegion(lat, lon)
-      .then((precise) => {
-        // 조회가 끝나기 전에 사용자가 다른 지역으로 바꿨으면 정밀 라벨로 덮어쓰지 않아요.
-        setRegion((prev) =>
-          prev.nx === targetNx && prev.ny === targetNy
-            ? { ...prev, label: `내 위치(${precise.label})` }
-            : prev,
-        );
-      })
-      .catch(() => {
-        // 정밀 라벨 조회 실패 — 이미 보여주고 있는 구 단위 임시 라벨을 그대로 둬요.
-      });
-  }, []);
+  const refinePreciseLabel = useCallback(
+    (lat: number, lon: number, targetNx: number, targetNy: number) => {
+      fetchRegion(lat, lon)
+        .then((precise) => {
+          // 조회가 끝나기 전에 사용자가 다른 지역으로 바꿨으면 정밀 라벨로 덮어쓰지 않아요.
+          setRegion((prev) =>
+            prev.nx === targetNx && prev.ny === targetNy
+              ? { ...prev, label: `내 위치(${precise.label})` }
+              : prev,
+          );
+          // 저장된 이름도 같이 맞춰요. 즉시 라벨은 중심점 최근접이라 공덕동을 "서대문구"로
+          // 잡을 수 있는데, 그대로 두면 화면엔 "공덕동" 저장·알림엔 "서대문구"가 남아서
+          // 같은 곳이 두 이름으로 보여요.
+          void renameRegion({ nx: targetNx, ny: targetNy }, precise.label);
+        })
+        .catch(() => {
+          // 정밀 라벨 조회 실패 — 이미 보여주고 있는 구 단위 임시 라벨을 그대로 둬요.
+        });
+    },
+    [renameRegion],
+  );
 
   // GPS로 막 들어온 경우(Onboarding·LocationDenied가 lat/lon을 함께 넘겨줬을 때)에만 실행해요.
   // mount 시점 한 번만이에요(지역을 바꾸면 이 이펙트가 아니라 드롭다운·검색 클릭·↻가 새 label을

@@ -435,8 +435,15 @@ export default function Settings() {
           </AlertDialog.Description>
         }
         alertButton={
-          <AlertDialog.AlertButton onClick={() => setBonusPopupOpen(false)}>
-            좋아요
+          // "장소를 1개 더 저장할 수 있어요"라고 해놓고 설정 화면에 그대로 두면, 사용자가
+          // ＋ 추가 칩을 직접 찾아야 해서 흐름이 끊겨요. 방금 연 그 자리를 바로 채우러 가요.
+          <AlertDialog.AlertButton
+            onClick={() => {
+              setBonusPopupOpen(false);
+              navigate(ROUTES.regionSearch);
+            }}
+          >
+            장소 추가하러 가기
           </AlertDialog.AlertButton>
         }
         onClose={() => setBonusPopupOpen(false)}
