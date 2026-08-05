@@ -32,6 +32,7 @@ import {
   type Metrics,
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
+import { isWet, nextWetHour, precipitationLabel, RAIN_ICON } from "../constants/rain";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useReviewPrompt } from "../hooks/useReviewPrompt";
@@ -97,6 +98,12 @@ function formatKstTime(iso: string): string {
 
 function minutesAgo(iso: string): number {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+}
+
+/** "…T14:30:00+09:00" → 14. 문자열에서 바로 읽어요(기기 타임존에 안 흔들리게). */
+function parseKstHourValue(iso: string): number {
+  const match = iso.match(/T(\d{2}):/);
+  return match ? Number(match[1]) : 0;
 }
 
 // 러너·야외 작업 프로필의 노면 온도 보조 문구 — 오늘 최고치 대비 지금이 얼마나 내려왔는지 보여줘요.
@@ -282,6 +289,21 @@ export default function Home() {
 
   useReviewPrompt(Boolean(showData));
 
+  // 비 안내 문구. 지금 오는 중이면 그걸 우선 보여주고, 아니면 오늘 안에 비가 시작하는 첫
+  // 시각을 알려줘요. 서버가 강수 필드를 안 내려주면(배포 전) null이라 아무것도 안 그려요.
+  const rainNotice = (() => {
+    if (!showData) return null;
+    const nowLabel = precipitationLabel(showData.metrics.pty);
+    if (nowLabel) {
+      const mm = showData.metrics.rain;
+      return mm && mm > 0 ? `지금 ${nowLabel}가 와요 · 1시간 ${mm}mm` : `지금 ${nowLabel}가 와요`;
+    }
+    if (isWet(showData.metrics.pty) === null) return null; // 서버가 아직 안 내려줘요.
+    const upcoming = nextWetHour(showData.hourly, parseKstHourValue(showData.generatedAt));
+    if (!upcoming) return null;
+    return `${upcoming.hour}시부터 ${upcoming.label} 소식이 있어요`;
+  })();
+
   return (
     <>
       <div style={{ padding: "6px 24px 0" }}>
@@ -448,6 +470,30 @@ export default function Home() {
                     </Paragraph.Text>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* 비 안내 — 지금 오는 중이면 그걸, 아니면 오늘 안에 시작하는 첫 시각을 알려줘요.
+              서버가 아직 강수 필드를 안 내려주면(배포 전) 아무것도 그리지 않아요 —
+              값이 없는 걸 "비 안 와요"로 단정하면 안 되니까요. */}
+          {rainNotice && (
+            <div style={{ margin: "0 24px 16px" }}>
+              <div
+                style={{
+                  background: "#EAF2FE",
+                  border: "1px solid #C5DBFA",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <img src={RAIN_ICON} alt="" width={22} height={22} style={{ display: "block" }} />
+                <Paragraph.Text color="#1B4B8F" fontWeight="bold">
+                  {rainNotice}
+                </Paragraph.Text>
               </div>
             </div>
           )}
