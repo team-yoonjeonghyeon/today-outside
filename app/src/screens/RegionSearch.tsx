@@ -349,11 +349,15 @@ export default function RegionSearch() {
         title={<ConfirmDialog.Title>여기를 내 장소로 할까요?</ConfirmDialog.Title>}
         description={
           <ConfirmDialog.Description>
-            {/* 이 창은 자리가 다 찼을 때만 떠요 — 그래서 항상 누군가는 목록에서 빠져요.
-                누가 빠지는지(맨 뒤, 가장 오래 둔 곳) 미리 알려주고 확인받아요. */}
+            {/* 이 창은 자리가 다 찼을 때만 떠요 — 그래서 항상 하나는 목록에서 내려가요.
+                어느 곳인지(맨 뒤, 가장 오래 둔 곳) 미리 알려주고 확인받아요.
+
+                지역 이름 뒤에 조사를 붙이면 받침에 따라 은/는·이/가가 갈려서("해운대구는"
+                vs "공덕동은") 문장이 깨져요. 이름을 괄호에 넣고 항상 "곳"으로 끝내면
+                받침이 고정돼서 어떤 지역이 와도 자연스러워요. */}
             {[
-              `아침 브리핑 같은 알림이 ${pendingPrimary?.name} 기준으로 와요.`,
-              `자리가 다 차서 ${savedRegions[savedRegions.length - 1]?.name} 목록에서 빠져요.`,
+              "알림 받는 기준 장소가 바뀌어요.",
+              `자리가 다 차서 가장 오래 둔 곳(${savedRegions[savedRegions.length - 1]?.name})이 목록에서 내려가요.`,
             ].join("\n")}
           </ConfirmDialog.Description>
         }

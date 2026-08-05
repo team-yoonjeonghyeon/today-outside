@@ -558,13 +558,16 @@ export default function Home() {
         description={
           <ConfirmDialog.Description>
             {[
-              `아침 브리핑 같은 알림이 ${pendingPrimary?.name} 기준으로 와요.`,
-              // 내 장소는 저장 목록의 첫 칸이라, 자리가 1개뿐이면 기존 장소가 목록에서 빠져요.
+              "알림 받는 기준 장소가 바뀌어요.",
+              // 내 장소는 저장 목록의 첫 칸이라, 자리가 1개뿐이면 기존 장소가 목록에서 내려가요.
               // 그 결과를 미리 알려주고 확인받아요.
+              //
+              // 지역 이름 뒤에 조사를 붙이면 받침에 따라 은/는·이/가가 갈려서 문장이 깨져요.
+              // 이름을 괄호에 넣고 항상 "곳"으로 끝내면 받침이 고정돼서 어떤 지역이 와도 맞아요.
               primaryRegion && maxRegions === 1
-                ? `저장 장소가 1개라 ${primaryRegion.name} 자리를 대신해요.`
+                ? `저장 칸이 1개라 지금 기준인 곳(${primaryRegion.name})이 목록에서 내려가요.`
                 : primaryRegion
-                  ? `${primaryRegion.name} 두 번째 장소로 남아요.`
+                  ? `지금 기준인 곳(${primaryRegion.name})은 두 번째 칸으로 내려가요.`
                   : null,
             ]
               .filter(Boolean)
