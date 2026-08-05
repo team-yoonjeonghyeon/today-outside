@@ -38,4 +38,7 @@ export const STORAGE_KEYS = {
   homeVisitCount: "todayoutside:homeVisitCount",
   usedDetailFeature: "todayoutside:usedDetailFeature",
   reviewRequested: "todayoutside:reviewRequested",
+  // 친구에게 한 번이라도 공유하면 저장 장소가 1개(기본) → 2개로 늘어나요. 그 "한 번 공유했음"을
+  // 영구히 기억하는 값이에요 (평생 한 번만 열리는 보너스라 boolean 하나면 충분해요).
+  shareBonus: "todayoutside:shareBonus",
 } as const;

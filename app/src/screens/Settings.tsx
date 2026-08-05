@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chip, ChipItem, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
-import { getAnonymousKey, requestNotificationAgreement } from "@apps-in-toss/web-framework";
+import { getAnonymousKey, requestNotificationAgreement, share } from "@apps-in-toss/web-framework";
 import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
-import { useSavedRegions, MAX_SAVED_REGIONS } from "../hooks/useSavedRegions";
+import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { subscribeNotification, unsubscribeNotification } from "../lib/judgeApi";
@@ -36,6 +36,22 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   dangerAlert: false,
   walkTimeAlert: false,
 };
+
+// 저장 장소는 기본 1개예요. 친구에게 한 번 공유하면(공유 시트에서 실제로 공유를 마치면)
+// 보너스로 1개가 더 열려서 총 2개까지 저장할 수 있어요.
+const SHARE_MESSAGE =
+  "오늘 나가도 되나 — 지금 우리 동네 나가도 되는지 등급으로 알려줘요. 같이 써요!";
+
+// 네이티브 공유 시트를 띄우고, 사용자가 공유를 마치면(Promise resolve) true를 돌려줘요.
+// 브릿지가 없는 환경(브라우저 프리뷰 등)에서는 동기적으로 throw할 수 있어서 try/catch로 감싸요.
+async function runShare(): Promise<boolean> {
+  try {
+    await share({ message: SHARE_MESSAGE });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // 알림 동의 UI를 띄우고, 사용자가 실제로 동의했을 때만 true를 돌려줘요.
 // 브릿지가 없는 환경(브라우저 프리뷰 등)에서는 동기적으로 throw할 수 있어서 try/catch로 감싸요.
@@ -77,8 +93,9 @@ export default function Settings() {
 
   const navigate = useNavigate();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions, removeRegion } = useSavedRegions();
+  const { savedRegions, removeRegion, maxRegions, hasShareBonus, grantShareBonus } = useSavedRegions();
   const [startTabSheetOpen, setStartTabSheetOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
 
   useEffect(() => {
@@ -123,7 +140,18 @@ export default function Settings() {
     }
   };
 
-  const canAddRegion = savedRegions.length < MAX_SAVED_REGIONS;
+  const canAddRegion = savedRegions.length < maxRegions;
+
+  // 친구에게 공유하고, 공유를 마치면 저장 장소 1개를 더 열어줘요. 공유 시트를 못 띄우거나
+  // 사용자가 공유를 취소·실패하면 아무 것도 열리지 않아요(정직성 원칙 — 공유 안 했는데
+  // 열어주지 않아요). 이미 보너스를 받았으면 이 버튼 자체가 사라져서 여기 오지 않아요.
+  const handleShareForBonus = async () => {
+    if (sharing || hasShareBonus) return;
+    setSharing(true);
+    const shared = await runShare();
+    if (shared) await grantShareBonus();
+    setSharing(false);
+  };
 
   return (
     <>
@@ -218,7 +246,7 @@ export default function Settings() {
 
       <div style={{ padding: "0 24px" }}>
         <Post.Paragraph paddingBottom={8} color={adaptive.grey500} typography="st9" fontWeight="bold">
-          {`지역 · 최대 ${MAX_SAVED_REGIONS}개`}
+          {`지역 · 최대 ${maxRegions}개`}
         </Post.Paragraph>
       </div>
 
@@ -269,6 +297,38 @@ export default function Settings() {
           </ChipItem>
         </Chip>
       </div>
+
+      {/* 아직 공유 보너스를 안 받았으면, 공유하고 장소 1개를 더 열 수 있게 안내해요.
+          한 번 받고 나면(hasShareBonus) 이 영역은 사라지고 최대치가 2개로 늘어나요. */}
+      {!hasShareBonus && (
+        <>
+          <Spacing size={10} />
+          <div style={{ padding: "0 24px" }}>
+            <button
+              type="button"
+              onClick={() => void handleShareForBonus()}
+              disabled={sharing}
+              style={{
+                width: "100%",
+                border: "none",
+                borderRadius: 14,
+                padding: "13px 16px",
+                background: MINT[400],
+                color: MINT[900],
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: sharing ? "default" : "pointer",
+                opacity: sharing ? 0.6 : 1,
+              }}
+            >
+              {sharing ? "공유 중…" : "🎁 친구에게 공유하고 장소 1개 더 받기"}
+            </button>
+            <Post.Paragraph paddingBottom={0} color={adaptive.grey500} typography="st12">
+              친구에게 한 번 공유하면 저장 장소가 2개로 늘어나요.
+            </Post.Paragraph>
+          </div>
+        </>
+      )}
 
       <Spacing size={20} />
 
