@@ -1,9 +1,20 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ConfirmDialog, ListRow, Loader, Menu, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
+import {
+  ConfirmDialog,
+  ListRow,
+  Loader,
+  Menu,
+  Paragraph,
+  Result,
+  Spacing,
+  Text,
+  TextButton,
+} from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
+import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import {
   HERO_TINTS,
   LEVEL_COLORS,
@@ -155,7 +166,9 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions, primaryRegion, addRegion, maxRegions } = useSavedRegions();
+  const { savedRegions, primaryRegion, addRegion, maxRegions, hasShareBonus, grantShareBonus } =
+    useSavedRegions();
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const { prefs } = useNotificationPrefs();
   const [data, setData] = useState<JudgeResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -209,6 +222,20 @@ export default function Home() {
     } finally {
       setPinning(false);
     }
+  };
+
+  /**
+   * 확인 창에서 "공유하고 칸 늘리기"를 고른 경우 — 공유가 성공하면 칸이 2개가 되니까
+   * 기존 내 장소를 밀어내지 않고 두 번째 칸에 넣어요. 알림 기준은 그대로 유지돼요.
+   *
+   * 칸이 1개라 교체가 강제되는 바로 그 순간에만 이 선택지를 보여줘요 — 사용자가 실제로
+   * 한계에 부딪힌 자리에서 안내하는 거라, 없던 기능을 인질로 잡는 것과는 달라요.
+   */
+  const handleUnlockedForPending = async () => {
+    if (!pendingPrimary) return;
+    await grantShareBonus();
+    await addRegion(pendingPrimary, { asPrimary: false });
+    setPendingPrimary(null);
   };
 
   const handleConfirmPrimary = async () => {
@@ -572,6 +599,15 @@ export default function Home() {
             ]
               .filter(Boolean)
               .join("\n")}
+            {/* 칸이 1개라 교체가 강제되는 순간에만, 둘 다 가질 수 있는 길을 같이 보여줘요.
+                확인 창 버튼은 두 개뿐이라 설명 아래에 세 번째 선택지로 붙여요. */}
+            {maxRegions === 1 && !hasShareBonus && (
+              <div style={{ marginTop: 12 }}>
+                <TextButton size="small" variant="arrow" onClick={() => setShareSheetOpen(true)}>
+                  공유하고 칸 늘려서 둘 다 두기
+                </TextButton>
+              </div>
+            )}
           </ConfirmDialog.Description>
         }
         cancelButton={
@@ -585,6 +621,13 @@ export default function Home() {
           </ConfirmDialog.ConfirmButton>
         }
         onClose={() => setPendingPrimary(null)}
+      />
+
+      {/* 확인 창에서 "공유하고 칸 늘리기"를 골랐을 때 뜨는 공유 방법 선택(F6·F8과 같은 시트). */}
+      <ShareToUnlockSheet
+        open={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        onUnlocked={() => void handleUnlockedForPending()}
       />
     </>
   );
