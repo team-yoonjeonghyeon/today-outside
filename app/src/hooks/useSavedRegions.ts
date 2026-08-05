@@ -11,7 +11,11 @@ export interface StoredRegion {
   levelColor?: string;
 }
 
-export const MAX_SAVED_REGIONS = 3;
+// 저장 장소는 기본 1개만 열려 있어요. 친구에게 공유하면(share 성공) 보너스로 1개가 더 열려서
+// 최대 2개까지 저장할 수 있어요. 최대치는 더 이상 상수가 아니라 "보너스를 받았는가"에 따라
+// 달라지므로, 화면은 이 훅이 돌려주는 maxRegions를 봐야 해요.
+export const BASE_SAVED_REGIONS = 1;
+export const SHARE_BONUS_REGIONS = 1;
 
 // 화면마다 useState로 각자 따로 들고 있으면, 한 화면에서 저장한 직후 다른 화면으로 이동해도
 // 그 화면은 자기 state를 모르고 Storage에서 다시 읽어와야 했어요 — 그 read가 방금 끝난 write보다
@@ -20,6 +24,8 @@ export const MAX_SAVED_REGIONS = 3;
 // Storage는 이제 "새로고침해도 남아있게" 하는 영속화 용도로만 쓰고, 화면 간 동기화는
 // 이 모듈이 메모리에서 즉시 처리해요.
 let savedRegions: StoredRegion[] = [];
+// 공유 보너스를 이미 받았는지. 받았으면 저장 한도가 1 → 2로 늘어요.
+let shareBonusClaimed = false;
 let loaded = false;
 const listeners = new Set<() => void>();
 
@@ -36,46 +42,63 @@ function getSnapshot() {
   return savedRegions;
 }
 
+function getBonusSnapshot() {
+  return shareBonusClaimed;
+}
+
 function getLoadedSnapshot() {
   return loaded;
+}
+
+// 지금 이 순간의 저장 한도예요. addRegion에서 잘라낼 때 항상 최신 보너스 상태를 반영하려고
+// 상수 대신 함수로 계산해요.
+function currentMax() {
+  return BASE_SAVED_REGIONS + (shareBonusClaimed ? SHARE_BONUS_REGIONS : 0);
 }
 
 let hydrationStarted = false;
 function ensureHydrated() {
   if (hydrationStarted) return;
   hydrationStarted = true;
-  void getStoredJSON<StoredRegion[]>(STORAGE_KEYS.savedRegions, []).then((regions) => {
+  void Promise.all([
+    getStoredJSON<StoredRegion[]>(STORAGE_KEYS.savedRegions, []),
+    getStoredJSON<boolean>(STORAGE_KEYS.shareBonus, false),
+  ]).then(([regions, bonus]) => {
     savedRegions = regions;
+    shareBonusClaimed = bonus;
     loaded = true;
     notify();
   });
 }
 
 /**
- * 저장된 지역(최대 3개) — 홈의 지역 전환 드롭다운(F2·F3·F7)·F6(위치 권한 거부)·F8(설정)이
- * 이 훅 하나(정확히는 위 모듈 상태 하나)를 공유해요. 사용자가 실제로 저장한 지역만 떠야 해서
- * 기본값은 빈 배열이에요 — 예전엔 고양시·강남구·해운대구를 하드코딩된 "기본 3개"로 보여줬는데,
- * 아무것도 저장 안 해도 항상 같은 지역이 뜨는 게 하드코딩처럼 보인다는 피드백을 받아서 없앴어요.
+ * 저장된 지역(기본 1개, 공유하면 2개) — 홈의 지역 전환 드롭다운(F2·F3·F7)·F6(위치 권한 거부)·
+ * F8(설정)이 이 훅 하나(정확히는 위 모듈 상태 하나)를 공유해요. 사용자가 실제로 저장한 지역만
+ * 떠야 해서 기본값은 빈 배열이에요 — 예전엔 고양시·강남구·해운대구를 하드코딩된 "기본 3개"로
+ * 보여줬는데, 아무것도 저장 안 해도 항상 같은 지역이 뜨는 게 하드코딩처럼 보인다는 피드백을
+ * 받아서 없앴어요.
  */
 export function useSavedRegions() {
   ensureHydrated();
 
   const regions = useSyncExternalStore(subscribe, getSnapshot);
   const isLoaded = useSyncExternalStore(subscribe, getLoadedSnapshot);
+  const hasShareBonus = useSyncExternalStore(subscribe, getBonusSnapshot);
+  const maxRegions = BASE_SAVED_REGIONS + (hasShareBonus ? SHARE_BONUS_REGIONS : 0);
 
   const addRegion = useCallback((region: StoredRegion) => {
-    // TODO: 이미 3개 저장돼 있으면 "가장 오래된 지역과 바꿀까요?" 확인 문구 (디자인프레임 F9 메모).
-    // 지금은 확인 없이 최신순으로 앞에 넣고 3개를 넘으면 가장 오래된 것부터 잘라요.
+    // 확인 없이 최신순으로 앞에 넣고, 현재 한도를 넘으면 가장 오래된 것부터 잘라요.
+    // (기본 1개, 공유 보너스를 받았으면 2개 — currentMax가 최신 보너스 상태를 반영해요.)
     const next = [region, ...savedRegions.filter((r) => r.name !== region.name)].slice(
       0,
-      MAX_SAVED_REGIONS,
+      currentMax(),
     );
     savedRegions = next;
     notify();
     return setStoredJSON(STORAGE_KEYS.savedRegions, next);
   }, []);
 
-  // 최대 3개까지만 저장되니, 다 찬 상태에서 다른 지역을 추가하려면 먼저 하나를 지울 수 있어야 해요.
+  // 한도가 다 찬 상태에서 다른 지역을 추가하려면 먼저 하나를 지울 수 있어야 해요.
   const removeRegion = useCallback((name: string) => {
     const next = savedRegions.filter((r) => r.name !== name);
     savedRegions = next;
@@ -83,5 +106,21 @@ export function useSavedRegions() {
     return setStoredJSON(STORAGE_KEYS.savedRegions, next);
   }, []);
 
-  return { savedRegions: regions, addRegion, removeRegion, loaded: isLoaded };
+  // 공유가 성공하면 호출해서 보너스 장소 1개를 영구히 열어줘요. 이미 받았으면 아무 것도 안 해요.
+  const grantShareBonus = useCallback(() => {
+    if (shareBonusClaimed) return Promise.resolve();
+    shareBonusClaimed = true;
+    notify();
+    return setStoredJSON(STORAGE_KEYS.shareBonus, true);
+  }, []);
+
+  return {
+    savedRegions: regions,
+    addRegion,
+    removeRegion,
+    loaded: isLoaded,
+    maxRegions,
+    hasShareBonus,
+    grantShareBonus,
+  };
 }
