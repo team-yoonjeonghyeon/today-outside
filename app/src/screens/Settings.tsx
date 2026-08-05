@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertDialog, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
+import { Storage } from "@apps-in-toss/web-framework"; // 꾹 누르기 초기화용
+import { STORAGE_KEYS } from "../lib/storage"; // 꾹 누르기 초기화용
 import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
@@ -104,6 +106,19 @@ export default function Settings() {
       void unsubscribeNotification(anonKey, key);
     }
   };
+
+  // "버전 정보"를 1.5초 꾹 누르면 이 미니앱이 저장한 값을 전부 지우고 새로 시작해요.
+  //
+  // 미니앱 Storage는 토스 앱 데이터 초기화로도 안 지워져서, 저장한 장소·알림 설정·공유로
+  // 열어둔 칸을 되돌릴 방법이 앱 안에 하나도 없었어요(특히 공유 보너스는 UI로 되돌릴 수단이
+  // 아예 없어요). 지원 문의나 재현이 필요할 때 쓰는 마지막 수단이에요.
+  //
+  // 일부러 눈에 안 띄게 뒀어요 — 일반 탭은 아무 일도 안 하고, 1.5초를 꾹 눌러야만 동작해요.
+  const debugReset = useLongPress(() => {
+    void Promise.all(
+      Object.values(STORAGE_KEYS).map((key) => Storage.removeItem(key).catch(() => undefined)),
+    ).then(() => window.location.reload());
+  }, 1500);
 
   // 자리가 하나뿐이면 고를 게 없어요 — 그 하나가 곧 내 장소예요.
   const canPickPrimary = savedRegions.length > 1;
@@ -507,23 +522,27 @@ export default function Settings() {
           verticalPadding="large"
           onClick={() => navigate(ROUTES.dataSource)}
         />
-        <ListRow
-          left={
-            <ListRow.AssetImage
-              src="https://static.toss.im/2d-icons/emoji/png/4x/u2139.png"
-              shape="squircle"
-              backgroundColor={adaptive.greyOpacity100}
-              size="xsmall"
-            />
-          }
-          contents={
-            <ListRow.Texts type="1RowTypeA" top="버전 정보" topProps={{ color: adaptive.grey800 }} />
-          }
-          right={
-            <ListRow.Texts type="Right1RowTypeA" top="0.1.0" topProps={{ color: adaptive.grey600 }} />
-          }
-          verticalPadding="large"
-        />
+        {/* 꾹 누르면 전체 초기화 (위 debugReset 주석 참고). 꾹 누르는 동안 글자가 선택되지
+            않게 userSelect를 꺼요. */}
+        <div {...debugReset} style={{ width: "100%", userSelect: "none" }}>
+          <ListRow
+            left={
+              <ListRow.AssetImage
+                src="https://static.toss.im/2d-icons/emoji/png/4x/u2139.png"
+                shape="squircle"
+                backgroundColor={adaptive.greyOpacity100}
+                size="xsmall"
+              />
+            }
+            contents={
+              <ListRow.Texts type="1RowTypeA" top="버전 정보" topProps={{ color: adaptive.grey800 }} />
+            }
+            right={
+              <ListRow.Texts type="Right1RowTypeA" top="0.1.0" topProps={{ color: adaptive.grey600 }} />
+            }
+            verticalPadding="large"
+          />
+        </div>
       </List>
 
       <Spacing size={16} />
