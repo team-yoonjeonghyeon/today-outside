@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ConfirmDialog, ListRow, Loader, Menu, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
@@ -15,7 +15,6 @@ import {
 } from "../constants/judge";
 import {
   fetchJudge,
-  fetchRegion,
   JudgeApiError,
   type HourSlot,
   type JudgeResponse,
@@ -28,7 +27,8 @@ import { useReviewPrompt } from "../hooks/useReviewPrompt";
 import { useSavedRegions, type StoredRegion } from "../hooks/useSavedRegions";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
 import { syncSubscriptions } from "../lib/notifications";
-import { coarseLocationLabel, placeNameFromLabel, requireRegionBySigungu } from "../lib/regions";
+import { resolveMyLocation } from "../lib/location";
+import { requireRegionBySigungu } from "../lib/regions";
 import { setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { ROUTES } from "../routes";
 
@@ -142,10 +142,6 @@ interface RegionNavState {
   nx: number;
   ny: number;
   label: string;
-  // GPS로 막 들어온 경우에만 Onboarding·LocationDenied가 함께 넘겨줘요 — 구 단위 임시 라벨을
-  // 동 단위 정밀 라벨로 백그라운드에서 갈아끼우는 용도예요(아래 이펙트 참고).
-  lat?: number;
-  lon?: number;
 }
 
 // 홈은 항상 Onboarding·F6에서 nx/ny/label을 state로 들고 진입해서 실제로는 안 쓰이지만,
@@ -159,7 +155,7 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions, primaryRegion, addRegion, renameRegion, maxRegions } = useSavedRegions();
+  const { savedRegions, primaryRegion, addRegion, maxRegions } = useSavedRegions();
   const { prefs } = useNotificationPrefs();
   const [data, setData] = useState<JudgeResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -187,60 +183,24 @@ export default function Home() {
     void setStoredJSON(STORAGE_KEYS.lastRegion, region);
   }, [region]);
 
-  // 구 단위 임시 라벨을 동 단위 정밀 라벨(카카오 역지오코딩)로 백그라운드에서 갈아끼워요.
-  // 판정 데이터 조회(nx/ny)를 기다리게 하지 않으려고 GPS 시점엔 이 조회를 안 기다리거든요 —
-  // 그 몫을 여기서 뒤늦게 해요. 진입 직후(아래 이펙트)와 ↻로 다시 찍었을 때 둘 다 써요.
-  const refinePreciseLabel = useCallback(
-    (lat: number, lon: number, targetNx: number, targetNy: number) => {
-      fetchRegion(lat, lon)
-        .then((precise) => {
-          // 조회가 끝나기 전에 사용자가 다른 지역으로 바꿨으면 정밀 라벨로 덮어쓰지 않아요.
-          setRegion((prev) =>
-            prev.nx === targetNx && prev.ny === targetNy
-              ? { ...prev, label: `내 위치(${precise.label})` }
-              : prev,
-          );
-          // 저장된 이름도 같이 맞춰요. 즉시 라벨은 중심점 최근접이라 공덕동을 "서대문구"로
-          // 잡을 수 있는데, 그대로 두면 화면엔 "공덕동" 저장·알림엔 "서대문구"가 남아서
-          // 같은 곳이 두 이름으로 보여요.
-          void renameRegion({ nx: targetNx, ny: targetNy }, precise.label);
-        })
-        .catch(() => {
-          // 정밀 라벨 조회 실패 — 이미 보여주고 있는 구 단위 임시 라벨을 그대로 둬요.
-        });
-    },
-    [renameRegion],
-  );
-
-  // GPS로 막 들어온 경우(Onboarding·LocationDenied가 lat/lon을 함께 넘겨줬을 때)에만 실행해요.
-  // mount 시점 한 번만이에요(지역을 바꾸면 이 이펙트가 아니라 드롭다운·검색 클릭·↻가 새 label을
-  // 바로 확정해줘요).
-  useEffect(() => {
-    const initial = location.state as RegionNavState | null;
-    if (!initial?.lat || !initial?.lon) return;
-    refinePreciseLabel(initial.lat, initial.lon, initial.nx, initial.ny);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   /**
    * ↻ — 지금 위치로 다시 맞춰요.
    *
-   * 화면은 곧바로 새 위치로 바꾸되, 내 장소(알림 기준)는 건드리지 않아요. 다른 곳이면 아래
-   * 확인 창을 띄워서 사용자가 "네"를 눌렀을 때만 기준을 옮겨요 — 여행지에서 한 번 눌렀다고
-   * 매일 아침 알림이 통째로 여행지 기준이 되면 안 되니까요.
+   * 화면은 새 위치로 바꾸되, 내 장소(알림 기준)는 건드리지 않아요. 다른 곳이면 아래 확인 창을
+   * 띄워서 사용자가 "네"를 눌렀을 때만 기준을 옮겨요 — 여행지에서 한 번 눌렀다고 매일 아침
+   * 알림이 통째로 여행지 기준이 되면 안 되니까요.
    */
   const handleRepin = async () => {
     if (pinning) return;
     setPinning(true);
     try {
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+      const { nx, ny, label, name } = await resolveMyLocation(coords.latitude, coords.longitude);
       setRegion({ nx, ny, label });
-      refinePreciseLabel(coords.latitude, coords.longitude, nx, ny);
       setRefreshKey((key) => key + 1);
 
       if (!primaryRegion || primaryRegion.nx !== nx || primaryRegion.ny !== ny) {
-        setPendingPrimary({ name: placeNameFromLabel(label), nx, ny });
+        setPendingPrimary({ name, nx, ny });
       }
     } catch {
       // 권한 거부·미결정·조회 실패 — 지역을 직접 고를 수 있게 F6으로 안내해요

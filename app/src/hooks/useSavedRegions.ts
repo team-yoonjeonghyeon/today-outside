@@ -134,22 +134,6 @@ export function useSavedRegions() {
     return setStoredJSON(STORAGE_KEYS.savedRegions, next);
   }, []);
 
-  /**
-   * 이미 저장된 지역의 이름만 바꿔요(좌표로 찾아서). 순서는 그대로라 내 장소는 유지돼요.
-   *
-   * GPS 즉시 라벨(구 단위)로 먼저 저장한 뒤, 카카오 역지오코딩이 동 단위 이름을 알려주면
-   * 저장된 이름도 그 값으로 맞추는 용도예요 — 안 그러면 화면엔 "공덕동", 저장·알림엔
-   * "서대문구"가 남아서 같은 곳이 두 이름으로 보여요.
-   */
-  const renameRegion = useCallback((target: { nx: number; ny: number }, name: string) => {
-    const index = savedRegions.findIndex((r) => r.nx === target.nx && r.ny === target.ny);
-    if (index === -1 || savedRegions[index].name === name) return Promise.resolve();
-    const next = savedRegions.map((r, i) => (i === index ? { ...r, name } : r));
-    savedRegions = next;
-    notify();
-    return setStoredJSON(STORAGE_KEYS.savedRegions, next);
-  }, []);
-
   // 한도가 다 찬 상태에서 다른 지역을 추가하려면 먼저 하나를 지울 수 있어야 해요.
   const removeRegion = useCallback((name: string) => {
     const next = savedRegions.filter((r) => r.name !== name);
@@ -171,7 +155,6 @@ export function useSavedRegions() {
     // 내 장소 — 목록의 첫 칸이에요. 아직 아무것도 저장 안 했으면 null.
     primaryRegion: regions[0] ?? null,
     addRegion,
-    renameRegion,
     removeRegion,
     loaded: isLoaded,
     maxRegions,

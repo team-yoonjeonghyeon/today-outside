@@ -78,14 +78,15 @@ export default function Settings() {
 
   const canAddRegion = savedRegions.length < maxRegions;
 
-  // 친구에게 공유하고, 공유를 마치면 저장 장소 1개를 더 열어줘요. 공유 시트를 못 띄우거나
+  // 친구에게 공유하고, 첫 공유였다면 저장 장소 1개를 더 열어줘요. 공유 시트를 못 띄우거나
   // 사용자가 공유를 취소·실패하면 아무 것도 열리지 않아요(정직성 원칙 — 공유 안 했는데
-  // 열어주지 않아요). 이미 보너스를 받았으면 이 버튼 자체가 사라져서 여기 오지 않아요.
+  // 열어주지 않아요). 이미 보너스를 받았어도 공유 자체는 계속 할 수 있어요 — 그땐 보너스·
+  // 축하 팝업 없이 공유만 해요.
   const handleShareForBonus = async () => {
-    if (sharing || hasShareBonus) return;
+    if (sharing) return;
     setSharing(true);
     const shared = await runShare();
-    if (shared) {
+    if (shared && !hasShareBonus) {
       await grantShareBonus();
       setBonusPopupOpen(true);
     }
@@ -258,37 +259,41 @@ export default function Settings() {
         </Chip>
       </div>
 
-      {/* 아직 공유 보너스를 안 받았으면, 공유하고 장소 1개를 더 열 수 있게 안내해요.
-          한 번 받고 나면(hasShareBonus) 이 영역은 사라지고 최대치가 2개로 늘어나요. */}
-      {!hasShareBonus && (
-        <>
-          <Spacing size={10} />
-          <div style={{ padding: "0 24px" }}>
-            <button
-              type="button"
-              onClick={() => void handleShareForBonus()}
-              disabled={sharing}
-              style={{
-                width: "100%",
-                border: "none",
-                borderRadius: 14,
-                padding: "13px 16px",
-                background: MINT[400],
-                color: MINT[900],
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: sharing ? "default" : "pointer",
-                opacity: sharing ? 0.6 : 1,
-              }}
-            >
-              {sharing ? "공유 중…" : "🎁 친구에게 공유하고 장소 1개 더 받기"}
-            </button>
-            <Post.Paragraph paddingBottom={0} color={adaptive.grey500} typography="st12">
-              친구에게 한 번 공유하면 저장 장소가 2개로 늘어나요.
-            </Post.Paragraph>
-          </div>
-        </>
-      )}
+      {/* 공유 버튼은 보너스를 받은 뒤에도 남겨둬요 — 예전엔 받고 나면 통째로 사라져서
+          "친구에게 알려주고 싶은데 버튼이 없어지는" 상태가 됐어요. 대신 보너스를 이미 받았으면
+          장소가 더 열린다는 약속은 빼고, 그냥 공유하기로만 남겨요 (정직성 원칙 — 더 안 열리는데
+          열린다고 하면 안 되니까요). */}
+      <Spacing size={10} />
+      <div style={{ padding: "0 24px" }}>
+        <button
+          type="button"
+          onClick={() => void handleShareForBonus()}
+          disabled={sharing}
+          style={{
+            width: "100%",
+            border: "none",
+            borderRadius: 14,
+            padding: "13px 16px",
+            background: MINT[400],
+            color: MINT[900],
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: sharing ? "default" : "pointer",
+            opacity: sharing ? 0.6 : 1,
+          }}
+        >
+          {sharing
+            ? "공유 중…"
+            : hasShareBonus
+              ? "친구에게 공유하기"
+              : "🎁 친구에게 공유하고 장소 1개 더 받기"}
+        </button>
+        {!hasShareBonus && (
+          <Post.Paragraph paddingBottom={0} color={adaptive.grey500} typography="st12">
+            친구에게 한 번 공유하면 저장 장소가 2개로 늘어나요.
+          </Post.Paragraph>
+        )}
+      </div>
 
       <Spacing size={20} />
 

@@ -8,7 +8,8 @@ import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useSavedRegions, type StoredRegion } from "../hooks/useSavedRegions";
 import { syncSubscriptions } from "../lib/notifications";
-import { coarseLocationLabel, placeNameFromLabel, searchRegions } from "../lib/regions";
+import { resolveMyLocation } from "../lib/location";
+import { searchRegions } from "../lib/regions";
 import { searchRegionsRemote } from "../lib/judgeApi";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { useBackNavigation } from "../hooks/useBackNavigation";
@@ -145,14 +146,14 @@ export default function RegionSearch() {
       if (status !== "allowed") return;
 
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+      const { nx, ny, label, name } = await resolveMyLocation(coords.latitude, coords.longitude);
       // 아직 내 장소가 없으면 여기서 확정해요 — 권한을 거부했다가 이 버튼으로 돌아온 사용자는
       // 이 경로 말고는 내 장소를 가질 기회가 없어서, 안 잡아주면 알림을 영영 못 받아요.
       // 이미 내 장소가 있으면 화면만 그 위치로 보여줘요(기준을 옮기려면 홈의 ↻를 써요).
       if (!primaryRegion) {
-        await addRegion({ name: placeNameFromLabel(label), nx, ny });
+        await addRegion({ name, nx, ny });
       }
-      navigate(ROUTES.home, { state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude } });
+      navigate(ROUTES.home, { state: { nx, ny, label } });
     } catch {
       // 다이얼로그 호출 실패·권한은 허용됐지만 위치 조회 자체가 실패한 경우 등 — 화면에 머물러요.
     } finally {

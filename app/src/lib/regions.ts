@@ -3,7 +3,6 @@
  * 프론트 어디서도 지역명·nx/ny를 직접 하드코딩하지 말고 이 모듈을 통해서만 조회해요.
  */
 import regionsData from "../../../data/regions.json";
-import { toGrid } from "./geo";
 
 export interface RegionEntry {
   sido: string;
@@ -62,28 +61,6 @@ export function findNearestRegion(lat: number, lon: number): RegionEntry {
     }
   }
   return nearest;
-}
-
-export interface MyLocationResult {
-  nx: number;
-  ny: number;
-  label: string;
-}
-
-/**
- * GPS 좌표로 "내 위치(...)" 결과를 네트워크 없이 즉시 만들어요. nx/ny는 좌표만 있으면 되는
- * 순수 계산(toGrid)이라 서버가 /region에서 계산하는 값과 완전히 같아요 — 판정에 쓰는
- * 데이터의 정확도엔 전혀 영향 없어요.
- *
- * 라벨은 구 단위(findNearestRegion, 중심점 최근접)라 동 경계 근처에서는 부정확할 수 있어요
- * (예: 공덕동인데 서대문구로 뜨는 식). 정확한 동 단위 라벨(카카오 역지오코딩 /region)은
- * 화면 진입을 막지 않도록 Home이 백그라운드에서 따로 조회해서 나중에 갈아끼워요
- * (Home.tsx의 지역 라벨 정밀화 로직 참고) — 이 함수는 그 전까지 보여줄 즉시 라벨을 줘요.
- */
-export function coarseLocationLabel(lat: number, lon: number): MyLocationResult {
-  const { nx, ny } = toGrid(lat, lon);
-  const nearest = findNearestRegion(lat, lon);
-  return { nx, ny, label: `내 위치(${nearest.sigungu})` };
 }
 
 /**
