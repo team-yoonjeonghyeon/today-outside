@@ -283,7 +283,7 @@ export default function Home() {
       {showData && (
         <>
           <div style={{ padding: "10px 24px 20px" }}>
-            {/* 저장한 지역(최대 3개)을 바로 바꿀 수 있는 작은 드롭다운 — 설정까지 안 가도 되게 */}
+            {/* 저장한 지역(기본 1개·공유하면 2개)을 바로 바꿀 수 있는 작은 드롭다운 — 설정까지 안 가도 되게 */}
             <Menu.Trigger
               open={regionSheetOpen}
               onOpen={() => setRegionSheetOpen(true)}

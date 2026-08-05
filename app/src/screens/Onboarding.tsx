@@ -45,7 +45,7 @@ export default function Onboarding() {
 
   const [profile, setProfile] = useLastProfile();
   const [locating, setLocating] = useState(false);
-  // 진입할 때마다 항상 최신 GPS 위치로 시작해요 — 저장된 지역(savedRegions, 최대 3개)은
+  // 진입할 때마다 항상 최신 GPS 위치로 시작해요 — 저장된 지역(savedRegions, 기본 1개·공유하면 2개)은
   // 사용자가 타지 날씨를 보고 싶을 때 쓰는 별개 기능이고, lastRegion은 "지금 위치"를 대신하는
   // 값이 아니라 GPS 조회가 안 될 때(권한 거부·오류)만 쓰는 폴백이에요. 조회하는 동안 잠깐
   // 로더만 보여줘요.
