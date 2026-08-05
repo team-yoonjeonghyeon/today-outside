@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertDialog, Asset, List, ListRow, Paragraph, Spacing, Text, TextButton } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
-import { Accuracy, getCurrentLocation, share } from "@apps-in-toss/web-framework";
+import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { MINT } from "../constants/judge";
 import {
   BASE_SAVED_REGIONS,
@@ -10,6 +10,7 @@ import {
   useSavedRegions,
 } from "../hooks/useSavedRegions";
 import { coarseLocationLabel } from "../lib/regions";
+import { openShareReward } from "../lib/shareReward";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
 import { ROUTES } from "../routes";
@@ -24,20 +25,6 @@ const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
 const LOCK_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F512.png";
 // 항상 보여주는 총 저장 칸 수 = 기본 1칸 + 공유 보너스 1칸. 공유 전에는 보너스 칸이 잠겨 보여요.
 const TOTAL_SLOTS = BASE_SAVED_REGIONS + SHARE_BONUS_REGIONS;
-
-const SHARE_MESSAGE =
-  "오늘 나가도 되나 — 지금 우리 동네 나가도 되는지 등급으로 알려줘요. 같이 써요!";
-
-// 네이티브 공유 시트를 띄우고, 사용자가 공유를 마치면(Promise resolve) true를 돌려줘요.
-// 브릿지가 없는 환경(브라우저 프리뷰 등)에서는 동기적으로 throw할 수 있어서 try/catch로 감싸요.
-async function runShare(): Promise<boolean> {
-  try {
-    await share({ message: SHARE_MESSAGE });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 // F6 위치 권한 거부 · 지역 고르기. docs/오늘나가도되나_디자인프레임.html F6 참고.
 // 정책: 권한을 안 줘도 나머지 기능이 100% 같아야 해요 — 저장한 지역 목록이 그 대안이에요.
@@ -66,12 +53,13 @@ export default function LocationDenied() {
     navigate(ROUTES.regionSearch);
   };
 
-  // 잠긴 칸을 누르면 친구에게 공유하고, 공유를 마치면 그 칸이 열려요. 공유를 취소·실패하거나
-  // 브릿지가 없으면 잠긴 채로 둬요 (정직성 원칙 — 공유 안 했는데 열어주지 않아요).
+  // 잠긴 칸을 누르면 공유 리워드 모듈(연락처 공유)을 띄우고, 친구에게 실제로 공유가 성공하면
+  // 그 칸이 열려요. 취소·실패하거나 브릿지가 없으면 잠긴 채로 둬요 (정직성 원칙 — 공유 안
+  // 했는데 열어주지 않아요).
   const handleShareForBonus = async () => {
     if (sharing || hasShareBonus) return;
     setSharing(true);
-    const shared = await runShare();
+    const shared = await openShareReward();
     if (shared) {
       await grantShareBonus();
       setBonusPopupOpen(true);

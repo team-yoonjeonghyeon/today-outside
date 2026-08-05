@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertDialog, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
-import { share } from "@apps-in-toss/web-framework";
 import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
@@ -14,32 +13,19 @@ import {
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { getAnonKey, requestAgreement } from "../lib/notifications";
 import { subscribeNotification, unsubscribeNotification, type NotificationType } from "../lib/judgeApi";
+import { openShareReward } from "../lib/shareReward";
 import { ROUTES } from "../routes";
 
 // F8 설정. 앱빌더에서 파트너가 준 화면 코드를 기준으로 만들었어요(docs 목업 대신).
 // 자체 뒤로가기·타이틀은 렌더링하지 않아요 — 내비게이션 바는 앱인토스가 제공해요 (CLAUDE.md 제약).
 
-// 저장 장소는 기본 1개예요. 친구에게 한 번 공유하면(공유 시트에서 실제로 공유를 마치면)
-// 보너스로 1개가 더 열려서 총 2개까지 저장할 수 있어요.
+// 저장 장소는 기본 1개예요. 친구에게 공유 리워드로 한 번 공유가 성공하면 보너스로 1개가 더
+// 열려서 총 2개까지 저장할 수 있어요.
 // 지역 리스트/잠긴 슬롯 아이콘 (LocationDenied.tsx F6와 동일하게 맞춰요).
 const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
 const LOCK_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F512.png";
 // 항상 보여주는 총 저장 칸 수 = 기본 1칸 + 공유 보너스 1칸.
 const TOTAL_SLOTS = BASE_SAVED_REGIONS + SHARE_BONUS_REGIONS;
-
-const SHARE_MESSAGE =
-  "오늘 나가도 되나 — 지금 우리 동네 나가도 되는지 등급으로 알려줘요. 같이 써요!";
-
-// 네이티브 공유 시트를 띄우고, 사용자가 공유를 마치면(Promise resolve) true를 돌려줘요.
-// 브릿지가 없는 환경(브라우저 프리뷰 등)에서는 동기적으로 throw할 수 있어서 try/catch로 감싸요.
-async function runShare(): Promise<boolean> {
-  try {
-    await share({ message: SHARE_MESSAGE });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export default function Settings() {
   useBackNavigation();
@@ -92,7 +78,7 @@ export default function Settings() {
   const handleShareForBonus = async () => {
     if (sharing || hasShareBonus) return;
     setSharing(true);
-    const shared = await runShare();
+    const shared = await openShareReward();
     if (shared) {
       await grantShareBonus();
       setBonusPopupOpen(true);
