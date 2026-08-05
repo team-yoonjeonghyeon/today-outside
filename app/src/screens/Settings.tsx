@@ -13,7 +13,7 @@ import {
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { getAnonKey, requestAgreement } from "../lib/notifications";
 import { subscribeNotification, unsubscribeNotification, type NotificationType } from "../lib/judgeApi";
-import { openShareReward } from "../lib/shareReward";
+import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import { ROUTES } from "../routes";
 
 // F8 설정. 앱빌더에서 파트너가 준 화면 코드를 기준으로 만들었어요(docs 목업 대신).
@@ -36,7 +36,7 @@ export default function Settings() {
     useSavedRegions();
   const { prefs, setPrefs } = useNotificationPrefs();
   const [startTabSheetOpen, setStartTabSheetOpen] = useState(false);
-  const [sharing, setSharing] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   // 공유가 성공해서 보너스 장소가 열렸을 때 띄우는 축하 팝업이에요.
   const [bonusPopupOpen, setBonusPopupOpen] = useState(false);
 
@@ -72,18 +72,13 @@ export default function Settings() {
     }
   };
 
-  // 잠긴 칸을 누르면 친구에게 공유하고, 공유를 마치면 그 칸이 열려요. 공유 시트를 못 띄우거나
-  // 사용자가 공유를 취소·실패하면 아무 것도 열리지 않아요(정직성 원칙 — 공유 안 했는데
-  // 열어주지 않아요). 이미 보너스를 받았으면 잠긴 칸이 안 떠서 여기 오지 않아요.
-  const handleShareForBonus = async () => {
-    if (sharing || hasShareBonus) return;
-    setSharing(true);
-    const shared = await openShareReward();
-    if (shared) {
-      await grantShareBonus();
-      setBonusPopupOpen(true);
-    }
-    setSharing(false);
+  // 잠긴 칸을 누르면 공유 방법 선택 바텀시트를 띄워요(토스 친구 초대 / 카톡·문자 공유).
+  // 둘 중 무엇이든 공유가 성공하면 그 칸이 열려요. 취소·실패·브릿지 없음이면 잠긴 채로 둬요
+  // (정직성 원칙 — 공유 안 했는데 열어주지 않아요). 이미 받았으면 잠긴 칸이 안 떠서 안 와요.
+  const handleUnlocked = async () => {
+    if (hasShareBonus) return;
+    await grantShareBonus();
+    setBonusPopupOpen(true);
   };
 
   return (
@@ -267,7 +262,7 @@ export default function Settings() {
                 contents={
                   <ListRow.Texts
                     type="2RowTypeA"
-                    top={sharing ? "공유하는 중…" : "잠긴 칸"}
+                    top="잠긴 칸"
                     topProps={{ color: adaptive.grey500, fontWeight: "bold" }}
                     bottom="친구에게 공유하면 열려요"
                     bottomProps={{ color: adaptive.grey500 }}
@@ -283,14 +278,13 @@ export default function Settings() {
                       fontWeight: 700,
                       padding: "7px 12px",
                       borderRadius: 10,
-                      opacity: sharing ? 0.6 : 1,
                     }}
                   >
                     공유하고 열기
                   </span>
                 }
                 verticalPadding="large"
-                onClick={() => void handleShareForBonus()}
+                onClick={() => setShareSheetOpen(true)}
               />
             );
           }
@@ -445,6 +439,13 @@ export default function Settings() {
       </List>
 
       <Spacing size={16} />
+
+      {/* 잠긴 칸을 누르면 뜨는 공유 방법 선택(토스 친구 초대 / 카톡·문자). */}
+      <ShareToUnlockSheet
+        open={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        onUnlocked={() => void handleUnlocked()}
+      />
 
       {/* 공유 성공 → 보너스 장소 잠금 해제를 알리는 축하 팝업. 확인을 누르면 닫혀요. */}
       <AlertDialog
