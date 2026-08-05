@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Chip, ChipItem, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
+import { AlertDialog, Chip, ChipItem, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { getAnonymousKey, requestNotificationAgreement, share } from "@apps-in-toss/web-framework";
 import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
@@ -96,6 +96,8 @@ export default function Settings() {
   const { savedRegions, removeRegion, maxRegions, hasShareBonus, grantShareBonus } = useSavedRegions();
   const [startTabSheetOpen, setStartTabSheetOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  // 공유가 성공해서 보너스 장소가 열렸을 때 띄우는 축하 팝업이에요.
+  const [bonusPopupOpen, setBonusPopupOpen] = useState(false);
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
 
   useEffect(() => {
@@ -149,7 +151,10 @@ export default function Settings() {
     if (sharing || hasShareBonus) return;
     setSharing(true);
     const shared = await runShare();
-    if (shared) await grantShareBonus();
+    if (shared) {
+      await grantShareBonus();
+      setBonusPopupOpen(true);
+    }
     setSharing(false);
   };
 
@@ -457,6 +462,23 @@ export default function Settings() {
       </List>
 
       <Spacing size={16} />
+
+      {/* 공유 성공 → 보너스 장소 잠금 해제를 알리는 축하 팝업. 확인을 누르면 닫혀요. */}
+      <AlertDialog
+        open={bonusPopupOpen}
+        title={<AlertDialog.Title>{"공유해줘서 고마워요\n장소를 1개 더 저장할 수 있어요"}</AlertDialog.Title>}
+        description={
+          <AlertDialog.Description>
+            이제 자주 가는 곳을 2개까지 저장할 수 있어요.
+          </AlertDialog.Description>
+        }
+        alertButton={
+          <AlertDialog.AlertButton onClick={() => setBonusPopupOpen(false)}>
+            좋아요
+          </AlertDialog.AlertButton>
+        }
+        onClose={() => setBonusPopupOpen(false)}
+      />
     </>
   );
 }
