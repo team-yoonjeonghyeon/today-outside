@@ -23,6 +23,14 @@ export const SHARE_REWARD_MODULE_ID = "48799171-985e-43df-827d-1bc99907d1e2";
 const SHARE_MESSAGE =
   "오늘 나가도 되나\n더위·자외선·아스팔트 온도를 보고 지금 나가도 될지 알려줘요.";
 
+// getTossShareLink의 첫 인자는 화면 경로가 아니라 `intoss://`로 시작하는 딥링크예요.
+// granite.config.ts의 appName("today-outside")이 그대로 스킴 뒤에 와요. 예전엔 "/"를 넘겨서
+// 호출이 실패했고, 실패를 조용히 삼키느라 링크 없이 문구만 나갔어요.
+const SHARE_DEEP_LINK = "intoss://today-outside";
+// 공유 미리보기(OG)에 쓰는 이미지. https 절대 경로여야 해요 — 홈의 노면온도 카드와 같은
+// 아이콘을 써서, 받은 사람이 무슨 앱인지 바로 알아보게 해요.
+const SHARE_OG_IMAGE = "https://static.toss.im/2d-icons/emoji/png/4x/u1F6E4.png";
+
 /**
  * 네이티브 공유 시트(카톡·메시지·문자 등)를 띄우고, 공유를 마치면 true를 돌려줘요.
  * contactsViral과 달리 토스 친구가 아니어도 어디로든 공유할 수 있어요 — 대신 앱인토스
@@ -30,12 +38,23 @@ const SHARE_MESSAGE =
  * 브릿지가 없는 환경(브라우저 프리뷰 등)에서는 동기적으로 throw할 수 있어서 감싸요.
  *
  * share()는 message 문자열 하나만 받아서 링크를 넣을 자리가 따로 없어요 — 본문 끝에 직접
- * 붙여요. 링크가 없으면 받은 사람이 미니앱을 찾아 들어갈 방법이 없어서, 공유해도 아무
- * 소용이 없거든요. 링크 조회가 실패하면 문구만이라도 나가게 두고요.
+ * 붙여요. 링크가 없으면 받은 사람이 미니앱을 찾아 들어갈 방법이 없거든요.
+ *
+ * ⚠️ getTossShareLink는 **미니앱이 정식 출시된 뒤에만** 동작해요(공식 문서 명시). 출시 전
+ * 테스트에서는 이 호출이 실패해서 링크 없이 문구만 나가요 — 버그가 아니라 제약이에요.
+ * 그때도 공유 자체는 되게 두고, 실패 원인은 콘솔에 남겨서 확인할 수 있게 해요.
  */
 export async function shareNative(): Promise<boolean> {
+  let link = "";
   try {
-    const link = await getTossShareLink("/").catch(() => "");
+    link = await getTossShareLink(SHARE_DEEP_LINK, SHARE_OG_IMAGE);
+  } catch (e) {
+    // 출시 전이거나 브릿지가 없으면 여기로 와요. 조용히 삼키면 "왜 링크가 없지"를
+    // 추적할 수 없어서 로그는 남겨요.
+    console.warn("[share] 공유 링크를 만들지 못했어요 (정식 출시 전이면 정상이에요)", e);
+  }
+
+  try {
     await share({ message: link ? `${SHARE_MESSAGE}\n\n${link}` : SHARE_MESSAGE });
     return true;
   } catch {
