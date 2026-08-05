@@ -109,7 +109,12 @@ export default function Timeline() {
 
   const { profile, label } = state;
   const { hourly, bestWindow } = data;
-  const nowHour = parseKstHour(data.observedAt);
+  // observedAt(기상청 관측 시각)이 아니라 generatedAt(서버가 이 응답을 계산한 시각)을 써요.
+  // 초단기실황은 매시 40분에 발표돼서 observedAt이 실제 지금보다 최대 1시간 가까이
+  // 뒤처질 수 있어요(Home.tsx 참고) — 그 값으로 "지금"을 표시하면 예를 들어 14시 19분에
+  // "지금 13시"라고 뜨는, 실제 시각과 다른 라벨이 붙어요. generatedAt은 실제 현재 시각과
+  // 같아서 "지금" 표시·강조 칸 모두 이걸 기준으로 삼아야 정확해요.
+  const nowHour = parseKstHour(data.generatedAt);
   const firstHour = hourly[0]?.hour ?? 6;
   const lastHour = hourly[hourly.length - 1]?.hour ?? 23;
   // 6시부터 마지막 슬롯까지 4칸 간격으로 눈금을 뽑아요 — 목업의 '24시'는 실제 응답에 없는

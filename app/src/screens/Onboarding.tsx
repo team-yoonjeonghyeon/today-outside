@@ -14,17 +14,11 @@ import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
 import { PRIMARY_BUTTON_STYLE, GHOST_BUTTON_STYLE } from "../constants/theme";
-import { coarseLocationLabel } from "../lib/regions";
+import { coarseLocationLabel, placeNameFromLabel } from "../lib/regions";
 import { useLastProfile } from "../hooks/useLastProfile";
+import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
-import { getStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { ROUTES } from "../routes";
-
-interface LastRegion {
-  nx: number;
-  ny: number;
-  label: string;
-}
 
 // 위치를 아직 몰라서 값이 없는 미리보기 3종 — Home의 지표 카드(노면온도·체감온도·자외선)와
 // 순서·구성을 맞춰요. 배열 하나로 관리해서 세 행이 아이콘 크기·줄 구성에서 서로 어긋나지
@@ -45,56 +39,37 @@ export default function Onboarding() {
 
   const [profile, setProfile] = useLastProfile();
   const [locating, setLocating] = useState(false);
-  // 진입할 때마다 항상 최신 GPS 위치로 시작해요 — 저장된 지역(savedRegions, 최대 3개)은
-  // 사용자가 타지 날씨를 보고 싶을 때 쓰는 별개 기능이고, lastRegion은 "지금 위치"를 대신하는
-  // 값이 아니라 GPS 조회가 안 될 때(권한 거부·오류)만 쓰는 폴백이에요. 조회하는 동안 잠깐
-  // 로더만 보여줘요.
-  const [resolving, setResolving] = useState(true);
+  const { primaryRegion, addRegion, loaded } = useSavedRegions();
   const navigate = useNavigate();
 
+  // 내 장소가 정해져 있으면 GPS를 다시 잡지 않고 곧장 그 지역의 홈으로 이어요.
+  //
+  // 예전엔 진입할 때마다 GPS를 새로 찍어서 홈을 열었는데, 그러면 알림이 겨냥할 기준점이 매번
+  // 흔들려요(아침엔 집, 출근 후엔 회사, 여행 중엔 여행지). 아침 브리핑처럼 "매일 같은 곳"을
+  // 전제로 하는 알림에는 고정된 한 곳이 필요해서, GPS 재측정은 자동이 아니라 홈의 ↻ 버튼으로
+  // 사용자가 원할 때만 하도록 옮겼어요.
+  //
+  // loaded 전에는 아직 Storage를 읽는 중이라 "내 장소 없음"으로 단정하면 안 돼요 —
+  // 그동안엔 아래 로더만 보여줘요(안 그러면 이미 쓰던 사람에게 F1이 잠깐 번쩍여요).
   useEffect(() => {
-    let cancelled = false;
-
-    async function resolveInitialRegion() {
-      try {
-        const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-        // nx/ny·구 단위 라벨은 네트워크 없이 즉시 계산해요 — 동 단위 정밀 라벨은 Home이
-        // 백그라운드에서 따로 조회해서 갈아끼워요(카카오 역지오코딩 응답을 기다리느라
-        // 진입이 늦어지지 않게 하려는 용도).
-        const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
-        if (!cancelled) {
-          navigate(ROUTES.home, {
-            state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude },
-            replace: true,
-          });
-        }
-        return;
-      } catch {
-        // 권한 거부·미결정·조회 실패 — 마지막으로 봤던 지역이 있으면 그걸로 폴백하고,
-        // 그마저 없으면 아래 F1 안내(위치 권한 카드)를 보여줘요.
-      }
-
-      const last = await getStoredJSON<LastRegion | null>(STORAGE_KEYS.lastRegion, null);
-      if (cancelled) return;
-      if (last) {
-        navigate(ROUTES.home, { state: last, replace: true });
-      } else {
-        setResolving(false);
-      }
-    }
-
-    void resolveInitialRegion();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!loaded || !primaryRegion) return;
+    navigate(ROUTES.home, {
+      state: { nx: primaryRegion.nx, ny: primaryRegion.ny, label: primaryRegion.name },
+      replace: true,
+    });
+  }, [loaded, primaryRegion, navigate]);
 
   const handleUseLocation = async () => {
     setLocating(true);
     try {
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+      // nx/ny·구 단위 라벨은 네트워크 없이 즉시 계산해요 — 동 단위 정밀 라벨은 Home이
+      // 백그라운드에서 따로 조회해서 갈아끼워요(카카오 역지오코딩 응답을 기다리느라
+      // 진입이 늦어지지 않게 하려는 용도).
       const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+      // 첫 내 장소예요 — 여기서만 확인 없이 바로 정해요. 아직 기준이 없는 상태라
+      // 덮어쓸 게 없고, 사용자가 방금 "내 위치로 시작하기"를 직접 눌렀으니까요.
+      await addRegion({ name: placeNameFromLabel(label), nx, ny });
       navigate(ROUTES.home, { state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude } });
     } catch {
       // 권한 거부·미결정·조회 실패 — 어떤 이유든 지역 직접 선택으로 안내해요.
@@ -107,7 +82,8 @@ export default function Onboarding() {
     navigate(ROUTES.locationDenied);
   };
 
-  if (resolving) {
+  // 아직 내 장소를 읽는 중이거나, 이미 있어서 위 이펙트가 홈으로 넘기는 중이에요.
+  if (!loaded || primaryRegion) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: "64px 24px" }}>
         <Loader size="medium" />
