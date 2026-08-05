@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertDialog, Chip, ChipItem, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
+import { AlertDialog, List, ListRow, Menu, Post, Spacing, Switch } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { getAnonymousKey, requestNotificationAgreement, share } from "@apps-in-toss/web-framework";
 import { MINT, PROFILE_META, PROFILE_ORDER } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
-import { useSavedRegions } from "../hooks/useSavedRegions";
+import {
+  BASE_SAVED_REGIONS,
+  SHARE_BONUS_REGIONS,
+  useSavedRegions,
+} from "../hooks/useSavedRegions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { subscribeNotification, unsubscribeNotification } from "../lib/judgeApi";
@@ -39,6 +43,12 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
 
 // 저장 장소는 기본 1개예요. 친구에게 한 번 공유하면(공유 시트에서 실제로 공유를 마치면)
 // 보너스로 1개가 더 열려서 총 2개까지 저장할 수 있어요.
+// 지역 리스트/잠긴 슬롯 아이콘 (LocationDenied.tsx F6와 동일하게 맞춰요).
+const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
+const LOCK_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F512.png";
+// 항상 보여주는 총 저장 칸 수 = 기본 1칸 + 공유 보너스 1칸.
+const TOTAL_SLOTS = BASE_SAVED_REGIONS + SHARE_BONUS_REGIONS;
+
 const SHARE_MESSAGE =
   "오늘 나가도 되나 — 지금 우리 동네 나가도 되는지 등급으로 알려줘요. 같이 써요!";
 
@@ -142,11 +152,9 @@ export default function Settings() {
     }
   };
 
-  const canAddRegion = savedRegions.length < maxRegions;
-
-  // 친구에게 공유하고, 공유를 마치면 저장 장소 1개를 더 열어줘요. 공유 시트를 못 띄우거나
+  // 잠긴 칸을 누르면 친구에게 공유하고, 공유를 마치면 그 칸이 열려요. 공유 시트를 못 띄우거나
   // 사용자가 공유를 취소·실패하면 아무 것도 열리지 않아요(정직성 원칙 — 공유 안 했는데
-  // 열어주지 않아요). 이미 보너스를 받았으면 이 버튼 자체가 사라져서 여기 오지 않아요.
+  // 열어주지 않아요). 이미 보너스를 받았으면 잠긴 칸이 안 떠서 여기 오지 않아요.
   const handleShareForBonus = async () => {
     if (sharing || hasShareBonus) return;
     setSharing(true);
@@ -251,89 +259,115 @@ export default function Settings() {
 
       <div style={{ padding: "0 24px" }}>
         <Post.Paragraph paddingBottom={8} color={adaptive.grey500} typography="st9" fontWeight="bold">
-          {`지역 · 최대 ${maxRegions}개`}
+          {`지역 · ${maxRegions}/${TOTAL_SLOTS}칸`}
         </Post.Paragraph>
       </div>
 
-      <div style={{ padding: "0 16px" }}>
-        <Chip kind="action" margin="small" wrap>
-          {savedRegions.map((region) => (
-            <ChipItem
-              key={region.name}
-              right={
-                <span
-                  role="button"
-                  aria-label={`${region.name} 저장 해제`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void removeRegion(region.name);
-                  }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 18,
-                    height: 18,
-                    marginLeft: 8,
-                    marginRight: 8,
-                    borderRadius: "50%",
-                    background: adaptive.grey200,
-                    color: adaptive.grey600,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    cursor: "pointer",
-                  }}
-                >
-                  ✕
-                </span>
-              }
-            >
-              {region.name}
-            </ChipItem>
-          ))}
-          <ChipItem
-            disabled={!canAddRegion}
-            onClick={() => {
-              if (canAddRegion) navigate(ROUTES.regionSearch);
-            }}
-          >
-            ＋ 추가
-          </ChipItem>
-        </Chip>
-      </div>
+      {/* 저장 칸을 항상 TOTAL_SLOTS(2)개 고정으로 보여줘요 — 채워진 칸 / 열린 빈 칸 / 잠긴 칸.
+          공유 전에는 마지막 칸이 자물쇠로 잠겨 있고, 공유하면 "＋ 추가"로 열려요 (F6와 동일한 UX). */}
+      <List>
+        {Array.from({ length: TOTAL_SLOTS }).map((_, i) => {
+          const region = savedRegions[i];
 
-      {/* 아직 공유 보너스를 안 받았으면, 공유하고 장소 1개를 더 열 수 있게 안내해요.
-          한 번 받고 나면(hasShareBonus) 이 영역은 사라지고 최대치가 2개로 늘어나요. */}
-      {!hasShareBonus && (
-        <>
-          <Spacing size={10} />
-          <div style={{ padding: "0 24px" }}>
-            <button
-              type="button"
-              onClick={() => void handleShareForBonus()}
-              disabled={sharing}
-              style={{
-                width: "100%",
-                border: "none",
-                borderRadius: 14,
-                padding: "13px 16px",
-                background: MINT[400],
-                color: MINT[900],
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: sharing ? "default" : "pointer",
-                opacity: sharing ? 0.6 : 1,
-              }}
-            >
-              {sharing ? "공유 중…" : "🎁 친구에게 공유하고 장소 1개 더 받기"}
-            </button>
-            <Post.Paragraph paddingBottom={0} color={adaptive.grey500} typography="st12">
-              친구에게 한 번 공유하면 저장 장소가 2개로 늘어나요.
-            </Post.Paragraph>
-          </div>
-        </>
-      )}
+          // 1) 채워진 칸 — 저장된 지역 (설정 화면이라 이동 없이 관리만: 해제 버튼)
+          if (region) {
+            return (
+              <ListRow
+                key={`filled-${region.name}`}
+                left={
+                  <ListRow.AssetImage
+                    src={REGION_ICON}
+                    shape="squircle"
+                    backgroundColor={adaptive.greyOpacity100}
+                    size="xsmall"
+                  />
+                }
+                contents={
+                  <ListRow.Texts type="1RowTypeA" top={region.name} topProps={{ color: adaptive.grey800 }} />
+                }
+                right={
+                  <button
+                    type="button"
+                    aria-label={`${region.name} 저장 해제`}
+                    onClick={() => void removeRegion(region.name)}
+                    style={{
+                      border: "none",
+                      background: "none",
+                      cursor: "pointer",
+                      padding: 6,
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: adaptive.grey400,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✕
+                  </button>
+                }
+                verticalPadding="large"
+              />
+            );
+          }
+
+          // 2) 잠긴 칸 — 아직 공유 보너스를 못 받아 열리지 않은 칸. 누르면 공유 → 열림.
+          if (i >= maxRegions) {
+            return (
+              <ListRow
+                key={`locked-${i}`}
+                left={
+                  <ListRow.AssetImage
+                    src={LOCK_ICON}
+                    shape="squircle"
+                    backgroundColor={adaptive.greyOpacity100}
+                    size="xsmall"
+                  />
+                }
+                contents={
+                  <ListRow.Texts
+                    type="2RowTypeA"
+                    top={sharing ? "공유하는 중…" : "잠긴 칸"}
+                    topProps={{ color: adaptive.grey500, fontWeight: "bold" }}
+                    bottom="친구에게 공유하면 열려요"
+                    bottomProps={{ color: adaptive.grey500 }}
+                  />
+                }
+                right={
+                  <span
+                    style={{
+                      display: "inline-block",
+                      background: MINT[400],
+                      color: MINT[900],
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "7px 12px",
+                      borderRadius: 10,
+                      opacity: sharing ? 0.6 : 1,
+                    }}
+                  >
+                    공유하고 열기
+                  </span>
+                }
+                verticalPadding="large"
+                onClick={() => void handleShareForBonus()}
+              />
+            );
+          }
+
+          // 3) 열린 빈 칸 — 다른 지역을 찾아 채울 수 있어요.
+          return (
+            <ListRow
+              key={`empty-${i}`}
+              contents={
+                <Post.Paragraph paddingBottom={0} color={MINT[700]} fontWeight="bold">
+                  ＋ 다른 지역 찾기
+                </Post.Paragraph>
+              }
+              verticalPadding="large"
+              onClick={() => navigate(ROUTES.regionSearch)}
+            />
+          );
+        })}
+      </List>
 
       <Spacing size={20} />
 
