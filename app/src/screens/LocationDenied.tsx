@@ -1,9 +1,14 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Asset, List, ListRow, Paragraph, Spacing, Text, TextButton } from "@toss/tds-mobile";
+import { AlertDialog, Asset, List, ListRow, Paragraph, Spacing, Text, TextButton } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
-import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
+import { Accuracy, getCurrentLocation, share } from "@apps-in-toss/web-framework";
 import { MINT } from "../constants/judge";
-import { useSavedRegions } from "../hooks/useSavedRegions";
+import {
+  BASE_SAVED_REGIONS,
+  SHARE_BONUS_REGIONS,
+  useSavedRegions,
+} from "../hooks/useSavedRegions";
 import { coarseLocationLabel } from "../lib/regions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
@@ -15,6 +20,24 @@ const MAP_PIN_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/uE116.png";
 // 지역 리스트 아이템 아이콘 — 193개 전 지역에 형평 있게, 건물 아이콘 하나로 통일해요
 // (RegionSearch.tsx 검색 결과와 동일한 아이콘).
 const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
+// 잠긴 슬롯(공유하면 열리는 칸)에 쓰는 자물쇠 아이콘.
+const LOCK_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F512.png";
+// 항상 보여주는 총 저장 칸 수 = 기본 1칸 + 공유 보너스 1칸. 공유 전에는 보너스 칸이 잠겨 보여요.
+const TOTAL_SLOTS = BASE_SAVED_REGIONS + SHARE_BONUS_REGIONS;
+
+const SHARE_MESSAGE =
+  "오늘 나가도 되나 — 지금 우리 동네 나가도 되는지 등급으로 알려줘요. 같이 써요!";
+
+// 네이티브 공유 시트를 띄우고, 사용자가 공유를 마치면(Promise resolve) true를 돌려줘요.
+// 브릿지가 없는 환경(브라우저 프리뷰 등)에서는 동기적으로 throw할 수 있어서 try/catch로 감싸요.
+async function runShare(): Promise<boolean> {
+  try {
+    await share({ message: SHARE_MESSAGE });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // F6 위치 권한 거부 · 지역 고르기. docs/오늘나가도되나_디자인프레임.html F6 참고.
 // 정책: 권한을 안 줘도 나머지 기능이 100% 같아야 해요 — 저장한 지역 목록이 그 대안이에요.
@@ -33,11 +56,27 @@ export default function LocationDenied() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { savedRegions, removeRegion, maxRegions } = useSavedRegions();
+  const { savedRegions, primaryRegion, removeRegion, maxRegions, hasShareBonus, grantShareBonus } =
+    useSavedRegions();
   const permissionGranted = Boolean((location.state as LocationDeniedNavState | null)?.permissionGranted);
+  const [sharing, setSharing] = useState(false);
+  const [bonusPopupOpen, setBonusPopupOpen] = useState(false);
 
   const handleFindOtherRegion = () => {
     navigate(ROUTES.regionSearch);
+  };
+
+  // 잠긴 칸을 누르면 친구에게 공유하고, 공유를 마치면 그 칸이 열려요. 공유를 취소·실패하거나
+  // 브릿지가 없으면 잠긴 채로 둬요 (정직성 원칙 — 공유 안 했는데 열어주지 않아요).
+  const handleShareForBonus = async () => {
+    if (sharing || hasShareBonus) return;
+    setSharing(true);
+    const shared = await runShare();
+    if (shared) {
+      await grantShareBonus();
+      setBonusPopupOpen(true);
+    }
+    setSharing(false);
   };
 
   const handleReRequestPermission = async () => {
@@ -73,7 +112,7 @@ export default function LocationDenied() {
         <Spacing size={11} />
 
         <Paragraph.Text color={adaptive.grey700} fontWeight="medium">
-          {`자주 가는 곳을 ${maxRegions}개까지 저장해 둘 수 있어요.`}
+          기본 1곳을 저장할 수 있고, 친구에게 공유하면 1곳이 더 열려요.
         </Paragraph.Text>
       </div>
 
@@ -85,69 +124,143 @@ export default function LocationDenied() {
         </Paragraph.Text>
       </div>
 
+      {/* 저장 칸을 항상 TOTAL_SLOTS(2)개로 고정해서 보여줘요 — 채워진 칸 / 열린 빈 칸 / 잠긴 칸.
+          공유 전에는 마지막 칸이 자물쇠로 잠겨 있고, 공유하면 "＋ 다른 지역 찾기"로 열려요. */}
       <List>
-        {savedRegions.map((region) => (
-          <ListRow
-            key={region.name}
-            left={
-              <ListRow.AssetImage
-                src={REGION_ICON}
-                shape="squircle"
-                backgroundColor={adaptive.greyOpacity100}
-                size="xsmall"
-              />
-            }
-            contents={
-              <ListRow.Texts type="1RowTypeA" top={region.name} topProps={{ color: adaptive.grey800 }} />
-            }
-            right={
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {region.levelLabel && (
-                  <ListRow.Texts
-                    type="Right1RowTypeA"
-                    top={region.levelLabel}
-                    topProps={{ color: region.levelColor, fontWeight: "bold" }}
+        {Array.from({ length: TOTAL_SLOTS }).map((_, i) => {
+          const region = savedRegions[i];
+
+          // 1) 채워진 칸 — 저장된 지역. 누르면 그 지역 홈으로 이동해요.
+          if (region) {
+            // 목록 첫 칸이 곧 내 장소(알림 기준). 자리가 2개일 때만 배지로 어느 쪽이 기준인지 알려요.
+            const isPrimary = region.name === primaryRegion?.name && maxRegions > 1;
+            return (
+              <ListRow
+                key={`filled-${region.name}`}
+                left={
+                  <ListRow.AssetImage
+                    src={REGION_ICON}
+                    shape="squircle"
+                    backgroundColor={adaptive.greyOpacity100}
+                    size="xsmall"
                   />
-                )}
-                <button
-                  type="button"
-                  aria-label={`${region.name} 저장 해제`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void removeRegion(region.name);
-                  }}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    cursor: "pointer",
-                    padding: 6,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: adaptive.grey400,
-                    lineHeight: 1,
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-            }
-            verticalPadding="large"
-            onClick={() => {
-              navigate(ROUTES.home, {
-                state: { nx: region.nx, ny: region.ny, label: region.name },
-              });
-            }}
-          />
-        ))}
-        <ListRow
-          contents={
-            <Paragraph.Text color={MINT[700]} fontWeight="bold">
-              ＋ 다른 지역 찾기
-            </Paragraph.Text>
+                }
+                contents={
+                  <ListRow.Texts type="1RowTypeA" top={region.name} topProps={{ color: adaptive.grey800 }} />
+                }
+                right={
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {isPrimary && (
+                      <span
+                        style={{
+                          padding: "2px 6px",
+                          borderRadius: 6,
+                          background: MINT[50],
+                          color: MINT[700],
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        내 장소
+                      </span>
+                    )}
+                    {region.levelLabel && (
+                      <ListRow.Texts
+                        type="Right1RowTypeA"
+                        top={region.levelLabel}
+                        topProps={{ color: region.levelColor, fontWeight: "bold" }}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      aria-label={`${region.name} 저장 해제`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void removeRegion(region.name);
+                      }}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                        padding: 6,
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: adaptive.grey400,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                }
+                verticalPadding="large"
+                onClick={() => {
+                  navigate(ROUTES.home, {
+                    state: { nx: region.nx, ny: region.ny, label: region.name },
+                  });
+                }}
+              />
+            );
           }
-          verticalPadding="large"
-          onClick={handleFindOtherRegion}
-        />
+
+          // 2) 잠긴 칸 — 아직 공유 보너스를 못 받아 열리지 않은 칸. 누르면 공유 → 열림.
+          if (i >= maxRegions) {
+            return (
+              <ListRow
+                key={`locked-${i}`}
+                left={
+                  <ListRow.AssetImage
+                    src={LOCK_ICON}
+                    shape="squircle"
+                    backgroundColor={adaptive.greyOpacity100}
+                    size="xsmall"
+                  />
+                }
+                contents={
+                  <ListRow.Texts
+                    type="2RowTypeA"
+                    top={sharing ? "공유하는 중…" : "잠긴 칸"}
+                    topProps={{ color: adaptive.grey500, fontWeight: "bold" }}
+                    bottom="친구에게 공유하면 열려요"
+                    bottomProps={{ color: adaptive.grey500 }}
+                  />
+                }
+                right={
+                  <span
+                    style={{
+                      display: "inline-block",
+                      background: MINT[400],
+                      color: MINT[900],
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "7px 12px",
+                      borderRadius: 10,
+                      opacity: sharing ? 0.6 : 1,
+                    }}
+                  >
+                    공유하고 열기
+                  </span>
+                }
+                verticalPadding="large"
+                onClick={() => void handleShareForBonus()}
+              />
+            );
+          }
+
+          // 3) 열린 빈 칸 — 다른 지역을 찾아 채울 수 있어요.
+          return (
+            <ListRow
+              key={`empty-${i}`}
+              contents={
+                <Paragraph.Text color={MINT[700]} fontWeight="bold">
+                  ＋ 다른 지역 찾기
+                </Paragraph.Text>
+              }
+              verticalPadding="large"
+              onClick={handleFindOtherRegion}
+            />
+          );
+        })}
       </List>
 
       {!permissionGranted && (
@@ -162,6 +275,23 @@ export default function LocationDenied() {
       )}
 
       <Spacing size={16} />
+
+      {/* 공유 성공 → 잠긴 칸이 열렸음을 알리는 축하 팝업. 확인을 누르면 닫혀요. */}
+      <AlertDialog
+        open={bonusPopupOpen}
+        title={<AlertDialog.Title>{"공유해줘서 고마워요\n잠긴 칸이 열렸어요"}</AlertDialog.Title>}
+        description={
+          <AlertDialog.Description>
+            이제 자주 가는 곳을 2곳까지 저장할 수 있어요.
+          </AlertDialog.Description>
+        }
+        alertButton={
+          <AlertDialog.AlertButton onClick={() => setBonusPopupOpen(false)}>
+            좋아요
+          </AlertDialog.AlertButton>
+        }
+        onClose={() => setBonusPopupOpen(false)}
+      />
     </>
   );
 }
