@@ -8,7 +8,8 @@ import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useSavedRegions, type StoredRegion } from "../hooks/useSavedRegions";
 import { syncSubscriptions } from "../lib/notifications";
-import { coarseLocationLabel, placeNameFromLabel, searchRegions } from "../lib/regions";
+import { resolveMyLocation } from "../lib/location";
+import { searchRegions } from "../lib/regions";
 import { searchRegionsRemote } from "../lib/judgeApi";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { useBackNavigation } from "../hooks/useBackNavigation";
@@ -50,7 +51,7 @@ export default function RegionSearch() {
   useDisablePullToRefresh();
 
   const navigate = useNavigate();
-  const { addRegion, primaryRegion, maxRegions } = useSavedRegions();
+  const { addRegion, savedRegions, primaryRegion, maxRegions } = useSavedRegions();
   const { prefs } = useNotificationPrefs();
   const [profile] = useLastProfile();
   // 저장한 지역을 내 장소로 바꿀지 물어볼 후보. null이면 확인 창이 닫힌 상태예요.
@@ -145,14 +146,14 @@ export default function RegionSearch() {
       if (status !== "allowed") return;
 
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+      const { nx, ny, name } = await resolveMyLocation(coords.latitude, coords.longitude);
       // 아직 내 장소가 없으면 여기서 확정해요 — 권한을 거부했다가 이 버튼으로 돌아온 사용자는
       // 이 경로 말고는 내 장소를 가질 기회가 없어서, 안 잡아주면 알림을 영영 못 받아요.
       // 이미 내 장소가 있으면 화면만 그 위치로 보여줘요(기준을 옮기려면 홈의 ↻를 써요).
       if (!primaryRegion) {
-        await addRegion({ name: placeNameFromLabel(label), nx, ny });
+        await addRegion({ name, nx, ny });
       }
-      navigate(ROUTES.home, { state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude } });
+      navigate(ROUTES.home, { state: { nx, ny, label: name } });
     } catch {
       // 다이얼로그 호출 실패·권한은 허용됐지만 위치 조회 자체가 실패한 경우 등 — 화면에 머물러요.
     } finally {
@@ -166,25 +167,38 @@ export default function RegionSearch() {
     setRecentSearch(item.name);
     void setStoredJSON(STORAGE_KEYS.recentSearch, item.name);
 
-    // 저장하면 목록 맨 앞으로 들어가고, 그 첫 칸이 곧 내 장소(알림 기준)예요. 그래서 아래
-    // 확인을 받기 전에는 저장하지 않아요 — 다른 동네를 잠깐 보려던 것뿐인데 알림 기준까지
-    // 따라 옮겨가면 안 되니까요.
-    //
-    // 아직 내 장소가 없거나(위치 권한을 거부하고 지역을 직접 고르는 흐름) 고른 곳이 이미 내
-    // 장소면 물어볼 게 없어서 바로 저장해요.
-    if (!primaryRegion || (primaryRegion.nx === region.nx && primaryRegion.ny === region.ny)) {
-      // Storage 쓰기가 끝난 뒤에 navigate해야, 돌아간 화면이 다시 마운트되며 저장된 지역을
-      // 곧바로 읽어와요 (안 그러면 방금 추가한 지역이 안 보이는 레이스가 생겨요).
-      await addRegion(region);
+    // Storage 쓰기가 끝난 뒤에 navigate해야, 돌아간 화면이 다시 마운트되며 저장된 지역을
+    // 곧바로 읽어와요 (안 그러면 방금 추가한 지역이 안 보이는 레이스가 생겨요).
+
+    // 아직 내 장소가 없으면(위치 권한을 거부하고 지역을 직접 고르는 흐름) 여기서 확정해요.
+    if (!primaryRegion) {
+      await addRegion(region, { asPrimary: true });
       goHome(region);
       return;
     }
+
+    // 이미 저장돼 있는 곳(같은 격자)이면 저장할 게 없어요 — 보여주기만 해요.
+    if (savedRegions.some((r) => r.nx === region.nx && r.ny === region.ny)) {
+      goHome(region);
+      return;
+    }
+
+    // 빈 칸이 있으면(공유로 두 번째 칸이 열린 경우) 그냥 거기에 넣어요. 자리가 남는데도
+    // "내 장소로 할까요?"를 묻는 건 맥락에 안 맞아요 — 사용자는 장소를 하나 더 추가하려는
+    // 거지 기준을 옮기려는 게 아니거든요. 내 장소는 그대로 두고 뒤에 붙여요.
+    if (savedRegions.length < maxRegions) {
+      await addRegion(region, { asPrimary: false });
+      goHome(region);
+      return;
+    }
+
+    // 자리가 다 찼어요. 이제부터는 저장 = 내 장소 교체라서, 저장하기 전에 확인을 받아요.
     setPendingPrimary(region);
   };
 
   const handleConfirmPrimary = async () => {
     if (!pendingPrimary) return;
-    await addRegion(pendingPrimary);
+    await addRegion(pendingPrimary, { asPrimary: true });
     void syncSubscriptions({ profile, region: pendingPrimary, prefs });
     setPendingPrimary(null);
     goHome(pendingPrimary);
@@ -335,11 +349,11 @@ export default function RegionSearch() {
         title={<ConfirmDialog.Title>여기를 내 장소로 할까요?</ConfirmDialog.Title>}
         description={
           <ConfirmDialog.Description>
+            {/* 이 창은 자리가 다 찼을 때만 떠요 — 그래서 항상 누군가는 목록에서 빠져요.
+                누가 빠지는지(맨 뒤, 가장 오래 둔 곳) 미리 알려주고 확인받아요. */}
             {[
               `아침 브리핑 같은 알림이 ${pendingPrimary?.name} 기준으로 와요.`,
-              maxRegions === 1
-                ? `저장 장소가 1개라 ${primaryRegion?.name} 자리를 대신해요.`
-                : `${primaryRegion?.name} 두 번째 장소로 남아요.`,
+              `자리가 다 차서 ${savedRegions[savedRegions.length - 1]?.name} 목록에서 빠져요.`,
             ].join("\n")}
           </ConfirmDialog.Description>
         }

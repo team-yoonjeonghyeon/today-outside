@@ -9,7 +9,9 @@ import {
   SHARE_BONUS_REGIONS,
   useSavedRegions,
 } from "../hooks/useSavedRegions";
-import { coarseLocationLabel } from "../lib/regions";
+// coarseLocationLabel(구 단위 즉시 라벨)은 없앴어요 — 동 경계에서 자주 틀려서 "공덕동인데
+// 서대문구"가 잠깐 보였거든요. 지금은 resolveMyLocation이 정확한 이름 하나만 돌려줘요.
+import { resolveMyLocation } from "../lib/location";
 import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
@@ -68,8 +70,8 @@ export default function LocationDenied() {
       if (status !== "allowed") return; // 'denied' — 이미 이 화면(F6)에 있으니 추가 안내 없이 그대로 둬요.
 
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
-      navigate(ROUTES.home, { state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude } });
+      const { nx, ny, name } = await resolveMyLocation(coords.latitude, coords.longitude);
+      navigate(ROUTES.home, { state: { nx, ny, label: name } });
     } catch {
       // 다이얼로그 호출 실패·권한은 허용됐지만 위치 조회 자체가 실패한 경우 등 — 이 화면에 그대로 머물러요.
     }
@@ -229,7 +231,19 @@ export default function LocationDenied() {
             );
           }
 
-          // 3) 열린 빈 칸 — 다른 지역을 찾아 채울 수 있어요.
+          // 3) 열린 빈 칸. 지역은 앞에서부터 차니까 첫 빈 칸은 항상 savedRegions.length번이에요.
+          //    "＋ 다른 지역 찾기"는 그 한 칸에만 붙여요 — 둘 다 비어 있을 때 같은 버튼이 두 번
+          //    뜨던 걸 막아요(어차피 한 번에 한 곳씩 고르니 두 개일 이유가 없어요).
+          if (i > savedRegions.length) {
+            return (
+              <ListRow
+                key={`empty-${i}`}
+                contents={<Paragraph.Text color={adaptive.grey400}>비어 있어요</Paragraph.Text>}
+                verticalPadding="large"
+              />
+            );
+          }
+
           return (
             <ListRow
               key={`empty-${i}`}

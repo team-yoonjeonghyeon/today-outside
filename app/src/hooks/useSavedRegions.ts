@@ -75,7 +75,19 @@ function ensureHydrated() {
       savedRegions = [{ name: placeNameFromLabel(last.label), nx: last.nx, ny: last.ny }];
       void setStoredJSON(STORAGE_KEYS.savedRegions, savedRegions);
     } else {
-      savedRegions = regions;
+      // 예전엔 중복을 이름으로만 걸러서, 같은 격자가 두 이름("서대문구"·"공덕동")으로 두 칸을
+      // 차지한 채로 저장된 기기가 있어요. 읽어올 때 좌표 기준으로 한 번 정리해요(앞쪽 유지).
+      const seen = new Set<string>();
+      const deduped = regions.filter((r) => {
+        const key = `${r.nx},${r.ny}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      savedRegions = deduped;
+      if (deduped.length !== regions.length) {
+        void setStoredJSON(STORAGE_KEYS.savedRegions, deduped);
+      }
     }
     shareBonusClaimed = bonus;
     loaded = true;
@@ -103,13 +115,35 @@ export function useSavedRegions() {
   const hasShareBonus = useSyncExternalStore(subscribe, getBonusSnapshot);
   const maxRegions = BASE_SAVED_REGIONS + (hasShareBonus ? SHARE_BONUS_REGIONS : 0);
 
-  const addRegion = useCallback((region: StoredRegion) => {
-    // 맨 앞에 넣어요 — 즉 방금 추가한 곳이 내 장소가 돼요. 현재 한도를 넘으면 가장 오래된
-    // 것부터 잘라요(기본 1개, 공유 보너스를 받았으면 2개 — currentMax가 최신 상태를 반영해요).
-    const next = [region, ...savedRegions.filter((r) => r.name !== region.name)].slice(
-      0,
-      currentMax(),
-    );
+  /**
+   * 지역을 저장해요.
+   *
+   * `asPrimary`가 true면 맨 앞에 넣어요 — 즉 그 곳이 내 장소가 돼요. false면 뒤에 붙여서
+   * 내 장소는 건드리지 않아요(공유로 열린 두 번째 칸에 넣을 때 써요). 현재 한도를 넘으면
+   * 가장 오래된 것부터 잘라요.
+   */
+  const addRegion = useCallback((region: StoredRegion, { asPrimary = true } = {}) => {
+    // 중복 판정은 이름이 아니라 격자 좌표로 해요. 같은 자리인데 이름만 다르게 들어오는 경우가
+    // 실제로 있어요 — GPS 즉시 라벨은 중심점 최근접이라 공덕동을 "서대문구"로 잡는데, 카카오
+    // 역지오코딩은 같은 좌표를 "공덕동"으로 주거든요. 이름으로 거르면 이 둘이 서로 다른
+    // 지역으로 남아서 한 자리를 두 칸이 차지해버려요.
+    const rest = savedRegions.filter((r) => !(r.nx === region.nx && r.ny === region.ny));
+    const next = (asPrimary ? [region, ...rest] : [...rest, region]).slice(0, currentMax());
+    savedRegions = next;
+    notify();
+    return setStoredJSON(STORAGE_KEYS.savedRegions, next);
+  }, []);
+
+  /**
+   * 이미 저장된 지역 중 하나를 내 장소로 지정해요(맨 앞으로 옮겨요).
+   *
+   * 자리가 2개일 땐 어느 쪽이 알림 기준인지 사용자가 직접 고를 수 있어야 해요 — 즐겨찾기에서
+   * 별을 옮겨 다는 것처럼요. 목록을 재배열만 하니 저장된 지역이 사라지지 않아요.
+   */
+  const setPrimaryRegion = useCallback((target: { nx: number; ny: number }) => {
+    const index = savedRegions.findIndex((r) => r.nx === target.nx && r.ny === target.ny);
+    if (index <= 0) return Promise.resolve(); // 목록에 없거나 이미 내 장소예요.
+    const next = [savedRegions[index], ...savedRegions.filter((_, i) => i !== index)];
     savedRegions = next;
     notify();
     return setStoredJSON(STORAGE_KEYS.savedRegions, next);
@@ -136,6 +170,7 @@ export function useSavedRegions() {
     // 내 장소 — 목록의 첫 칸이에요. 아직 아무것도 저장 안 했으면 null.
     primaryRegion: regions[0] ?? null,
     addRegion,
+    setPrimaryRegion,
     removeRegion,
     loaded: isLoaded,
     maxRegions,

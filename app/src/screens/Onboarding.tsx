@@ -14,7 +14,7 @@ import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
 import { PRIMARY_BUTTON_STYLE, GHOST_BUTTON_STYLE } from "../constants/theme";
-import { coarseLocationLabel, placeNameFromLabel } from "../lib/regions";
+import { resolveMyLocation } from "../lib/location";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useSettingsAccessoryButton } from "../hooks/useSettingsAccessoryButton";
@@ -63,14 +63,11 @@ export default function Onboarding() {
     setLocating(true);
     try {
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      // nx/ny·구 단위 라벨은 네트워크 없이 즉시 계산해요 — 동 단위 정밀 라벨은 Home이
-      // 백그라운드에서 따로 조회해서 갈아끼워요(카카오 역지오코딩 응답을 기다리느라
-      // 진입이 늦어지지 않게 하려는 용도).
-      const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+      const { nx, ny, name } = await resolveMyLocation(coords.latitude, coords.longitude);
       // 첫 내 장소예요 — 여기서만 확인 없이 바로 정해요. 아직 기준이 없는 상태라
       // 덮어쓸 게 없고, 사용자가 방금 "내 위치로 시작하기"를 직접 눌렀으니까요.
-      await addRegion({ name: placeNameFromLabel(label), nx, ny });
-      navigate(ROUTES.home, { state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude } });
+      await addRegion({ name, nx, ny });
+      navigate(ROUTES.home, { state: { nx, ny, label: name } });
     } catch {
       // 권한 거부·미결정·조회 실패 — 어떤 이유든 지역 직접 선택으로 안내해요.
       // (제약: 위치 권한을 거부해도 전 기능이 동작해야 함)
