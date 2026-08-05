@@ -553,10 +553,13 @@ export default function Settings() {
             />
           }
           contents={
-            <ListRow.Texts type="1RowTypeA" top="만든 사람" topProps={{ color: adaptive.grey800 }} />
-          }
-          right={
-            <ListRow.Texts type="Right1RowTypeA" top="윤정현" topProps={{ color: adaptive.grey600 }} />
+            <ListRow.Texts
+              type="2RowTypeA"
+              top="만든 사람"
+              topProps={{ color: adaptive.grey800, fontWeight: "bold" }}
+              bottom="김정현 · 윤정연 · 차윤희"
+              bottomProps={{ color: adaptive.grey600 }}
+            />
           }
           verticalPadding="large"
         />
