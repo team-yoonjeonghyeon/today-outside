@@ -5,9 +5,13 @@ import { findNearestRegion } from "./regions";
 export interface MyLocation {
   nx: number;
   ny: number;
-  /** 화면에 보여줄 라벨 — "내 위치(공덕동)" */
-  label: string;
-  /** 저장할 장소 이름 — "공덕동" */
+  /**
+   * 장소 이름 — "공덕동".
+   *
+   * 화면 표시와 저장에 같은 값을 써요. 예전엔 화면엔 "내 위치(공덕동)", 저장은 "공덕동"으로
+   * 달랐는데, 그러면 같은 곳이 들어온 경로에 따라 다르게 보여요 — 앱을 열면 "공덕동"인데
+   * ↻를 누르면 갑자기 "내 위치(공덕동)"로 바뀌어서, 장소가 바뀐 것처럼 보였어요.
+   */
   name: string;
 }
 
@@ -30,10 +34,10 @@ export async function resolveMyLocation(lat: number, lon: number): Promise<MyLoc
   const { nx, ny } = toGrid(lat, lon);
   try {
     const precise = await fetchRegion(lat, lon);
-    return { nx, ny, label: `내 위치(${precise.label})`, name: precise.label };
+    return { nx, ny, name: precise.label };
   } catch {
     // 카카오 키 미설정·장애·미매칭 — 이름 없이 두는 것보단 구 단위라도 보여줘요.
     const nearest = findNearestRegion(lat, lon);
-    return { nx, ny, label: `내 위치(${nearest.sigungu})`, name: nearest.sigungu };
+    return { nx, ny, name: nearest.sigungu };
   }
 }

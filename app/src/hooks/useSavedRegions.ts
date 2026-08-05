@@ -134,6 +134,21 @@ export function useSavedRegions() {
     return setStoredJSON(STORAGE_KEYS.savedRegions, next);
   }, []);
 
+  /**
+   * 이미 저장된 지역 중 하나를 내 장소로 지정해요(맨 앞으로 옮겨요).
+   *
+   * 자리가 2개일 땐 어느 쪽이 알림 기준인지 사용자가 직접 고를 수 있어야 해요 — 즐겨찾기에서
+   * 별을 옮겨 다는 것처럼요. 목록을 재배열만 하니 저장된 지역이 사라지지 않아요.
+   */
+  const setPrimaryRegion = useCallback((target: { nx: number; ny: number }) => {
+    const index = savedRegions.findIndex((r) => r.nx === target.nx && r.ny === target.ny);
+    if (index <= 0) return Promise.resolve(); // 목록에 없거나 이미 내 장소예요.
+    const next = [savedRegions[index], ...savedRegions.filter((_, i) => i !== index)];
+    savedRegions = next;
+    notify();
+    return setStoredJSON(STORAGE_KEYS.savedRegions, next);
+  }, []);
+
   // 한도가 다 찬 상태에서 다른 지역을 추가하려면 먼저 하나를 지울 수 있어야 해요.
   const removeRegion = useCallback((name: string) => {
     const next = savedRegions.filter((r) => r.name !== name);
@@ -155,6 +170,7 @@ export function useSavedRegions() {
     // 내 장소 — 목록의 첫 칸이에요. 아직 아무것도 저장 안 했으면 null.
     primaryRegion: regions[0] ?? null,
     addRegion,
+    setPrimaryRegion,
     removeRegion,
     loaded: isLoaded,
     maxRegions,

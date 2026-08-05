@@ -63,11 +63,11 @@ export default function Onboarding() {
     setLocating(true);
     try {
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny, label, name } = await resolveMyLocation(coords.latitude, coords.longitude);
+      const { nx, ny, name } = await resolveMyLocation(coords.latitude, coords.longitude);
       // 첫 내 장소예요 — 여기서만 확인 없이 바로 정해요. 아직 기준이 없는 상태라
       // 덮어쓸 게 없고, 사용자가 방금 "내 위치로 시작하기"를 직접 눌렀으니까요.
       await addRegion({ name, nx, ny });
-      navigate(ROUTES.home, { state: { nx, ny, label } });
+      navigate(ROUTES.home, { state: { nx, ny, label: name } });
     } catch {
       // 권한 거부·미결정·조회 실패 — 어떤 이유든 지역 직접 선택으로 안내해요.
       // (제약: 위치 권한을 거부해도 전 기능이 동작해야 함)

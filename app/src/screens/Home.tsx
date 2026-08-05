@@ -195,8 +195,8 @@ export default function Home() {
     setPinning(true);
     try {
       const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
-      const { nx, ny, label, name } = await resolveMyLocation(coords.latitude, coords.longitude);
-      setRegion({ nx, ny, label });
+      const { nx, ny, name } = await resolveMyLocation(coords.latitude, coords.longitude);
+      setRegion({ nx, ny, label: name });
       setRefreshKey((key) => key + 1);
 
       if (!primaryRegion || primaryRegion.nx !== nx || primaryRegion.ny !== ny) {

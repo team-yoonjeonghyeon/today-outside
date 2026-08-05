@@ -8,7 +8,7 @@ import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useSavedRegions } from "../hooks/useSavedRegions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
-import { getAnonKey, requestAgreement } from "../lib/notifications";
+import { getAnonKey, requestAgreement, syncSubscriptions } from "../lib/notifications";
 import { subscribeNotification, unsubscribeNotification, type NotificationType } from "../lib/judgeApi";
 import { ROUTES } from "../routes";
 
@@ -36,8 +36,15 @@ export default function Settings() {
 
   const navigate = useNavigate();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions, primaryRegion, removeRegion, maxRegions, hasShareBonus, grantShareBonus } =
-    useSavedRegions();
+  const {
+    savedRegions,
+    primaryRegion,
+    setPrimaryRegion,
+    removeRegion,
+    maxRegions,
+    hasShareBonus,
+    grantShareBonus,
+  } = useSavedRegions();
   const { prefs, setPrefs } = useNotificationPrefs();
   const [startTabSheetOpen, setStartTabSheetOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -77,16 +84,25 @@ export default function Settings() {
   };
 
   const canAddRegion = savedRegions.length < maxRegions;
+  // 자리가 하나뿐이면 고를 게 없어요 — 그 하나가 곧 내 장소예요.
+  const canPickPrimary = savedRegions.length > 1;
 
-  // 친구에게 공유하고, 첫 공유였다면 저장 장소 1개를 더 열어줘요. 공유 시트를 못 띄우거나
+  // 저장한 지역을 눌러 내 장소(알림 기준)로 지정해요. 즐겨찾기에서 별을 옮겨 다는 느낌이에요.
+  const handlePickPrimary = async (region: (typeof savedRegions)[number]) => {
+    if (!canPickPrimary || region.name === primaryRegion?.name) return;
+    await setPrimaryRegion({ nx: region.nx, ny: region.ny });
+    // 기준이 바뀌었으니 켜져 있는 알림의 구독 지역도 서버에 다시 올려요.
+    void syncSubscriptions({ profile, region: { name: region.name, nx: region.nx, ny: region.ny }, prefs });
+  };
+
+  // 친구에게 공유하고, 공유를 마치면 저장 장소 1개를 더 열어줘요. 공유 시트를 못 띄우거나
   // 사용자가 공유를 취소·실패하면 아무 것도 열리지 않아요(정직성 원칙 — 공유 안 했는데
-  // 열어주지 않아요). 이미 보너스를 받았어도 공유 자체는 계속 할 수 있어요 — 그땐 보너스·
-  // 축하 팝업 없이 공유만 해요.
+  // 열어주지 않아요). 이미 보너스를 받았으면 이 버튼 자체가 사라져서 여기 오지 않아요.
   const handleShareForBonus = async () => {
-    if (sharing) return;
+    if (sharing || hasShareBonus) return;
     setSharing(true);
     const shared = await runShare();
-    if (shared && !hasShareBonus) {
+    if (shared) {
       await grantShareBonus();
       setBonusPopupOpen(true);
     }
@@ -195,6 +211,7 @@ export default function Settings() {
           {savedRegions.map((region) => (
             <ChipItem
               key={region.name}
+              onClick={() => void handlePickPrimary(region)}
               right={
                 <span
                   role="button"
@@ -224,9 +241,9 @@ export default function Settings() {
                 </span>
               }
             >
-              {/* 목록의 첫 칸이 곧 내 장소(알림 기준)예요. 자리가 2개일 땐 어느 쪽이 기준인지
-                  글자만 봐선 알 수 없어서 배지를 붙여요. 1개뿐이면 물어볼 것도 없어서 생략해요. */}
-              {region.name === primaryRegion?.name && maxRegions > 1 ? (
+              {/* 목록의 첫 칸이 곧 내 장소(알림 기준)예요. 고를 수 있을 때만 어느 쪽이 기준인지
+                  배지로 알려줘요 — 하나뿐이면 고를 것도 없어서 생략해요. */}
+              {region.name === primaryRegion?.name && canPickPrimary ? (
                 <>
                   {region.name}
                   <span
@@ -259,41 +276,37 @@ export default function Settings() {
         </Chip>
       </div>
 
-      {/* 공유 버튼은 보너스를 받은 뒤에도 남겨둬요 — 예전엔 받고 나면 통째로 사라져서
-          "친구에게 알려주고 싶은데 버튼이 없어지는" 상태가 됐어요. 대신 보너스를 이미 받았으면
-          장소가 더 열린다는 약속은 빼고, 그냥 공유하기로만 남겨요 (정직성 원칙 — 더 안 열리는데
-          열린다고 하면 안 되니까요). */}
-      <Spacing size={10} />
-      <div style={{ padding: "0 24px" }}>
-        <button
-          type="button"
-          onClick={() => void handleShareForBonus()}
-          disabled={sharing}
-          style={{
-            width: "100%",
-            border: "none",
-            borderRadius: 14,
-            padding: "13px 16px",
-            background: MINT[400],
-            color: MINT[900],
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: sharing ? "default" : "pointer",
-            opacity: sharing ? 0.6 : 1,
-          }}
-        >
-          {sharing
-            ? "공유 중…"
-            : hasShareBonus
-              ? "친구에게 공유하기"
-              : "🎁 친구에게 공유하고 장소 1개 더 받기"}
-        </button>
-        {!hasShareBonus && (
-          <Post.Paragraph paddingBottom={0} color={adaptive.grey500} typography="st12">
-            친구에게 한 번 공유하면 저장 장소가 2개로 늘어나요.
-          </Post.Paragraph>
-        )}
-      </div>
+      {/* 아직 공유 보너스를 안 받았으면, 공유하고 장소 1개를 더 열 수 있게 안내해요.
+          한 번 받고 나면(hasShareBonus) 이 영역은 사라지고 최대치가 2개로 늘어나요. */}
+      {!hasShareBonus && (
+        <>
+          <Spacing size={10} />
+          <div style={{ padding: "0 24px" }}>
+            <button
+              type="button"
+              onClick={() => void handleShareForBonus()}
+              disabled={sharing}
+              style={{
+                width: "100%",
+                border: "none",
+                borderRadius: 14,
+                padding: "13px 16px",
+                background: MINT[400],
+                color: MINT[900],
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: sharing ? "default" : "pointer",
+                opacity: sharing ? 0.6 : 1,
+              }}
+            >
+              {sharing ? "공유 중…" : "🎁 친구에게 공유하고 장소 1개 더 받기"}
+            </button>
+            <Post.Paragraph paddingBottom={0} color={adaptive.grey500} typography="st12">
+              친구에게 한 번 공유하면 저장 장소가 2개로 늘어나요.
+            </Post.Paragraph>
+          </div>
+        </>
+      )}
 
       <Spacing size={20} />
 
@@ -304,9 +317,11 @@ export default function Settings() {
         {/* 알림이 어디 기준으로 오는지 안 보이면 사용자는 알 방법이 없어요 (정직성 원칙).
             내 장소는 홈의 ↻ 또는 지역 검색에서 바꿀 수 있다는 것도 같이 적어줘요. */}
         <Post.Paragraph paddingBottom={8} color={adaptive.grey500} typography="st12">
-          {primaryRegion
-            ? `${primaryRegion.name} 기준이에요 · 홈의 ↻로 바꿀 수 있어요`
-            : "내 장소를 먼저 정하면 알림을 받을 수 있어요"}
+          {!primaryRegion
+            ? "내 장소를 먼저 정하면 알림을 받을 수 있어요"
+            : canPickPrimary
+              ? `${primaryRegion.name} 기준이에요 · 위에서 지역을 눌러 바꿀 수 있어요`
+              : `${primaryRegion.name} 기준이에요 · 홈의 ↻로 바꿀 수 있어요`}
         </Post.Paragraph>
       </div>
 
