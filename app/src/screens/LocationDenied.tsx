@@ -12,7 +12,7 @@ import {
 // coarseLocationLabel(구 단위 즉시 라벨)은 없앴어요 — 동 경계에서 자주 틀려서 "공덕동인데
 // 서대문구"가 잠깐 보였거든요. 지금은 resolveMyLocation이 정확한 이름 하나만 돌려줘요.
 import { resolveMyLocation } from "../lib/location";
-import { openShareReward } from "../lib/shareReward";
+import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
 import { ROUTES } from "../routes";
@@ -48,25 +48,20 @@ export default function LocationDenied() {
   const { savedRegions, primaryRegion, removeRegion, maxRegions, hasShareBonus, grantShareBonus } =
     useSavedRegions();
   const permissionGranted = Boolean((location.state as LocationDeniedNavState | null)?.permissionGranted);
-  const [sharing, setSharing] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [bonusPopupOpen, setBonusPopupOpen] = useState(false);
 
   const handleFindOtherRegion = () => {
     navigate(ROUTES.regionSearch);
   };
 
-  // 잠긴 칸을 누르면 공유 리워드 모듈(연락처 공유)을 띄우고, 친구에게 실제로 공유가 성공하면
-  // 그 칸이 열려요. 취소·실패하거나 브릿지가 없으면 잠긴 채로 둬요 (정직성 원칙 — 공유 안
-  // 했는데 열어주지 않아요).
-  const handleShareForBonus = async () => {
-    if (sharing || hasShareBonus) return;
-    setSharing(true);
-    const shared = await openShareReward();
-    if (shared) {
-      await grantShareBonus();
-      setBonusPopupOpen(true);
-    }
-    setSharing(false);
+  // 잠긴 칸을 누르면 공유 방법 선택 바텀시트를 띄워요(토스 친구 초대 / 카톡·문자 공유).
+  // 둘 중 무엇이든 공유가 성공하면 그 칸이 열려요. 취소·실패·브릿지 없음이면 잠긴 채로 둬요
+  // (정직성 원칙 — 공유 안 했는데 열어주지 않아요).
+  const handleUnlocked = async () => {
+    if (hasShareBonus) return;
+    await grantShareBonus();
+    setBonusPopupOpen(true);
   };
 
   const handleReRequestPermission = async () => {
@@ -209,7 +204,7 @@ export default function LocationDenied() {
                 contents={
                   <ListRow.Texts
                     type="2RowTypeA"
-                    top={sharing ? "공유하는 중…" : "잠긴 칸"}
+                    top="잠긴 칸"
                     topProps={{ color: adaptive.grey500, fontWeight: "bold" }}
                     bottom="친구에게 공유하면 열려요"
                     bottomProps={{ color: adaptive.grey500 }}
@@ -225,14 +220,13 @@ export default function LocationDenied() {
                       fontWeight: 700,
                       padding: "7px 12px",
                       borderRadius: 10,
-                      opacity: sharing ? 0.6 : 1,
                     }}
                   >
                     공유하고 열기
                   </span>
                 }
                 verticalPadding="large"
-                onClick={() => void handleShareForBonus()}
+                onClick={() => setShareSheetOpen(true)}
               />
             );
           }
@@ -277,6 +271,13 @@ export default function LocationDenied() {
       )}
 
       <Spacing size={16} />
+
+      {/* 잠긴 칸을 누르면 뜨는 공유 방법 선택(토스 친구 초대 / 카톡·문자). */}
+      <ShareToUnlockSheet
+        open={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        onUnlocked={() => void handleUnlocked()}
+      />
 
       {/* 공유 성공 → 잠긴 칸이 열렸음을 알리는 축하 팝업. 확인을 누르면 닫혀요. */}
       <AlertDialog
