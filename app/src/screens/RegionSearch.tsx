@@ -1,9 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ConfirmDialog, List, ListRow, Loader, Paragraph, SearchField, Spacing } from "@toss/tds-mobile";
+import {
+  ConfirmDialog,
+  List,
+  ListRow,
+  Loader,
+  Paragraph,
+  SearchField,
+  Spacing,
+  TextButton,
+} from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { MINT } from "../constants/judge";
+import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useSavedRegions, type StoredRegion } from "../hooks/useSavedRegions";
@@ -51,7 +61,9 @@ export default function RegionSearch() {
   useDisablePullToRefresh();
 
   const navigate = useNavigate();
-  const { addRegion, savedRegions, primaryRegion, maxRegions } = useSavedRegions();
+  const { addRegion, savedRegions, primaryRegion, maxRegions, hasShareBonus, grantShareBonus } =
+    useSavedRegions();
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const { prefs } = useNotificationPrefs();
   const [profile] = useLastProfile();
   // 저장한 지역을 내 장소로 바꿀지 물어볼 후보. null이면 확인 창이 닫힌 상태예요.
@@ -194,6 +206,19 @@ export default function RegionSearch() {
 
     // 자리가 다 찼어요. 이제부터는 저장 = 내 장소 교체라서, 저장하기 전에 확인을 받아요.
     setPendingPrimary(region);
+  };
+
+  /**
+   * "공유하고 칸 늘리기"를 고른 경우 — 칸이 2개가 되니 기존 내 장소를 밀어내지 않고
+   * 두 번째 칸에 넣어요. 알림 기준은 그대로예요.
+   */
+  const handleUnlockedForPending = async () => {
+    if (!pendingPrimary) return;
+    const region = pendingPrimary;
+    await grantShareBonus();
+    await addRegion(region, { asPrimary: false });
+    setPendingPrimary(null);
+    goHome(region);
   };
 
   const handleConfirmPrimary = async () => {
@@ -349,12 +374,25 @@ export default function RegionSearch() {
         title={<ConfirmDialog.Title>여기를 내 장소로 할까요?</ConfirmDialog.Title>}
         description={
           <ConfirmDialog.Description>
-            {/* 이 창은 자리가 다 찼을 때만 떠요 — 그래서 항상 누군가는 목록에서 빠져요.
-                누가 빠지는지(맨 뒤, 가장 오래 둔 곳) 미리 알려주고 확인받아요. */}
+            {/* 이 창은 자리가 다 찼을 때만 떠요 — 그래서 항상 하나는 목록에서 내려가요.
+                어느 곳인지(맨 뒤, 가장 오래 둔 곳) 미리 알려주고 확인받아요.
+
+                지역 이름 뒤에 조사를 붙이면 받침에 따라 은/는·이/가가 갈려서("해운대구는"
+                vs "공덕동은") 문장이 깨져요. 이름을 괄호에 넣고 항상 "곳"으로 끝내면
+                받침이 고정돼서 어떤 지역이 와도 자연스러워요. */}
             {[
-              `아침 브리핑 같은 알림이 ${pendingPrimary?.name} 기준으로 와요.`,
-              `자리가 다 차서 ${savedRegions[savedRegions.length - 1]?.name} 목록에서 빠져요.`,
+              "알림 받는 기준 장소가 바뀌어요.",
+              `자리가 다 차서 가장 오래 둔 곳(${savedRegions[savedRegions.length - 1]?.name})이 목록에서 내려가요.`,
             ].join("\n")}
+            {/* 칸이 1개라 교체가 강제되는 순간에만, 둘 다 가질 수 있는 길을 같이 보여줘요.
+                확인 창 버튼은 두 개뿐이라 설명 아래에 세 번째 선택지로 붙여요. */}
+            {maxRegions === 1 && !hasShareBonus && (
+              <div style={{ marginTop: 12 }}>
+                <TextButton size="small" variant="arrow" onClick={() => setShareSheetOpen(true)}>
+                  공유하고 칸 늘려서 둘 다 두기
+                </TextButton>
+              </div>
+            )}
           </ConfirmDialog.Description>
         }
         cancelButton={
@@ -378,6 +416,13 @@ export default function RegionSearch() {
           setPendingPrimary(null);
           if (region) goHome(region);
         }}
+      />
+
+      {/* 확인 창에서 "공유하고 칸 늘리기"를 골랐을 때 뜨는 공유 방법 선택(F6·F8과 같은 시트). */}
+      <ShareToUnlockSheet
+        open={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        onUnlocked={() => void handleUnlockedForPending()}
       />
     </>
   );

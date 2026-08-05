@@ -1,9 +1,20 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ConfirmDialog, ListRow, Loader, Menu, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
+import {
+  ConfirmDialog,
+  ListRow,
+  Loader,
+  Menu,
+  Paragraph,
+  Result,
+  Spacing,
+  Text,
+  TextButton,
+} from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { ProfileTabs } from "../components/ProfileTabs";
+import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import {
   HERO_TINTS,
   LEVEL_COLORS,
@@ -155,7 +166,9 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useLastProfile();
-  const { savedRegions, primaryRegion, addRegion, maxRegions } = useSavedRegions();
+  const { savedRegions, primaryRegion, addRegion, maxRegions, hasShareBonus, grantShareBonus } =
+    useSavedRegions();
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const { prefs } = useNotificationPrefs();
   const [data, setData] = useState<JudgeResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -209,6 +222,20 @@ export default function Home() {
     } finally {
       setPinning(false);
     }
+  };
+
+  /**
+   * 확인 창에서 "공유하고 칸 늘리기"를 고른 경우 — 공유가 성공하면 칸이 2개가 되니까
+   * 기존 내 장소를 밀어내지 않고 두 번째 칸에 넣어요. 알림 기준은 그대로 유지돼요.
+   *
+   * 칸이 1개라 교체가 강제되는 바로 그 순간에만 이 선택지를 보여줘요 — 사용자가 실제로
+   * 한계에 부딪힌 자리에서 안내하는 거라, 없던 기능을 인질로 잡는 것과는 달라요.
+   */
+  const handleUnlockedForPending = async () => {
+    if (!pendingPrimary) return;
+    await grantShareBonus();
+    await addRegion(pendingPrimary, { asPrimary: false });
+    setPendingPrimary(null);
   };
 
   const handleConfirmPrimary = async () => {
@@ -558,17 +585,29 @@ export default function Home() {
         description={
           <ConfirmDialog.Description>
             {[
-              `아침 브리핑 같은 알림이 ${pendingPrimary?.name} 기준으로 와요.`,
-              // 내 장소는 저장 목록의 첫 칸이라, 자리가 1개뿐이면 기존 장소가 목록에서 빠져요.
+              "알림 받는 기준 장소가 바뀌어요.",
+              // 내 장소는 저장 목록의 첫 칸이라, 자리가 1개뿐이면 기존 장소가 목록에서 내려가요.
               // 그 결과를 미리 알려주고 확인받아요.
+              //
+              // 지역 이름 뒤에 조사를 붙이면 받침에 따라 은/는·이/가가 갈려서 문장이 깨져요.
+              // 이름을 괄호에 넣고 항상 "곳"으로 끝내면 받침이 고정돼서 어떤 지역이 와도 맞아요.
               primaryRegion && maxRegions === 1
-                ? `저장 장소가 1개라 ${primaryRegion.name} 자리를 대신해요.`
+                ? `저장 칸이 1개라 지금 기준인 곳(${primaryRegion.name})이 목록에서 내려가요.`
                 : primaryRegion
-                  ? `${primaryRegion.name} 두 번째 장소로 남아요.`
+                  ? `지금 기준인 곳(${primaryRegion.name})은 두 번째 칸으로 내려가요.`
                   : null,
             ]
               .filter(Boolean)
               .join("\n")}
+            {/* 칸이 1개라 교체가 강제되는 순간에만, 둘 다 가질 수 있는 길을 같이 보여줘요.
+                확인 창 버튼은 두 개뿐이라 설명 아래에 세 번째 선택지로 붙여요. */}
+            {maxRegions === 1 && !hasShareBonus && (
+              <div style={{ marginTop: 12 }}>
+                <TextButton size="small" variant="arrow" onClick={() => setShareSheetOpen(true)}>
+                  공유하고 칸 늘려서 둘 다 두기
+                </TextButton>
+              </div>
+            )}
           </ConfirmDialog.Description>
         }
         cancelButton={
@@ -582,6 +621,13 @@ export default function Home() {
           </ConfirmDialog.ConfirmButton>
         }
         onClose={() => setPendingPrimary(null)}
+      />
+
+      {/* 확인 창에서 "공유하고 칸 늘리기"를 골랐을 때 뜨는 공유 방법 선택(F6·F8과 같은 시트). */}
+      <ShareToUnlockSheet
+        open={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        onUnlocked={() => void handleUnlockedForPending()}
       />
     </>
   );

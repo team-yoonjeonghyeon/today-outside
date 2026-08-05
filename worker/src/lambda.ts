@@ -368,9 +368,10 @@ async function handleSearch(q: string): Promise<LambdaResponse> {
 // 없고, cacheKey 파티션 키 하나만 있으면 되는 스키마라 그대로 맞아요. 캐시처럼 짧은 TTL로
 // 지워지면 안 되니 expiresAt을 2년 뒤로 멀리 둬요.
 //
-// 조건 판정(매일 8시·체감온도 위험 단계·산책 좋은 시간대)과 실제 발송(스마트 발송
-// sendMessage 호출)은 여기 없어요 — mTLS 인증서 발급, 그리고 토스가 요구하는 고정 IP(방화벽
-// 허용)를 이 Lambda에 어떻게 붙일지(NAT Gateway 등)부터 정리돼야 안전하게 붙일 수 있어요.
+// 조건 판정과 발송은 이제 아래 Phase 2 구역에 있어요 — 아침 브리핑(runMorningBriefing)과
+// 조건부 알림 두 종류(runDangerAlert·runWalkTimeAlert)예요. 다만 실제로 도착하려면 코드 밖
+// 준비가 남아 있어요: mTLS 인증서(TOSS_MTLS_CERT/KEY) 등록, 토스가 요구하는 고정 IP 방화벽
+// 허용(NAT Gateway 등), 그리고 EventBridge Scheduler 등록이에요.
 
 const NOTIFICATION_TYPES = ['morningBriefing', 'dangerAlert', 'walkTimeAlert'] as const;
 type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -475,7 +476,7 @@ async function handleNotifyUnsubscribe(event: FunctionUrlEvent): Promise<LambdaR
   return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ ok: true }) };
 }
 
-/* ────────────────────────────────── 스마트 발송 (Phase 2 — 아직 아무도 안 불러요) */
+/* ────────────────────────────────── 스마트 발송 (Phase 2) */
 
 // 인증서·개인키는 절대 코드/커밋에 넣지 않아요 — Lambda 환경변수에 base64로 저장해두고
 // 여기서만 디코딩해요. PEM은 여러 줄이라 환경변수에 그대로 넣으면 도구마다 줄바꿈 처리가
@@ -509,8 +510,8 @@ interface SendSmartMessageResult {
 }
 
 /**
- * 스마트 발송 sendMessage 호출. 아직 아무 데서도 안 불러요 — Phase 2(조건 판정 크론)가
- * 생기면 그때 여기를 호출하게 돼요. 지금은 다음 두 가지가 없어서 실제로 성공은 못 해요.
+ * 스마트 발송 sendMessage 호출. 아침 브리핑·조건부 알림이 모두 여기를 거쳐요. 다만 다음
+ * 두 가지가 없으면 호출해도 실패해요(코드 밖 준비물이에요).
  *   1) TOSS_MTLS_CERT / TOSS_MTLS_KEY 환경변수 (인증서 발급받아 base64로 등록해야 함)
  *   2) 토스가 요구하는 고정 IP 방화벽 허용 (이 Lambda가 NAT Gateway로 나가도록 설정해야 함,
  *      안 하면 인증서가 있어도 방화벽에서 막혀요)
@@ -563,15 +564,56 @@ export async function sendSmartMessage(
 
 /* ────────────────────────────────── 아침 브리핑 (Phase 2) */
 
-// EventBridge Scheduler가 매일 08:00(Asia/Seoul) 크론으로 이 Lambda를 아래 입력으로 호출하도록
-// 등록하면 돼요: { "task": "morningBriefing" }. Function URL(API Gateway/ALB) 요청은
-// requestContext가 항상 있어서, 이 필드로 "스케줄 호출인지 HTTP 요청인지"를 구분해요.
+// EventBridge Scheduler가 이 Lambda를 아래 입력으로 호출하도록 등록하면 돼요.
+//   { "task": "morningBriefing" }  — 매일 08:00 (Asia/Seoul)
+//   { "task": "hourlyCheck" }      — 매시 정각 (Asia/Seoul), 조건부 알림 두 종류를 함께 확인해요
+// Function URL(API Gateway/ALB) 요청은 requestContext가 항상 있어서, 이 필드로 "스케줄
+// 호출인지 HTTP 요청인지"를 구분해요.
+const SCHEDULED_TASKS = ['morningBriefing', 'hourlyCheck'] as const;
+type ScheduledTask = (typeof SCHEDULED_TASKS)[number];
+
 interface ScheduledEvent {
-  task: 'morningBriefing';
+  task: ScheduledTask;
 }
 
 function isScheduledEvent(event: unknown): event is ScheduledEvent {
-  return !!event && typeof event === 'object' && (event as Record<string, unknown>).task === 'morningBriefing';
+  if (!event || typeof event !== 'object') return false;
+  const task = (event as Record<string, unknown>).task;
+  return typeof task === 'string' && SCHEDULED_TASKS.includes(task as ScheduledTask);
+}
+
+/**
+ * 지금 시각(Asia/Seoul)의 "시"와 날짜(YYYY-MM-DD)예요.
+ *
+ * Lambda는 UTC로 돌아서 `new Date().getHours()`를 그대로 쓰면 9시간이 어긋나요. 발송 조건이
+ * "그 정각인가"라서 시(hour)가 어긋나면 엉뚱한 시간에 나가요. 서버 타임존 설정에 기대지 않고
+ * 여기서 직접 KST로 환산해요.
+ */
+function nowInKst(): { hour: number; date: string } {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return { hour: kst.getUTCHours(), date: kst.toISOString().slice(0, 10) };
+}
+
+/**
+ * 하루 한 번 제한용 표식. 발송에 성공하면 이 키를 남겨두고, 다음 정각 체크에서 이미 있으면
+ * 건너뛰어요 — 위험 단계가 몇 시간씩 이어져도 알림은 그날 한 번만 가요.
+ *
+ * 구독 레코드와 같은 캐시 테이블을 쓰되 접두사가 `sent:`라 `sub:` 스캔에는 안 걸려요.
+ * 이틀 뒤 TTL로 알아서 사라져요(날짜가 바뀌면 키 자체가 달라지니 오래 둘 이유가 없어요).
+ */
+function sentTodayKey(type: NotificationType, anonKey: string, date: string): string {
+  return `sent:${type}:${date}:${anonKey}`;
+}
+
+async function alreadySentToday(type: NotificationType, anonKey: string, date: string): Promise<boolean> {
+  return (await ddbGet(sentTodayKey(type, anonKey, date))) !== null;
+}
+
+async function markSentToday(type: NotificationType, anonKey: string, date: string): Promise<void> {
+  await ddbPut(sentTodayKey(type, anonKey, date), {
+    body: '1',
+    expiresAt: Math.floor(Date.now() / 1000) + 2 * 86400,
+  });
 }
 
 interface SubscriptionRecord {
@@ -692,12 +734,139 @@ export async function runMorningBriefing(): Promise<{ sent: number; failed: numb
   return { sent, failed, skipped, total: subs.length };
 }
 
+/* ────────────────────────────────── 조건부 알림 (매시 정각) */
+
+interface DispatchResult {
+  sent: number;
+  failed: number;
+  skipped: number;
+  total: number;
+}
+
+/**
+ * 조건부 알림 한 종류를 처리해요. 매시 정각에 불려서, 구독자마다 내 장소를 판정해 보고
+ * `shouldSend`가 true일 때만 보내요 — "그 정각이 조건에 해당하는가"를 그 자리에서 확인하는
+ * 방식이라, 위험해지는 시각·산책하기 좋은 시각에 맞춰 도착해요.
+ *
+ * 아침 브리핑과 다른 점은 두 가지예요.
+ *  1) 조건을 만족해야만 보내요(아침 브리핑은 무조건 발송).
+ *  2) 하루 한 번만 보내요 — 위험 단계가 오후 내내 이어져도 알림이 매시간 오면 안 되니까요.
+ *
+ * 아침 브리핑과 뼈대가 같아서 스캔·배치·판정 호출은 그대로 두고, 다른 부분(조건·문맥)만
+ * 인자로 받아요.
+ */
+async function runConditionalAlert(
+  type: 'dangerAlert' | 'walkTimeAlert',
+  shouldSend: (judge: JudgeResponse, kstHour: number) => boolean,
+  buildContext: (judge: JudgeResponse, region: { name: string }) => Record<string, unknown>
+): Promise<DispatchResult> {
+  const subs = await scanSubscriptions(type);
+  const { hour, date } = nowInKst();
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  const CONCURRENCY = 5;
+  for (let i = 0; i < subs.length; i += CONCURRENCY) {
+    const batch = subs.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async ({ anonKey, record }) => {
+        const region = record.regions[0];
+        if (!region) {
+          skipped++;
+          return;
+        }
+        try {
+          // 오늘 이미 보냈으면 판정 호출도 하지 않아요 — 기상청 호출을 아끼려고 먼저 확인해요.
+          if (await alreadySentToday(type, anonKey, date)) {
+            skipped++;
+            return;
+          }
+
+          const judgeResult = await fetchJudgeInternal(region.nx, region.ny, record.profile);
+          if (!judgeResult) {
+            failed++;
+            return;
+          }
+          if (!shouldSend(judgeResult, hour)) {
+            skipped++;
+            return;
+          }
+
+          const result = await sendSmartMessage({
+            templateSetCode: NOTIFICATION_TEMPLATE_CODES[type],
+            anonKey,
+            context: buildContext(judgeResult, region),
+          });
+          if (result.ok) {
+            // 표식은 발송에 성공했을 때만 남겨요 — 실패했는데 남기면 그날은 영영 못 받아요.
+            await markSentToday(type, anonKey, date);
+            sent++;
+          } else {
+            failed++;
+            console.error(`[${type}] 발송 실패`, anonKey, result.status, result.body);
+          }
+        } catch (e) {
+          failed++;
+          console.error(`[${type}] 처리 실패`, anonKey, e);
+        }
+      })
+    );
+  }
+
+  console.log(`[${type}] 완료 hour=${hour} sent=${sent} failed=${failed} skipped=${skipped} total=${subs.length}`);
+  return { sent, failed, skipped, total: subs.length };
+}
+
+/** 위험 시간대 — 지금 판정이 4(위험) 이상이면 그 시각에 알려요. */
+export async function runDangerAlert(): Promise<DispatchResult> {
+  return runConditionalAlert(
+    'dangerAlert',
+    (judge) => judge.now.level >= 4,
+    (judge, region) => ({
+      regionLabel: region.name,
+      headline: judge.now.headline,
+      reason: judge.now.reason,
+      feelsLike: judge.metrics.feelsLike,
+      roadTemp: judge.metrics.roadTemp,
+    })
+  );
+}
+
+/**
+ * 산책 추천 시간 — 오늘의 좋은 시간대가 지금 막 시작하는 정각에 알려요.
+ * bestWindow가 없는 날(특별히 더 좋은 시간이 없는 날)은 아무것도 보내지 않아요.
+ */
+export async function runWalkTimeAlert(): Promise<DispatchResult> {
+  return runConditionalAlert(
+    'walkTimeAlert',
+    (judge, kstHour) => judge.bestWindow?.start === kstHour,
+    (judge, region) => ({
+      regionLabel: region.name,
+      windowLabel: judge.bestWindow?.label ?? '',
+      headline: judge.now.headline,
+      feelsLike: judge.metrics.feelsLike,
+      roadTemp: judge.metrics.roadTemp,
+    })
+  );
+}
+
+/** 매시 정각 체크 — 조건부 알림 두 종류를 함께 확인해요. */
+export async function runHourlyCheck(): Promise<{ dangerAlert: DispatchResult; walkTimeAlert: DispatchResult }> {
+  // 한쪽이 실패해도 다른 쪽은 나가야 해서 순차로 돌려요(동시에 돌리면 기상청 호출이 몰려요).
+  const dangerAlert = await runDangerAlert();
+  const walkTimeAlert = await runWalkTimeAlert();
+  return { dangerAlert, walkTimeAlert };
+}
+
 export const handler = async (
   event: FunctionUrlEvent | ScheduledEvent
-): Promise<LambdaResponse | { ok: boolean; sent: number; failed: number; skipped: number; total: number }> => {
+): Promise<LambdaResponse | Record<string, unknown>> => {
   if (isScheduledEvent(event)) {
-    const result = await runMorningBriefing();
-    return { ok: true, ...result };
+    if (event.task === 'hourlyCheck') {
+      return { ok: true, ...(await runHourlyCheck()) };
+    }
+    return { ok: true, ...(await runMorningBriefing()) };
   }
 
   const method = event.requestContext?.http?.method ?? 'GET';
