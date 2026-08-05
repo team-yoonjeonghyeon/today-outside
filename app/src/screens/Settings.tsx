@@ -543,6 +543,23 @@ export default function Settings() {
             verticalPadding="large"
           />
         </div>
+        <ListRow
+          left={
+            <ListRow.AssetImage
+              src="https://static.toss.im/2d-icons/emoji/png/4x/u1F9D1.png"
+              shape="squircle"
+              backgroundColor={adaptive.greyOpacity100}
+              size="xsmall"
+            />
+          }
+          contents={
+            <ListRow.Texts type="1RowTypeA" top="만든 사람" topProps={{ color: adaptive.grey800 }} />
+          }
+          right={
+            <ListRow.Texts type="Right1RowTypeA" top="윤정현" topProps={{ color: adaptive.grey600 }} />
+          }
+          verticalPadding="large"
+        />
       </List>
 
       <Spacing size={16} />
