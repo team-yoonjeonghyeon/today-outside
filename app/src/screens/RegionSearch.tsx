@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ConfirmDialog, List, ListRow, Loader, Paragraph, SearchField, Spacing } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
+import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import { MINT } from "../constants/judge";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useSavedRegions, type StoredRegion } from "../hooks/useSavedRegions";
 import { syncSubscriptions } from "../lib/notifications";
-import { searchRegions } from "../lib/regions";
+import { coarseLocationLabel, placeNameFromLabel, searchRegions } from "../lib/regions";
 import { searchRegionsRemote } from "../lib/judgeApi";
 import { getStoredJSON, setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { useBackNavigation } from "../hooks/useBackNavigation";
@@ -31,6 +32,8 @@ import { ROUTES } from "../routes";
 // 193개 전 지역에 형평 있게, 건물 아이콘 하나로 통일해요 (LocationDenied.tsx와 동일).
 const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
 const CLOCK_EMOJI = "https://static.toss.im/2d-icons/emoji/png/4x/u1F557.png";
+// 지도+핀 아이콘 — "현재 위치로 찾기" 버튼용 (LocationDenied.tsx의 MAP_PIN_ICON과 동일).
+const MAP_PIN_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/uE116.png";
 const SEARCH_DEBOUNCE_MS = 350;
 
 // 카카오(동 단위) · 로컬 폴백(구 단위) 결과를 화면에서 똑같이 다루기 위한 공통 모양.
@@ -56,6 +59,7 @@ export default function RegionSearch() {
   const [recentSearch, setRecentSearch] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [searching, setSearching] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +134,32 @@ export default function RegionSearch() {
     navigate(ROUTES.home, { state: { nx: region.nx, ny: region.ny, label: region.name } });
   };
 
+  // "현재 위치로 찾기" — GPS 권한을 확인하고 현재 위치를 불러와 그 지역 홈으로 바로 이동해요.
+  // LocationDenied(F6)의 위치 재요청과 같은 흐름이에요. 권한을 거부하거나 위치 조회가 실패하면
+  // 이 화면에 그대로 머물러서, 검색으로 직접 고를 수 있게 해요 (정책: 위치 없이도 전 기능 동작).
+  const handleUseCurrentLocation = async () => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      const status = await getCurrentLocation.openPermissionDialog();
+      if (status !== "allowed") return;
+
+      const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+      const { nx, ny, label } = coarseLocationLabel(coords.latitude, coords.longitude);
+      // 아직 내 장소가 없으면 여기서 확정해요 — 권한을 거부했다가 이 버튼으로 돌아온 사용자는
+      // 이 경로 말고는 내 장소를 가질 기회가 없어서, 안 잡아주면 알림을 영영 못 받아요.
+      // 이미 내 장소가 있으면 화면만 그 위치로 보여줘요(기준을 옮기려면 홈의 ↻를 써요).
+      if (!primaryRegion) {
+        await addRegion({ name: placeNameFromLabel(label), nx, ny });
+      }
+      navigate(ROUTES.home, { state: { nx, ny, label, lat: coords.latitude, lon: coords.longitude } });
+    } catch {
+      // 다이얼로그 호출 실패·권한은 허용됐지만 위치 조회 자체가 실패한 경우 등 — 화면에 머물러요.
+    } finally {
+      setLocating(false);
+    }
+  };
+
   const handleAddRegion = async (item: SearchResultItem) => {
     const name = item.sub ? `${item.sub} ${item.name}`.trim() : item.name;
     const region: StoredRegion = { name, nx: item.nx, ny: item.ny };
@@ -173,6 +203,30 @@ export default function RegionSearch() {
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
         />
       </div>
+
+      {/* 검색 대신 현재 위치를 바로 불러오는 지름길. 항상 검색창 바로 아래에 둬요. */}
+      <List>
+        <ListRow
+          left={
+            <ListRow.AssetImage
+              src={MAP_PIN_ICON}
+              shape="squircle"
+              backgroundColor={adaptive.greyOpacity100}
+              size="xsmall"
+            />
+          }
+          contents={
+            <ListRow.Texts
+              type="1RowTypeA"
+              top={locating ? "현재 위치를 불러오는 중…" : "현재 위치로 찾기"}
+              topProps={{ color: MINT[700], fontWeight: "bold" }}
+            />
+          }
+          right={locating ? <Loader size="small" /> : undefined}
+          verticalPadding="large"
+          onClick={() => void handleUseCurrentLocation()}
+        />
+      </List>
 
       <Spacing size={10} />
 
