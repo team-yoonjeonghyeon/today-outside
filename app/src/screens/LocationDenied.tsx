@@ -237,7 +237,19 @@ export default function LocationDenied() {
             );
           }
 
-          // 3) 열린 빈 칸 — 다른 지역을 찾아 채울 수 있어요.
+          // 3) 열린 빈 칸. 지역은 앞에서부터 차니까 첫 빈 칸은 항상 savedRegions.length번이에요.
+          //    "＋ 다른 지역 찾기"는 그 한 칸에만 붙여요 — 둘 다 비어 있을 때 같은 버튼이 두 번
+          //    뜨던 걸 막아요(어차피 한 번에 한 곳씩 고르니 두 개일 이유가 없어요).
+          if (i > savedRegions.length) {
+            return (
+              <ListRow
+                key={`empty-${i}`}
+                contents={<Paragraph.Text color={adaptive.grey400}>비어 있어요</Paragraph.Text>}
+                verticalPadding="large"
+              />
+            );
+          }
+
           return (
             <ListRow
               key={`empty-${i}`}

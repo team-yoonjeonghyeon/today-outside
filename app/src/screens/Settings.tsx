@@ -11,6 +11,7 @@ import {
   useSavedRegions,
 } from "../hooks/useSavedRegions";
 import { useBackNavigation } from "../hooks/useBackNavigation";
+import { useLongPress } from "../hooks/useLongPress";
 import { getAnonKey, requestAgreement, syncSubscriptions } from "../lib/notifications";
 import { subscribeNotification, unsubscribeNotification, type NotificationType } from "../lib/judgeApi";
 import { openShareReward } from "../lib/shareReward";
@@ -26,6 +27,31 @@ const REGION_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F3E2.png";
 const LOCK_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u1F512.png";
 // 항상 보여주는 총 저장 칸 수 = 기본 1칸 + 공유 보너스 1칸.
 const TOTAL_SLOTS = BASE_SAVED_REGIONS + SHARE_BONUS_REGIONS;
+
+/**
+ * 저장된 지역 한 줄을 감싸서 "꾹 누르면 내 장소로" 동작을 붙여요.
+ *
+ * 훅은 map 안에서 부를 수 없어서 줄마다 컴포넌트로 쪼갰어요. 한 번 누르기가 아니라 꾹 누르기인
+ * 건 실수로 알림 기준이 옮겨가면 안 되기 때문이에요.
+ */
+function SavedRegionRow({
+  canMakePrimary,
+  onPickPrimary,
+  children,
+}: {
+  canMakePrimary: boolean;
+  onPickPrimary: () => void;
+  children: React.ReactNode;
+}) {
+  const longPress = useLongPress(onPickPrimary);
+  if (!canMakePrimary) return <>{children}</>;
+  return (
+    // 꾹 누르는 동안 글자가 선택되거나 iOS 확대경이 뜨지 않게 막아요.
+    <div {...longPress} style={{ width: "100%", userSelect: "none", WebkitTouchCallout: "none" }}>
+      {children}
+    </div>
+  );
+}
 
 export default function Settings() {
   useBackNavigation();
@@ -218,8 +244,12 @@ export default function Settings() {
             // 칸이 둘일 때는 눌러서 알림 기준을 그쪽으로 옮길 수 있어요 (즐겨찾기처럼).
             const canMakePrimary = canPickPrimary && region.name !== primaryRegion?.name;
             return (
-              <ListRow
+              <SavedRegionRow
                 key={`filled-${region.name}`}
+                canMakePrimary={canMakePrimary}
+                onPickPrimary={() => void handlePickPrimary(region)}
+              >
+              <ListRow
                 left={
                   <ListRow.AssetImage
                     src={REGION_ICON}
@@ -236,7 +266,7 @@ export default function Settings() {
                       type="2RowTypeA"
                       top={region.name}
                       topProps={{ color: adaptive.grey800 }}
-                      bottom="눌러서 내 장소로 하기"
+                      bottom="꾹 눌러서 내 장소로 하기"
                       bottomProps={{ color: MINT[700] }}
                     />
                   ) : (
@@ -247,7 +277,6 @@ export default function Settings() {
                     />
                   )
                 }
-                onClick={canMakePrimary ? () => void handlePickPrimary(region) : undefined}
                 right={
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {isPrimary && (
@@ -267,11 +296,10 @@ export default function Settings() {
                     <button
                       type="button"
                       aria-label={`${region.name} 저장 해제`}
-                      onClick={(e) => {
-                        // 행 전체가 "내 장소로 하기"라서, ✕는 그 클릭을 타고 올라가지 않게 막아요.
-                        e.stopPropagation();
-                        void removeRegion(region.name);
-                      }}
+                      onClick={() => void removeRegion(region.name)}
+                      // 행 전체가 "꾹 눌러서 내 장소로 하기"라서, ✕를 오래 누르고 있어도
+                      // 그 타이머가 걸리지 않게 여기서 포인터 이벤트를 끊어요.
+                      onPointerDown={(e) => e.stopPropagation()}
                       style={{
                         border: "none",
                         background: "none",
@@ -289,6 +317,7 @@ export default function Settings() {
                 }
                 verticalPadding="large"
               />
+              </SavedRegionRow>
             );
           }
 
@@ -336,7 +365,23 @@ export default function Settings() {
             );
           }
 
-          // 3) 열린 빈 칸 — 다른 지역을 찾아 채울 수 있어요.
+          // 3) 열린 빈 칸. 지역은 앞에서부터 차니까 첫 빈 칸은 항상 savedRegions.length번이에요.
+          //    "＋ 다른 지역 찾기"는 그 한 칸에만 붙여요 — 둘 다 비어 있을 때 같은 버튼이 두 번
+          //    뜨던 걸 막아요(어차피 한 번에 한 곳씩 고르니 두 개일 이유가 없어요).
+          if (i > savedRegions.length) {
+            return (
+              <ListRow
+                key={`empty-${i}`}
+                contents={
+                  <Post.Paragraph paddingBottom={0} color={adaptive.grey400}>
+                    비어 있어요
+                  </Post.Paragraph>
+                }
+                verticalPadding="large"
+              />
+            );
+          }
+
           return (
             <ListRow
               key={`empty-${i}`}
@@ -364,7 +409,7 @@ export default function Settings() {
           {!primaryRegion
             ? "내 장소를 먼저 정하면 알림을 받을 수 있어요"
             : canPickPrimary
-              ? `${primaryRegion.name} 기준이에요 · 위에서 지역을 눌러 바꿀 수 있어요`
+              ? `${primaryRegion.name} 기준이에요 · 위에서 지역을 꾹 눌러 바꿀 수 있어요`
               : `${primaryRegion.name} 기준이에요 · 홈의 ↻로 바꿀 수 있어요`}
         </Post.Paragraph>
       </div>
