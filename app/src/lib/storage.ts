@@ -41,4 +41,7 @@ export const STORAGE_KEYS = {
   // 친구에게 한 번이라도 공유하면 저장 장소가 1개(기본) → 2개로 늘어나요. 그 "한 번 공유했음"을
   // 영구히 기억하는 값이에요 (평생 한 번만 열리는 보너스라 boolean 하나면 충분해요).
   shareBonus: "todayoutside:shareBonus",
+  // 동네 기분 투표에서 "이 기기의 오늘 표"를 구분하는 익명 ID예요. 계정·전화번호와 무관한
+  // 무작위 UUID라 사람을 식별하지 않고, 하루 한 표를 지키고 내 선택을 다시 보여주는 데만 써요.
+  moodDeviceId: "todayoutside:moodDeviceId",
 } as const;

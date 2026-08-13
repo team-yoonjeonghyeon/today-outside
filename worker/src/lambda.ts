@@ -19,10 +19,11 @@ import {
   GetItemCommand,
   PutItemCommand,
   ScanCommand,
+  UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import * as https from 'node:https';
 import worker from './index';
-import { toGrid } from './geo';
+import { kstParts, nowKst, toGrid, yyyymmdd } from './geo';
 import type { JudgeResponse, Profile } from './types';
 
 const TABLE = process.env.CACHE_TABLE ?? '';
@@ -476,6 +477,538 @@ async function handleNotifyUnsubscribe(event: FunctionUrlEvent): Promise<LambdaR
   return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ ok: true }) };
 }
 
+/* ────────────────────────────────── 동네 기분 투표 */
+
+/**
+ * "지금 우리 동네 어때요?" 😊 😐 😥 — 텍스트 없는 1단계 소셜 기능이에요.
+ *
+ * 남기는 게 셋 중 하나뿐이라 검수할 내용이 없어요(UGC 모더레이션·신고 기능 불필요).
+ * 집계도 숫자 하나라서 참여자가 적어도 화면이 성립해요 — "1명이 좋대요"도 문장이 되니까요.
+ *
+ * ## 방 단위는 시군구
+ * 동으로 묶으면 대부분의 동네가 텅 비고, 시도(서울 940만)로 묶으면 남 얘기가 돼요.
+ * 시군구(약 250개, 마포구 38만)가 사람은 모이면서 날씨도 사실상 같은 선이에요. 동은
+ * "우리 동네에서 몇 명 참여했는지"를 덧붙이는 보조 정보로만 써요.
+ *
+ * ## 저장
+ * 기존 CACHE_TABLE을 그대로 재사용해요(파티션 키 cacheKey 하나 + TTL expiresAt).
+ * 항목은 두 종류예요.
+ *
+ *   집계  mood:{지역}:{날짜}       — good/soso/bad 카운터 + 동별 카운터(d_공덕동)
+ *   내 표 moodvote:{지역}:{날짜}:{기기ID} — 뭘 골랐는지 (하루 한 표 + 다시 보여주기용)
+ *
+ * 카운터는 DynamoDB의 원자적 ADD로 올려요. 집계 문서를 읽고-고쳐-쓰면 동시에 투표한 두
+ * 사람 중 한 표가 조용히 사라지는데, ADD는 그런 일이 없어요. Scan은 쓰지 않아요 —
+ * 홈 화면을 열 때마다 테이블 전체를 훑는 건 감당이 안 되니까요(scanSubscriptions 주석 참고).
+ */
+
+const MOODS = ['good', 'soso', 'bad'] as const;
+type Mood = (typeof MOODS)[number];
+
+function isMood(v: unknown): v is Mood {
+  return typeof v === 'string' && (MOODS as readonly string[]).includes(v);
+}
+
+/**
+ * 동 이름을 화면에 보여주기 시작하는 최소 참여자 수.
+ *
+ * 참여자가 1~2명인 동은 "[공덕동] + 시각"만으로 사람이 좁혀져요. 시골 읍면이나 신도시
+ * 초기처럼 모수가 작은 곳에서 특히 그래요. 그 아래면 동 정보를 아예 빼고 시군구 집계만
+ * 내려줘요.
+ */
+const DONG_MIN_PARTICIPANTS = 3;
+
+/**
+ * 한마디는 **프리셋 id만** 저장해요 (예: `nice_today`). 문장 자체는 앱이 들고 있어서
+ * 서버에는 사용자가 쓴 글자가 한 개도 안 들어와요 — 그래서 검수·신고 기능이 필요 없어요.
+ * 형식을 좁게 막아두면(영소문자·숫자·밑줄) 한글이나 공백이 섞여 들어올 길도 없어요.
+ */
+const MESSAGE_ID_PATTERN = /^[a-z0-9_]{1,24}$/;
+
+/**
+ * 한마디를 담아두는 칸 수. 꽉 차면 **가장 오래된 것부터 덮어써요**(링 버퍼).
+ *
+ * 계속 append하면 인기 지역에서 항목이 400KB 한도까지 자라요. 그렇다고 "오래된 걸 잘라내기"를
+ * 매번 하려면 읽고-고쳐-쓰기가 돼서 동시에 남긴 한마디가 사라질 수 있고요. 칸을 고정해두고
+ * 순번(seq)으로 자리를 정하면 둘 다 피해요 — 항목 크기는 영원히 그대로고, 각자 자기 칸만
+ * 쓰니 서로 덮어쓸 일도 없어요.
+ *
+ * 화면에 보내는 20개보다 넉넉하게 잡아서, 보고 있는 사이에 밀려나 사라지는 일이 없게 했어요.
+ */
+const MESSAGE_RING_SIZE = 40;
+
+/** 화면에 내려보내는 최근 한마디 수. 피드가 아니라 스쳐가는 몇 줄이라 길 필요가 없어요. */
+const MESSAGE_FEED_SIZE = 20;
+
+
+interface MoodMessage {
+  /** 프리셋 id */
+  id: string;
+  /** 남긴 사람의 동네. 참여자가 적은 동은 아래에서 빈 문자열로 가려요. */
+  dong: string;
+  /** 남긴 순번. 칸 순서와 시간 순서가 다를 수 있어서, 최신순 정렬은 이 값으로 해요. */
+  seq: number;
+}
+
+interface MoodSummary {
+  date: string;
+  region: string;
+  counts: Record<Mood, number>;
+  total: number;
+  /** 내 동네 참여자 수. 인원이 DONG_MIN_PARTICIPANTS 미만이거나 동을 모르면 null. */
+  dong: { name: string; count: number } | null;
+  /** 이 기기가 오늘 이 지역에 남긴 표. 아직 안 했으면 null. */
+  my: Mood | null;
+  /** 동 이름이 몇 명부터 보이는지 — 화면이 "아직 조용해요" 문구를 고를 때 써요. */
+  dongMinParticipants: number;
+  /**
+   * 최근 한마디(최신순). 동을 모르는 지역에서 남긴 건 dong이 빈 문자열이에요.
+   *
+   * 문장별 집계가 아니라 개별 줄을 내려보내요. 위쪽 기분 투표가 이미 "몇 명이 어떻게
+   * 느꼈나"를 숫자로 말하고 있어서, 한마디까지 숫자로 만들면 같은 일을 두 번 하게 돼요.
+   * 한마디가 하는 일은 동네 이름이 붙은 한 줄이 주는 사람 냄새예요.
+   */
+  messages: { id: string; dong: string }[];
+  /** 오늘 이 지역에 남은 한마디 총 개수. messages(최근 20개)보다 클 수 있어요. */
+  messageTotal: number;
+  /** 이 기기가 오늘 남긴 한마디의 프리셋 id. 아직 안 남겼으면 null. */
+  myMessage: string | null;
+}
+
+/**
+ * 키·속성 이름에 쓸 수 있게 이름을 다듬어요. 한글과 공백은 그대로 둬야 "서울특별시 마포구"가
+ * 살아남으니, 제어문자와 구분자(:)만 걷어내고 길이만 잘라요. 결과가 비면 400으로 막아요.
+ *
+ * 정규식 대신 한 글자씩 보는 이유는, 제어문자 범위를 정규식 리터럴로 적으면 소스 파일에
+ * 실제 제어문자가 섞여 들어가기 쉬워서예요.
+ */
+function moodCleanName(value: unknown, max = 40): string {
+  if (typeof value !== 'string') return '';
+  let cleaned = '';
+  for (const ch of value) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (code < 0x20 || code === 0x7f) continue;
+    if (ch === ':') continue;
+    cleaned += ch;
+  }
+  return cleaned.trim().slice(0, max);
+}
+
+/** 기기 ID는 앱이 만든 UUID 꼴만 받아요 (임의 문자열로 키 공간을 어지럽히지 못하게). */
+function moodCleanDeviceId(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return /^[0-9a-fA-F-]{8,64}$/.test(value) ? value : '';
+}
+
+/** 오늘 날짜(KST, YYYYMMDD). 자정이 지나면 키가 바뀌어서 집계가 저절로 처음부터 다시 시작해요. */
+function moodToday(): string {
+  return yyyymmdd(nowKst());
+}
+
+/**
+ * 만료 시각(unix 초) — 오늘 자정(KST) + 2시간.
+ *
+ * 키에 날짜가 들어 있어서 지난 날짜 항목은 어차피 아무도 읽지 않아요. TTL은 테이블이
+ * 무한정 커지지 않게 하는 청소 용도예요(DynamoDB TTL 삭제는 최대 48시간까지 늦어질 수 있어요).
+ */
+function moodExpiresAt(): number {
+  const p = kstParts(nowKst());
+  const remain = 86400 - (p.hour * 3600 + p.minute * 60);
+  return Math.floor(Date.now() / 1000) + remain + 2 * 3600;
+}
+
+function moodTallyKey(region: string, date: string): string {
+  return `mood:${region}:${date}`;
+}
+
+function moodVoteKey(region: string, date: string, deviceId: string): string {
+  return `moodvote:${region}:${date}:${deviceId}`;
+}
+
+/** 동별 카운터는 집계 항목의 최상위 속성으로 둬요 — 중첩 맵과 달리 ADD를 그대로 쓸 수 있어요. */
+function moodDongAttr(dong: string): string {
+  return `d_${dong}`;
+}
+
+
+function moodCount(item: Record<string, AttributeValue> | undefined, attr: string): number {
+  const raw = item?.[attr]?.N;
+  const n = raw === undefined ? 0 : Number(raw);
+  // 표를 옮길 때 감소도 하는 구조라, 데이터가 어긋나도 음수가 화면에 나가진 않게 막아요.
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** 저장된 한마디를 읽어요. 형식이 어긋난 항목은 조용히 건너뛰어요. */
+function moodMessagesOf(item: Record<string, AttributeValue> | undefined): MoodMessage[] {
+  const raw = item?.msgs?.L;
+  if (!Array.isArray(raw)) return [];
+
+  const out: MoodMessage[] = [];
+  for (const entry of raw) {
+    const id = entry?.M?.i?.S;
+    if (typeof id !== 'string' || !MESSAGE_ID_PATTERN.test(id)) continue;
+    out.push({ id, dong: entry.M?.d?.S ?? '', seq: Number(entry.M?.s?.N ?? '0') });
+  }
+  return out;
+}
+
+function moodSummaryFrom(
+  item: Record<string, AttributeValue> | undefined,
+  region: string,
+  date: string,
+  dong: string,
+  my: Mood | null,
+  myMessage: string | null
+): MoodSummary {
+  const counts: Record<Mood, number> = {
+    good: moodCount(item, 'good'),
+    soso: moodCount(item, 'soso'),
+    bad: moodCount(item, 'bad'),
+  };
+  const dongCount = dong ? moodCount(item, moodDongAttr(dong)) : 0;
+  const stored = moodMessagesOf(item);
+
+  // 칸 순서는 시간 순서와 달라요(링 버퍼라 한 바퀴 돌면 앞칸이 최신이 돼요). 순번으로 정렬해요.
+  //
+  // 동 이름은 참여자 수와 무관하게 그대로 내보내요. 고를 수 있는 문장이 우리가 미리 쓴
+  // 것뿐이라 여기서 알아낼 개인 정보가 없어요.
+  const messages = [...stored]
+    .sort((a, b) => b.seq - a.seq)
+    .slice(0, MESSAGE_FEED_SIZE)
+    .map((message) => ({ id: message.id, dong: message.dong }));
+
+  return {
+    date,
+    region,
+    counts,
+    total: counts.good + counts.soso + counts.bad,
+    dong: dong && dongCount >= DONG_MIN_PARTICIPANTS ? { name: dong, count: dongCount } : null,
+    my,
+    dongMinParticipants: DONG_MIN_PARTICIPANTS,
+    messages,
+    // 화면이 몇 줄만 보여주고 "외 N명이 더 남겼어요"라고 말할 수 있게 총 개수도 같이 줘요.
+    //
+    // 보관된 칸 수(stored.length)를 세면 40에서 멈춰요 — 링 버퍼라 그 이상은 덮어쓰거든요.
+    // 그러면 100명이 남긴 날도 "외 35명"으로 실제보다 작게 말하게 돼요. 순번(seq)은 새
+    // 한마디마다 하나씩 올라가니까 오늘 남긴 사람 수 그대로예요.
+    messageTotal: Math.max(stored.length, Number(item?.seq?.N ?? '0') || 0),
+    myMessage,
+  };
+}
+
+/**
+ * 이 기기가 오늘 이 지역에서 한 일. 하루 한 표·한마디 하나를 지키고, 마음이 바뀌었을 때
+ * 이전 것을 되돌리는 데 써요.
+ */
+interface MoodDeviceRecord {
+  mood: Mood | null;
+  /** 남긴 한마디의 프리셋 id */
+  message: string | null;
+  /** 내 한마디가 들어간 칸과 순번 — 바꿀 때 그 자리가 아직 내 것인지 확인하는 데 써요. */
+  messageIndex: number | null;
+  messageSeq: number | null;
+  dong: string;
+}
+
+async function readMoodDevice(key: string): Promise<MoodDeviceRecord | null> {
+  const entry = await ddbGet(key);
+  if (!entry) return null;
+  try {
+    const parsed = JSON.parse(entry.body) as Record<string, unknown>;
+    return {
+      mood: isMood(parsed.mood) ? parsed.mood : null,
+      message:
+        typeof parsed.message === 'string' && MESSAGE_ID_PATTERN.test(parsed.message)
+          ? parsed.message
+          : null,
+      messageIndex: typeof parsed.messageIndex === 'number' ? parsed.messageIndex : null,
+      messageSeq: typeof parsed.messageSeq === 'number' ? parsed.messageSeq : null,
+      dong: typeof parsed.dong === 'string' ? parsed.dong : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+interface MoodAction {
+  mood?: Mood;
+  /** 프리셋 id. 이미 오늘 남겼으면 그 자리를 덮어써요. */
+  message?: string;
+}
+
+/** 한마디가 어느 칸에 들어갔는지 — 나중에 바꿀 때 그 자리가 아직 내 것인지 확인하려고 남겨요. */
+interface MessageSlot {
+  index: number;
+  seq: number;
+}
+
+/**
+ * 표·한마디를 반영하고 갱신된 집계를 돌려줘요. 쓰기 한 번으로 끝나서 뒤에 다시 읽을 필요가
+ * 없어요(ReturnValues로 갱신 결과를 그대로 받아요).
+ *
+ * 세 가지가 한 항목에서 같이 움직여요.
+ *   - 기분 카운터(good/soso/bad) — 원자적 ADD. 이전 표가 있으면 되돌리고 새 표를 더해요.
+ *   - 동 카운터(d_공덕동) — 투표든 한마디든 **오늘 처음 참여할 때 한 번만** 세요.
+ *     이래야 "3명 이상인 동만 이름 노출" 규칙이 투표자·한마디 양쪽에 똑같이 적용돼요.
+ *   - 한마디 목록(msgs) — list_append는 원자적이라 동시에 남겨도 서로 덮어쓰지 않아요.
+ *     바꾸는 경우엔 내 자리(msgs[i])만 지정해서 덮어쓰고요.
+ */
+async function applyMoodAction(
+  region: string,
+  date: string,
+  dong: string,
+  previous: MoodDeviceRecord | null,
+  action: MoodAction
+): Promise<Record<string, AttributeValue> | undefined> {
+  if (!ddb) return undefined;
+
+  // 속성별 증감을 먼저 모아요. 같은 속성이 두 번 등장하면 DynamoDB가 거부하기 때문에
+  // (예: 같은 동에서 mood만 바꾼 경우 d_공덕동이 +1/−1로 겹쳐요) 여기서 합쳐서 상쇄해요.
+  const deltas = new Map<string, number>();
+  const bump = (attr: string, by: number) => deltas.set(attr, (deltas.get(attr) ?? 0) + by);
+
+  if (action.mood) {
+    bump(action.mood, 1);
+    if (previous?.mood) bump(previous.mood, -1);
+  }
+  // 동은 "오늘 이 지역에 처음 참여했나"로만 세요 — 투표 후 한마디를 남겨도 한 명이에요.
+  if (dong && previous?.dong !== dong) bump(moodDongAttr(dong), 1);
+  if (previous?.dong && previous.dong !== dong) bump(moodDongAttr(previous.dong), -1);
+
+
+  const names: Record<string, string> = {};
+  const values: Record<string, AttributeValue> = { ':exp': { N: String(moodExpiresAt()) } };
+  const setParts = ['expiresAt = :exp'];
+  const addParts: string[] = [];
+
+  let i = 0;
+  for (const [attr, delta] of deltas) {
+    if (delta === 0) continue; // 상쇄돼서 바뀔 게 없는 속성은 건드리지 않아요.
+    const nameRef = `#a${i}`;
+    const valueRef = `:v${i}`;
+    names[nameRef] = attr;
+    values[valueRef] = { N: String(delta) };
+    addParts.push(`${nameRef} ${valueRef}`);
+    i += 1;
+  }
+
+  // 새 한마디는 순번을 먼저 받아요. ADD가 원자적이라 동시에 남겨도 번호가 겹치지 않아요.
+  const needsNewSlot = Boolean(action.message) && previous?.messageIndex == null;
+  if (needsNewSlot) {
+    values[':one'] = { N: '1' };
+    addParts.push('seq :one');
+  }
+
+  const expression =
+    `SET ${setParts.join(', ')}` + (addParts.length > 0 ? ` ADD ${addParts.join(', ')}` : '');
+
+  const out = await ddb.send(
+    new UpdateItemCommand({
+      TableName: TABLE,
+      Key: { cacheKey: { S: moodTallyKey(region, date) } },
+      UpdateExpression: expression,
+      ...(Object.keys(names).length > 0 ? { ExpressionAttributeNames: names } : {}),
+      ExpressionAttributeValues: values,
+      ReturnValues: 'ALL_NEW',
+    })
+  );
+  return out.Attributes;
+}
+
+/**
+ * 한마디를 칸에 써요. 반환값은 갱신된 항목과 내 칸 정보예요.
+ *
+ * 바꾸는 경우엔 원래 칸에 덮어쓰되, **그 자리가 아직 내 것일 때만** 써요(ConditionExpression).
+ * 링 버퍼라 한 바퀴가 돌면 내 칸을 이미 다른 사람이 차지했을 수 있는데, 조건 없이 쓰면
+ * 남의 한마디를 지워버려요. 조건이 어긋나면 새로 남긴 것처럼 다음 칸을 받아요.
+ */
+async function writeMoodMessage(
+  region: string,
+  date: string,
+  dong: string,
+  message: string,
+  seq: number,
+  previous: MoodDeviceRecord | null
+): Promise<{ item: Record<string, AttributeValue> | undefined; slot: MessageSlot }> {
+  const reusing = previous?.messageIndex != null && previous.messageSeq != null;
+  const index = reusing ? previous!.messageIndex! : (seq - 1) % MESSAGE_RING_SIZE;
+  const entrySeq = reusing ? previous!.messageSeq! : seq;
+
+  const command = new UpdateItemCommand({
+    TableName: TABLE,
+    Key: { cacheKey: { S: moodTallyKey(region, date) } },
+    UpdateExpression: `SET msgs[${index}] = :entry, expiresAt = :exp`,
+    ExpressionAttributeValues: {
+      ':entry': { M: { i: { S: message }, d: { S: dong }, s: { N: String(entrySeq) } } },
+      ':exp': { N: String(moodExpiresAt()) },
+      ...(reusing ? { ':mySeq': { N: String(previous!.messageSeq!) } } : {}),
+    },
+    ...(reusing ? { ConditionExpression: `msgs[${index}].s = :mySeq` } : {}),
+    ReturnValues: 'ALL_NEW',
+  });
+
+  try {
+    const out = await ddb!.send(command);
+    return { item: out.Attributes, slot: { index, seq: entrySeq } };
+  } catch (e) {
+    // 내 칸이 이미 밀려났어요 — 바꾸기가 아니라 새로 남기는 걸로 처리해요.
+    if (!reusing || (e as { name?: string }).name !== 'ConditionalCheckFailedException') throw e;
+    const fresh = await allocateMessageSeq(region, date);
+    return writeMoodMessage(region, date, dong, message, fresh, null);
+  }
+}
+
+/** 칸을 새로 받아야 할 때 순번만 따로 올려요 (되돌아온 경로에서만 써요). */
+async function allocateMessageSeq(region: string, date: string): Promise<number> {
+  const out = await ddb!.send(
+    new UpdateItemCommand({
+      TableName: TABLE,
+      Key: { cacheKey: { S: moodTallyKey(region, date) } },
+      UpdateExpression: 'SET expiresAt = :exp ADD seq :one',
+      ExpressionAttributeValues: {
+        ':one': { N: '1' },
+        ':exp': { N: String(moodExpiresAt()) },
+      },
+      ReturnValues: 'ALL_NEW',
+    })
+  );
+  return Number(out.Attributes?.seq?.N ?? '1');
+}
+
+/**
+ * `GET  /mood?region=..&dong=..&deviceId=..` — 오늘 이 시군구의 집계 + 최근 한마디
+ * `POST /mood` `{region, dong, deviceId, mood?, message?}` — 표·한마디를 남기고 갱신된 집계
+ *
+ * POST는 `mood`와 `message` 중 적어도 하나가 있어야 해요. 둘 다 보내도 되고요.
+ * 응답 형태는 둘 다 MoodSummary로 같아요. 화면이 POST 뒤에 한 번 더 조회하지 않아도 되게요.
+ */
+async function handleMood(event: FunctionUrlEvent, method: string): Promise<LambdaResponse> {
+  if (!ddb) {
+    // 저장소가 없는 환경에서는 기능만 조용히 꺼요 — 판정은 이 값 없이도 그대로 동작해야 해요.
+    return {
+      statusCode: 503,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'MOOD_DISABLED', message: '기분 투표가 꺼져 있어요' }),
+    };
+  }
+
+  const isPost = method === 'POST';
+  const body = isPost ? (parseEventBody(event) as Record<string, unknown> | null) : null;
+  const query = new URLSearchParams(event.rawQueryString ?? '');
+  const pick = (key: string): unknown => (isPost ? body?.[key] : query.get(key));
+
+  const region = moodCleanName(pick('region'));
+  const dong = moodCleanName(pick('dong'));
+  const deviceId = moodCleanDeviceId(pick('deviceId'));
+
+  if (!region || !deviceId) {
+    return {
+      statusCode: 400,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'INVALID_PARAM', message: 'region, deviceId를 확인해 주세요' }),
+    };
+  }
+
+  const date = moodToday();
+  const deviceKey = moodVoteKey(region, date, deviceId);
+
+  try {
+    if (!isPost) {
+      const [tallyItem, device] = await Promise.all([
+        ddb
+          .send(
+            new GetItemCommand({ TableName: TABLE, Key: { cacheKey: { S: moodTallyKey(region, date) } } })
+          )
+          .then((out) => out.Item),
+        readMoodDevice(deviceKey),
+      ]);
+      return {
+        statusCode: 200,
+        headers: CORS_HEADERS,
+        body: JSON.stringify(
+          moodSummaryFrom(tallyItem, region, date, dong, device?.mood ?? null, device?.message ?? null)
+        ),
+      };
+    }
+
+    const rawMood = pick('mood');
+    const rawMessage = pick('message');
+    const mood = isMood(rawMood) ? rawMood : undefined;
+    const message =
+      typeof rawMessage === 'string' && MESSAGE_ID_PATTERN.test(rawMessage) ? rawMessage : undefined;
+
+    if (!mood && !message) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'INVALID_PARAM', message: 'mood 또는 message를 확인해 주세요' }),
+      };
+    }
+
+    const previous = await readMoodDevice(deviceKey);
+
+    // 1) 카운터를 올리고, 새 한마디면 칸 순번도 같이 받아요 (쓰기 한 번).
+    let item = await applyMoodAction(region, date, dong, previous, {
+      ...(mood ? { mood } : {}),
+      ...(message ? { message } : {}),
+    });
+
+    // 2) 한마디는 받은 순번의 칸에 써요. 칸이 꽉 차면 가장 오래된 것 위에 덮여요.
+    let slot: MessageSlot | null =
+      previous?.messageIndex != null && previous.messageSeq != null
+        ? { index: previous.messageIndex, seq: previous.messageSeq }
+        : null;
+
+    if (message) {
+      const written = await writeMoodMessage(
+        region,
+        date,
+        dong,
+        message,
+        Number(item?.seq?.N ?? '1'),
+        previous
+      );
+      item = written.item;
+      slot = written.slot;
+    }
+
+    // 3) 마지막에 내 기록을 남겨요. 집계보다 먼저 쓰면, 집계가 실패했을 때 "이미 참여함"으로
+    //    남아서 다시 눌러도 반영이 안 돼요. 이 순서면 최악의 경우 한 번 더 세어질 뿐이에요.
+    await ddbPut(deviceKey, {
+      body: JSON.stringify({
+        mood: mood ?? previous?.mood ?? null,
+        message: message ?? previous?.message ?? null,
+        messageIndex: slot?.index ?? null,
+        messageSeq: slot?.seq ?? null,
+        dong,
+      }),
+      expiresAt: moodExpiresAt(),
+    });
+
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify(
+        moodSummaryFrom(
+          item,
+          region,
+          date,
+          dong,
+          mood ?? previous?.mood ?? null,
+          message ?? previous?.message ?? null
+        )
+      ),
+    };
+  } catch (e) {
+    console.error('[mood]', e);
+    return {
+      statusCode: 502,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'MOOD_UNAVAILABLE', message: '잠시 후 다시 시도해주세요' }),
+    };
+  }
+}
+
 /* ────────────────────────────────── 스마트 발송 (Phase 2) */
 
 // 인증서·개인키는 절대 코드/커밋에 넣지 않아요 — Lambda 환경변수에 base64로 저장해두고
@@ -919,6 +1452,11 @@ export const handler = async (
   }
   if (path === '/notify/subscribe' && method === 'DELETE') {
     return handleNotifyUnsubscribe(event);
+  }
+
+  // 동네 기분 투표. index.ts(판정)와 아무 관계가 없고 DynamoDB를 직접 쓰므로 여기서 처리해요.
+  if (path === '/mood' && (method === 'GET' || method === 'POST')) {
+    return handleMood(event, method);
   }
 
   // 호스트는 아무거나 상관없어요. index.ts는 pathname과 searchParams만 봐요.

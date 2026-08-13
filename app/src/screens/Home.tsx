@@ -13,6 +13,7 @@ import {
 } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
+import MoodVote from "../components/MoodVote";
 import { ProfileTabs } from "../components/ProfileTabs";
 import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import {
@@ -604,6 +605,13 @@ export default function Home() {
           </div>
 
           <Spacing size={8} />
+
+          {/* 동네 기분 투표 — 기상청 값 다음에 "그래서 사람들은 어땠는데?"가 오는 순서예요.
+              지표 카드 위로 올리면 판정을 밀어내니까 아래에 둬요. 서버가 이 기능을 안 켰거나
+              조회에 실패하면 컴포넌트가 스스로 아무것도 안 그려요. */}
+          <MoodVote label={region.label} nx={region.nx} ny={region.ny} profile={profile} />
+
+          <Spacing size={16} />
 
           {/* 출처(기상청)는 F8 설정 > 데이터 출처 안내(F16)로 옮길 예정이라 홈에서는 면책 문구만 보여줘요. */}
           <div style={{ padding: "0 24px" }}>
