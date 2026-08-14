@@ -50,6 +50,10 @@ export interface HourSlot {
   roadTemp: number;
   /** 강수형태. 위 Metrics.pty와 같은 이유로 옵션이에요. */
   pty?: number;
+  /** 1시간 강수량 — 기상청 원문 구간 문자열("1.0~4.9mm" 등). 없으면 서버가 아직 안 주거나
+   * 그 시간에 비 예보가 없는 거예요. 정확한 mm이 아니라 구간이라, 화면에 쓸 대표값은
+   * constants/rain.ts에서 이 문자열로부터 뽑아요(서버가 지어내지 않아요). */
+  pcp?: string;
 }
 
 export interface BestWindow {
@@ -95,6 +99,9 @@ export interface FetchJudgeParams {
   ny: number;
   profile: Profile;
   areaNo?: string;
+  /** 지역명(예: "고양시 일산동구"). 폭염특보를 이 구역으로 필터링하는 데 써요.
+   * 안 보내면 서버가 전국 최고 등급으로 폴백해서, 내 동네에 특보가 없어도 배지가 떠요. */
+  area?: string;
 }
 
 export async function fetchJudge({
@@ -102,6 +109,7 @@ export async function fetchJudge({
   ny,
   profile,
   areaNo,
+  area,
 }: FetchJudgeParams): Promise<JudgeResponse> {
   const query = new URLSearchParams({
     nx: String(nx),
@@ -109,6 +117,7 @@ export async function fetchJudge({
     profile,
   });
   if (areaNo) query.set("areaNo", areaNo);
+  if (area) query.set("area", area);
 
   const res = await fetch(`${API_BASE_URL}/judge?${query.toString()}`);
   const body = await res.json();
@@ -139,15 +148,20 @@ function withRainPreview(body: JudgeResponse): JudgeResponse {
     // 지금은 비, 1시간 2.5mm.
     metrics: { ...body.metrics, pty: 1, rain: 2.5 },
     // 지금부터 3시간은 비, 그 뒤 두 칸 쉬었다가 저녁에 소나기 — 연속/불연속을 같이 봐요.
-    hourly: body.hourly.map((slot) => ({
-      ...slot,
-      pty:
-        slot.hour >= nowHour && slot.hour < nowHour + 3
-          ? 1
-          : slot.hour >= nowHour + 5 && slot.hour < nowHour + 7
-            ? 4
-            : 0,
-    })),
+    // 강수량도 시간마다 다르게 줘서(4.9mm/9.9mm 뒤섞기) 막대 높이가 다양하게 나오는지 확인해요.
+    hourly: body.hourly.map((slot) => {
+      const isFirstRainSpan = slot.hour >= nowHour && slot.hour < nowHour + 3;
+      const isShowerSpan = slot.hour >= nowHour + 5 && slot.hour < nowHour + 7;
+      const pty = isFirstRainSpan ? 1 : isShowerSpan ? 4 : 0;
+      const pcp = isFirstRainSpan
+        ? slot.hour === nowHour
+          ? "1.0~4.9mm"
+          : "10.0~19.9mm"
+        : isShowerSpan
+          ? "30.0mm 이상"
+          : undefined;
+      return { ...slot, pty, ...(pcp ? { pcp } : {}) };
+    }),
   };
 }
 
