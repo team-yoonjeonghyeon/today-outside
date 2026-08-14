@@ -948,6 +948,7 @@ async function handleMood(event: FunctionUrlEvent, method: string): Promise<Lamb
     const previous = await readMoodDevice(deviceKey);
 
     // 1) 카운터를 올리고, 새 한마디면 칸 순번도 같이 받아요 (쓰기 한 번).
+    // 여기서 실패하면 아직 아무것도 반영 안 됐으니 그대로 502 — 재시도해도 안전해요.
     let item = await applyMoodAction(region, date, dong, previous, {
       ...(mood ? { mood } : {}),
       ...(message ? { message } : {}),
@@ -959,31 +960,43 @@ async function handleMood(event: FunctionUrlEvent, method: string): Promise<Lamb
         ? { index: previous.messageIndex, seq: previous.messageSeq }
         : null;
 
+    // 1)은 이미 커밋됐어요 — 여기부터는 실패해도 요청을 502로 되돌리지 않아요. 그러면 카운터만
+    // 오르고 화면은 "체크 안 됨"으로 보이는 상태가 반복돼요(다음 클릭도 previous를 못 읽어서
+    // 또 새 참여자로 처리되니까요). 대신 실패한 단계는 로그만 남기고, 이미 아는 값(mood·message)
+    // 으로 최선의 응답을 돌려줘서 화면이 항상 "방금 누른 게 반영됐다"고 보이게 해요.
     if (message) {
-      const written = await writeMoodMessage(
-        region,
-        date,
-        dong,
-        message,
-        Number(item?.seq?.N ?? '1'),
-        previous
-      );
-      item = written.item;
-      slot = written.slot;
+      try {
+        const written = await writeMoodMessage(
+          region,
+          date,
+          dong,
+          message,
+          Number(item?.seq?.N ?? '1'),
+          previous
+        );
+        item = written.item ?? item;
+        slot = written.slot;
+      } catch (e) {
+        console.error('[mood] 한마디 칸 기록 실패 — 집계는 이미 반영됐어요', e);
+      }
     }
 
-    // 3) 마지막에 내 기록을 남겨요. 집계보다 먼저 쓰면, 집계가 실패했을 때 "이미 참여함"으로
-    //    남아서 다시 눌러도 반영이 안 돼요. 이 순서면 최악의 경우 한 번 더 세어질 뿐이에요.
-    await ddbPut(deviceKey, {
-      body: JSON.stringify({
-        mood: mood ?? previous?.mood ?? null,
-        message: message ?? previous?.message ?? null,
-        messageIndex: slot?.index ?? null,
-        messageSeq: slot?.seq ?? null,
-        dong,
-      }),
-      expiresAt: moodExpiresAt(),
-    });
+    // 3) 마지막에 내 기록을 남겨요(하루 한 표·한마디 판단, 다음 방문 시 선택 상태 복원용).
+    //    이것도 best-effort예요 — 실패해도 방금 반영된 집계·한마디를 무효로 만들지 않아요.
+    try {
+      await ddbPut(deviceKey, {
+        body: JSON.stringify({
+          mood: mood ?? previous?.mood ?? null,
+          message: message ?? previous?.message ?? null,
+          messageIndex: slot?.index ?? null,
+          messageSeq: slot?.seq ?? null,
+          dong,
+        }),
+        expiresAt: moodExpiresAt(),
+      });
+    } catch (e) {
+      console.error('[mood] 기기 기록 저장 실패 — 다음 요청은 새 참여자로 처리될 수 있어요', e);
+    }
 
     return {
       statusCode: 200,

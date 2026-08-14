@@ -128,6 +128,10 @@ export interface FcstHour {
   windSpeed?: number;
   sky?: number;
   pty?: number;
+  /** 1시간 강수량(PCP). 기상청이 이미 구간으로 뭉뚱그려 주는 문자열이에요(예: "1.0~4.9mm",
+   * "50.0mm 이상", "강수없음") — 정확한 mm이 아니라 그대로 통과시켜요. 화면에서 정확한 숫자인
+   * 척 보여주면 안 되니, 막대 높이 계산은 프론트가 이 구간에서 대표값만 뽑아 써요. */
+  pcp?: string;
 }
 
 export async function fetchVilage(
@@ -157,6 +161,8 @@ export async function fetchVilage(
       case 'WSD': cur.windSpeed = v; break;
       case 'SKY': cur.sky = v; break;
       case 'PTY': cur.pty = v; break;
+      // PCP는 숫자가 아니라 "1.0~4.9mm" 같은 구간 문자열이라 Number()로 안 돌려요.
+      case 'PCP': cur.pcp = String(i.fcstValue ?? ''); break;
     }
     out.set(key, cur);
   }

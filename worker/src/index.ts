@@ -219,6 +219,7 @@ export default {
           feelsLike: c.feelsLike,
           roadTemp: c.roadTemp,
           pty: point.pty,
+          ...(f?.pcp ? { pcp: f.pcp } : {}),
         });
       }
 
