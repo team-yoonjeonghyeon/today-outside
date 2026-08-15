@@ -18,6 +18,7 @@ import { getAnonKey, requestAgreement, syncSubscriptions } from "../lib/notifica
 import { subscribeNotification, unsubscribeNotification, type NotificationType } from "../lib/judgeApi";
 import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import { ROUTES } from "../routes";
+import packageJson from "../../package.json"; // 버전 정보 표시용 — package.json이 유일한 출처예요.
 
 // F8 설정. 앱빌더에서 파트너가 준 화면 코드를 기준으로 만들었어요(docs 목업 대신).
 // 자체 뒤로가기·타이틀은 렌더링하지 않아요 — 내비게이션 바는 앱인토스가 제공해요 (CLAUDE.md 제약).
@@ -522,27 +523,6 @@ export default function Settings() {
           verticalPadding="large"
           onClick={() => navigate(ROUTES.dataSource)}
         />
-        {/* 꾹 누르면 전체 초기화 (위 debugReset 주석 참고). 꾹 누르는 동안 글자가 선택되지
-            않게 userSelect를 꺼요. */}
-        <div {...debugReset} style={{ width: "100%", userSelect: "none" }}>
-          <ListRow
-            left={
-              <ListRow.AssetImage
-                src="https://static.toss.im/2d-icons/emoji/png/4x/u2139.png"
-                shape="squircle"
-                backgroundColor={adaptive.greyOpacity100}
-                size="xsmall"
-              />
-            }
-            contents={
-              <ListRow.Texts type="1RowTypeA" top="버전 정보" topProps={{ color: adaptive.grey800 }} />
-            }
-            right={
-              <ListRow.Texts type="Right1RowTypeA" top="0.1.0" topProps={{ color: adaptive.grey600 }} />
-            }
-            verticalPadding="large"
-          />
-        </div>
         <ListRow
           left={
             <ListRow.AssetImage
@@ -563,6 +543,32 @@ export default function Settings() {
           }
           verticalPadding="large"
         />
+        {/* 꾹 누르면 전체 초기화 (위 debugReset 주석 참고). 꾹 누르는 동안 글자가 선택되지
+            않게 userSelect를 꺼요. 맨 아래 둬요 — 목록에서 가장 안 건드릴 위치라 실수로
+            꾹 눌릴 일이 적어요. */}
+        <div {...debugReset} style={{ width: "100%", userSelect: "none" }}>
+          <ListRow
+            left={
+              <ListRow.AssetImage
+                src="https://static.toss.im/2d-icons/emoji/png/4x/u2139.png"
+                shape="squircle"
+                backgroundColor={adaptive.greyOpacity100}
+                size="xsmall"
+              />
+            }
+            contents={
+              <ListRow.Texts type="1RowTypeA" top="버전 정보" topProps={{ color: adaptive.grey800 }} />
+            }
+            right={
+              <ListRow.Texts
+                type="Right1RowTypeA"
+                top={packageJson.version}
+                topProps={{ color: adaptive.grey600 }}
+              />
+            }
+            verticalPadding="large"
+          />
+        </div>
       </List>
 
       <Spacing size={16} />

@@ -29,6 +29,26 @@ export function precipitationLabel(pty: number | undefined): string | null {
 }
 
 /**
+ * 1시간 강수량(PCP) 원문 구간 문자열에서 막대 높이 계산용 대표값(mm)을 뽑아요.
+ *
+ * 기상청이 애초에 "1.0~4.9mm"·"50.0mm 이상" 같은 구간으로만 줘서 정확한 mm은 몰라요. 여기서
+ * 뽑은 값은 그래서 화면 텍스트로는 안 써요(정직성 원칙) — 막대 높이 비교에만 쓰고, 실제
+ * 라벨은 이 원문 문자열을 그대로 보여줘요.
+ *
+ * "미만"은 상한이라 절반을, "이상"은 하한 그대로를, 구간("A~B")은 평균을 대표값으로 삼아요.
+ */
+export function parsePcpMm(pcp: string | undefined): number {
+  if (!pcp) return 0;
+  const numbers = pcp.match(/\d+(\.\d+)?/g)?.map(Number) ?? [];
+  if (numbers.length === 0) return 0;
+  if (numbers.length === 1) {
+    const [n] = numbers;
+    return pcp.includes("미만") ? n / 2 : n;
+  }
+  return (numbers[0] + numbers[1]) / 2;
+}
+
+/**
  * 지금부터 24시 사이에 비가 시작하는 첫 시각. 이미 오는 중이면 null이에요
  * (그건 "지금 와요"로 따로 보여주니까요).
  */

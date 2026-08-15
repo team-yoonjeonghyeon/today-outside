@@ -261,7 +261,7 @@ export default function Home() {
     setLoading(true);
     setErrorMessage(null);
 
-    fetchJudge({ nx: region.nx, ny: region.ny, profile })
+    fetchJudge({ nx: region.nx, ny: region.ny, profile, area: region.label })
       .then((res) => {
         if (!cancelled) setData(res);
       })
@@ -281,7 +281,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [profile, region.nx, region.ny, refreshKey]);
+  }, [profile, region.nx, region.ny, region.label, refreshKey]);
 
   // 프로필 전환 중에는 이전 프로필의 데이터가 남아있을 수 있어 화면이 잠깐 어긋나 보일 수 있어요 — 그 값은 쓰지 않아요.
   const showData = data && data.profile === profile ? data : null;
@@ -480,8 +480,15 @@ export default function Home() {
               값이 없는 걸 "비 안 와요"로 단정하면 안 되니까요. */}
           {rainNotice && (
             <div style={{ margin: "0 24px 16px" }}>
-              <div
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(ROUTES.rainDetail, {
+                    state: { nx: region.nx, ny: region.ny, profile, label: region.label },
+                  })
+                }
                 style={{
+                  width: "100%",
                   background: "#EAF2FE",
                   border: "1px solid #C5DBFA",
                   borderRadius: 12,
@@ -489,29 +496,44 @@ export default function Home() {
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
+                  cursor: "pointer",
+                  outline: "none",
+                  font: "inherit",
+                  textAlign: "left",
                 }}
               >
                 <img src={RAIN_ICON} alt="" width={22} height={22} style={{ display: "block" }} />
-                <Paragraph.Text color="#1B4B8F" fontWeight="bold">
+                <Paragraph.Text color="#1B4B8F" fontWeight="bold" style={{ flex: 1 }}>
                   {rainNotice}
                 </Paragraph.Text>
-              </div>
+                <span style={{ color: "#1B4B8F", fontSize: 16, fontWeight: 700, lineHeight: 1 }}>›</span>
+              </button>
             </div>
           )}
 
-          {/* 다음 행동 카드 — 최적 시간창(bestWindow)이 있으면 강조, 없으면 담백하게 안내 (기획서 §3-7) */}
-          {showData.bestWindow ? (
-            <div style={{ margin: "0 24px 16px", background: MINT[50], borderRadius: 16 }}>
-              <ListRow
-                left={
+          {/* 다음 행동 카드 — 최적 시간창(bestWindow)이 있으면 민트로 강조, 없어도 시간창
+              화면(Timeline)으로 들어가는 유일한 입구라 카드 자체는 남기고 담백하게 안내해요
+              (기획서 §3-7). */}
+          <div
+            style={{
+              margin: "0 24px 16px",
+              background: showData.bestWindow ? MINT[50] : adaptive.grey100,
+              borderRadius: 16,
+            }}
+          >
+            <ListRow
+              left={
+                showData.bestWindow ? (
                   <ListRow.AssetImage
                     src={WCTA_COPY[profile].icon}
                     shape="squircle"
                     size="small"
                     backgroundColor={MINT[400]}
                   />
-                }
-                contents={
+                ) : undefined
+              }
+              contents={
+                showData.bestWindow ? (
                   <ListRow.Texts
                     type="2RowTypeA"
                     top={showData.bestWindow.label}
@@ -519,23 +541,23 @@ export default function Home() {
                     bottom={WCTA_COPY[profile].caption}
                     bottomProps={{ color: MINT[700] }}
                   />
-                }
-                withArrow
-                verticalPadding="large"
-                onClick={() =>
-                  navigate(ROUTES.timeline, {
-                    state: { nx: region.nx, ny: region.ny, profile, label: region.label },
-                  })
-                }
-              />
-            </div>
-          ) : (
-            <div style={{ margin: "0 24px 16px", background: adaptive.grey100, borderRadius: 16, padding: "16px" }}>
-              <Paragraph.Text color={adaptive.grey700} fontWeight="medium">
-                오늘은 특별히 더 좋은 시간대가 없어요
-              </Paragraph.Text>
-            </div>
-          )}
+                ) : (
+                  <ListRow.Texts
+                    type="1RowTypeA"
+                    top="오늘은 특별히 더 좋은 시간대가 없어요"
+                    topProps={{ color: adaptive.grey700, fontWeight: "medium" }}
+                  />
+                )
+              }
+              withArrow
+              verticalPadding="large"
+              onClick={() =>
+                navigate(ROUTES.timeline, {
+                  state: { nx: region.nx, ny: region.ny, profile, label: region.label },
+                })
+              }
+            />
+          </div>
 
           <div style={{ padding: "0 24px" }}>
             <Paragraph.Text color={adaptive.grey500} fontWeight="bold">

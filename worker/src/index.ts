@@ -219,6 +219,9 @@ export default {
           feelsLike: c.feelsLike,
           roadTemp: c.roadTemp,
           pty: point.pty,
+          // 빈 문자열도 "이 시간엔 강수량 구간이 없다"는 유효한 값이라 undefined일 때만 빼요
+          // (truthy 체크였으면 ""가 카테고리 자체가 없었던 것과 구분 없이 사라졌어요).
+          ...(f?.pcp !== undefined ? { pcp: f.pcp } : {}),
         });
       }
 

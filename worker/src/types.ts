@@ -39,6 +39,10 @@ export interface HourSlot {
    * 화면이 "왜 등급이 올랐는지"를 보여줄 수 없었어요. 시간별로 그대로 내보내요.
    */
   pty: number;
+  /** 1시간 강수량(PCP) — 기상청 원문 구간 문자열 그대로("1.0~4.9mm" 등). 비가 없거나
+   * 서버가 아직 못 받았으면 없어요. 프론트가 화면에 쓸 대표값은 이 문자열에서 직접 뽑아요 —
+   * 서버가 정확한 mm인 척 숫자를 지어내지 않아요. */
+  pcp?: string;
 }
 
 export interface BestWindow {

@@ -11,6 +11,7 @@ export const ROUTES = {
   home: "/home", // F2·F3·F7 홈 — 탭으로 묶인 허브 (반려견/야외작업/러너)
   timeline: "/timeline", // F4 시간창
   details: "/details", // F5 지표 상세
+  rainDetail: "/rain-detail", // 비 상세 — F1~F16 화면 흐름도엔 없음. 강수 필드가 디자인프레임보다 나중에 생겼어요.
   locationDenied: "/location-denied", // F6 위치 권한 거부
   settings: "/settings", // F8 설정
   regionSearch: "/region-search", // F9 지역 검색·추가
