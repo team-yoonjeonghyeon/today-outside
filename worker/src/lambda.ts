@@ -1444,8 +1444,10 @@ interface FrozenHour {
   airTemp: number;
 }
 
+// v2 — 배포 첫날 "지금" 시간까지 얼려버리는 버그가 있었어요. 그때 잘못 저장된 v1 키는
+// 그냥 버려두고(하루 지나면 TTL로 알아서 사라져요) 새 접두어로 깨끗하게 다시 시작해요.
 function hourFreezeKey(nx: number, ny: number, date: string): string {
-  return `hourfreeze:${nx}:${ny}:${date}`;
+  return `hourfreeze2:${nx}:${ny}:${date}`;
 }
 
 /** mood와 같은 규칙 — 오늘 자정(KST) + 2시간. TTL 삭제가 늦어져도 날짜가 키에 있어서 안전해요. */
@@ -1507,9 +1509,12 @@ function hourSlotFromFrozen(hour: number, profile: Profile, frozen: FrozenHour):
 }
 
 /**
- * `/judge` 응답의 hourly[]에서 이미 지난 시간을 저장값으로 덮어써요. 처음 관측하는 시간은
- * 저장해두고요. 실패해도(파싱 오류·DynamoDB 장애) 원본 응답을 그대로 돌려주면 되는
- * 부가 기능이라 호출부에서 try/catch로 감싸요.
+ * `/judge` 응답의 hourly[]에서 "지금보다 앞선" 시간만 저장값으로 덮어써요. 지금 시간은
+ * 절대 안 건드려요 — 지금은 아직 진행 중이라 이번 요청 안에서도 계속 바뀔 수 있는데,
+ * 지금까지 얼려버리면 그 시간 안에 비가 새로 시작해도 두 번째 조회부턴 업데이트가
+ * 안 돼요. 처음 관측하는(지금 막 지나간) 시간은 저장해두고요. 실패해도(파싱 오류·
+ * DynamoDB 장애) 원본 응답을 그대로 돌려주면 되는 부가 기능이라 호출부에서
+ * try/catch로 감싸요.
  */
 async function freezeHourly(
   nx: number,
@@ -1528,7 +1533,9 @@ async function freezeHourly(
   const byHour = new Map(parsed.hourly.map((slot) => [slot.hour, slot]));
   const toFreeze: Record<string, FrozenHour> = {};
 
-  for (let h = 6; h <= Math.min(23, nowHour); h++) {
+  // h < nowHour만 — 지금 시간(h === nowHour)은 절대 얼리지 않아요.
+  const lastPastHour = Math.min(23, nowHour - 1);
+  for (let h = 6; h <= lastPastHour; h++) {
     const existing = frozen[String(h)];
     if (existing) {
       // 저장된 값이 있으면 무조건 그걸 써요 — 이번 응답이 재계산했더라도 무시해요.
