@@ -24,7 +24,8 @@ import {
 import * as https from 'node:https';
 import worker from './index';
 import { kstParts, nowKst, toGrid, yyyymmdd } from './geo';
-import type { JudgeResponse, Profile } from './types';
+import { judge, type Computed } from './engine';
+import type { HourSlot, JudgeResponse, Profile } from './types';
 
 const TABLE = process.env.CACHE_TABLE ?? '';
 const ddb = TABLE ? new DynamoDBClient({}) : null;
@@ -1417,6 +1418,139 @@ export async function runHourlyCheck(): Promise<{ dangerAlert: DispatchResult; w
   return { dangerAlert, walkTimeAlert };
 }
 
+/* ────────────────────────────────── 시간별 판정 동결 (지난 시간 재계산 방지) */
+
+/**
+ * 기상청 단기예보는 3시간마다 새로 발표되는데, 새 발표엔 이미 지난 시간이 더 이상 안 들어있어요
+ * (index.ts는 그럴 때 그 시간을 아예 빼요 — 지금 날씨로 거짓 채움 하는 것보단 나아요, index.ts
+ * 주석 참고). 그런데 우리는 그 시간이 "지금"이었을 때 이미 한 번 계산해봤을 수 있어요 — 그
+ * 값을 저장해두고, 지난 시간은 재계산 대신 저장값을 그대로 돌려줘요. '오늘' 하루만 다루면
+ * 되니(내일이 되면 다른 키예요) 자정 지나면 저절로 리셋돼요.
+ *
+ * level은 프로필마다 달라서 저장하지 않아요 — feelsLike·roadTemp·uvi·airTemp 같은 "그 시간의
+ * 물리량"만 저장해두고, 읽을 때 요청받은 프로필로 judge()를 다시 돌려요. 그래야 아침에 dog
+ * 프로필로 처음 관측된 시간을 낮에 runner 프로필로 봐도 정확해요.
+ *
+ * 딱 한 번도 "지금"으로 관측되지 못하고 지나간 시간(예: 그날 처음 켠 게 오후)은 저장값도
+ * 없고 예보도 이미 사라져서 진짜 복구 불가예요 — 그건 index.ts가 이미 뺀 채로 나가요.
+ */
+interface FrozenHour {
+  feelsLike: number;
+  roadTemp: number;
+  roadTempSoil: number;
+  pty: number;
+  pcp?: string;
+  uvi: number;
+  airTemp: number;
+}
+
+function hourFreezeKey(nx: number, ny: number, date: string): string {
+  return `hourfreeze:${nx}:${ny}:${date}`;
+}
+
+/** mood와 같은 규칙 — 오늘 자정(KST) + 2시간. TTL 삭제가 늦어져도 날짜가 키에 있어서 안전해요. */
+function hourFreezeExpiresAt(): number {
+  const p = kstParts(nowKst());
+  const remain = 86400 - (p.hour * 3600 + p.minute * 60);
+  return Math.floor(Date.now() / 1000) + remain + 2 * 3600;
+}
+
+async function readFrozenHours(key: string): Promise<Record<string, FrozenHour>> {
+  const entry = await ddbGet(key);
+  if (!entry) return {};
+  try {
+    const parsed = JSON.parse(entry.body) as unknown;
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, FrozenHour>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function toFrozenHour(slot: HourSlot): FrozenHour {
+  return {
+    feelsLike: slot.feelsLike,
+    roadTemp: slot.roadTemp,
+    roadTempSoil: slot.roadTempSoil,
+    pty: slot.pty,
+    ...(slot.pcp !== undefined ? { pcp: slot.pcp } : {}),
+    uvi: slot.uvi,
+    airTemp: slot.airTemp,
+  };
+}
+
+/** 저장된 물리량으로 judge()를 다시 돌려서 이 프로필의 등급을 얻어요. */
+function hourSlotFromFrozen(hour: number, profile: Profile, frozen: FrozenHour): HourSlot {
+  const c: Computed = {
+    feelsLike: frozen.feelsLike,
+    roadTemp: frozen.roadTemp,
+    roadBySurface: {
+      asphalt: frozen.roadTemp,
+      pavement: frozen.roadTemp,
+      grass: frozen.roadTemp,
+      soil: frozen.roadTempSoil,
+    },
+    srNorm: 0,
+    uvi: frozen.uvi,
+  };
+  const v = judge(profile, c, frozen.airTemp, frozen.pty);
+  return {
+    hour,
+    level: v.level,
+    feelsLike: frozen.feelsLike,
+    roadTemp: frozen.roadTemp,
+    roadTempSoil: frozen.roadTempSoil,
+    pty: frozen.pty,
+    ...(frozen.pcp !== undefined ? { pcp: frozen.pcp } : {}),
+    uvi: frozen.uvi,
+    airTemp: frozen.airTemp,
+  };
+}
+
+/**
+ * `/judge` 응답의 hourly[]에서 이미 지난 시간을 저장값으로 덮어써요. 처음 관측하는 시간은
+ * 저장해두고요. 실패해도(파싱 오류·DynamoDB 장애) 원본 응답을 그대로 돌려주면 되는
+ * 부가 기능이라 호출부에서 try/catch로 감싸요.
+ */
+async function freezeHourly(
+  nx: number,
+  ny: number,
+  profile: Profile,
+  rawBody: string
+): Promise<string | null> {
+  const parsed = JSON.parse(rawBody) as JudgeResponse;
+  if (!Array.isArray(parsed.hourly) || parsed.hourly.length === 0) return null;
+
+  const nowHour = kstParts(nowKst()).hour;
+  const date = yyyymmdd(nowKst());
+  const key = hourFreezeKey(nx, ny, date);
+  const frozen = await readFrozenHours(key);
+
+  const byHour = new Map(parsed.hourly.map((slot) => [slot.hour, slot]));
+  const toFreeze: Record<string, FrozenHour> = {};
+
+  for (let h = 6; h <= Math.min(23, nowHour); h++) {
+    const existing = frozen[String(h)];
+    if (existing) {
+      // 저장된 값이 있으면 무조건 그걸 써요 — 이번 응답이 재계산했더라도 무시해요.
+      byHour.set(h, hourSlotFromFrozen(h, profile, existing));
+      continue;
+    }
+    const live = byHour.get(h);
+    if (live) toFreeze[String(h)] = toFrozenHour(live); // 처음 관측 — 저장할 목록에 담아요.
+    // live도 없고 저장값도 없으면 복구 불가라 손 안 대요(index.ts가 이미 뺀 채로 나가요).
+  }
+
+  if (Object.keys(toFreeze).length > 0) {
+    await ddbPut(key, {
+      body: JSON.stringify({ ...frozen, ...toFreeze }),
+      expiresAt: hourFreezeExpiresAt(),
+    });
+  }
+
+  const hourly = [...byHour.values()].sort((a, b) => a.hour - b.hour);
+  return JSON.stringify({ ...parsed, hourly });
+}
+
 export const handler = async (
   event: FunctionUrlEvent | ScheduledEvent
 ): Promise<LambdaResponse | Record<string, unknown>> => {
@@ -1500,9 +1634,26 @@ export const handler = async (
   } as never;
 
   const res: Response = await worker.fetch(request, env, ctx);
-  const body = await res.text();
+  let body = await res.text();
 
   if (pending.length) await Promise.allSettled(pending);
+
+  // /judge 성공 응답의 지난 시간을 저장값으로 덮어써요. 부가 기능이라 실패해도 원본을
+  // 그대로 내보내면 돼요(파싱 오류·DynamoDB 장애가 판정 자체를 막으면 안 돼요).
+  if (path === '/judge' && res.status === 200) {
+    try {
+      const sp = new URLSearchParams(event.rawQueryString ?? '');
+      const nx = Number(sp.get('nx'));
+      const ny = Number(sp.get('ny'));
+      const profile = sp.get('profile') as Profile | null;
+      if (Number.isFinite(nx) && Number.isFinite(ny) && profile) {
+        const patched = await freezeHourly(nx, ny, profile, body);
+        if (patched) body = patched;
+      }
+    } catch (e) {
+      console.error('[hourfreeze]', e);
+    }
+  }
 
   const headers: Record<string, string> = {};
   res.headers.forEach((value, key) => {
