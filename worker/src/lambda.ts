@@ -1421,18 +1421,20 @@ export async function runHourlyCheck(): Promise<{ dangerAlert: DispatchResult; w
 /* ────────────────────────────────── 시간별 판정 동결 (지난 시간 재계산 방지) */
 
 /**
- * 기상청 단기예보는 3시간마다 새로 발표되는데, 새 발표엔 이미 지난 시간이 더 이상 안 들어있어요
- * (index.ts는 그럴 때 그 시간을 아예 빼요 — 지금 날씨로 거짓 채움 하는 것보단 나아요, index.ts
- * 주석 참고). 그런데 우리는 그 시간이 "지금"이었을 때 이미 한 번 계산해봤을 수 있어요 — 그
- * 값을 저장해두고, 지난 시간은 재계산 대신 저장값을 그대로 돌려줘요. '오늘' 하루만 다루면
+ * 기상청 단기예보는 3시간마다 새로 발표되는데, 새 발표엔 이미 지난 시간이 더 이상 안 들어있어요.
+ * index.ts는 그 시간을 지금 날씨(ncst)로 대신 채워서 내보내는데, 그대로 두면 "아침에
+ * 위험했던 시간이 오후엔 지금 날씨 기준 좋음으로" 바뀌어 보여요. 그런데 우리는 그 시간이
+ * "지금"이었을 때 이미 한 번 정확하게 계산해봤을 수 있어요 — 그 값을 저장해두고, 지난
+ * 시간은 재계산(=index.ts의 ncst 폴백) 대신 저장값을 그대로 돌려줘요. '오늘' 하루만 다루면
  * 되니(내일이 되면 다른 키예요) 자정 지나면 저절로 리셋돼요.
  *
  * level은 프로필마다 달라서 저장하지 않아요 — feelsLike·roadTemp·uvi·airTemp 같은 "그 시간의
  * 물리량"만 저장해두고, 읽을 때 요청받은 프로필로 judge()를 다시 돌려요. 그래야 아침에 dog
  * 프로필로 처음 관측된 시간을 낮에 runner 프로필로 봐도 정확해요.
  *
- * 딱 한 번도 "지금"으로 관측되지 못하고 지나간 시간(예: 그날 처음 켠 게 오후)은 저장값도
- * 없고 예보도 이미 사라져서 진짜 복구 불가예요 — 그건 index.ts가 이미 뺀 채로 나가요.
+ * 딱 한 번도 "지금"으로 관측되지 못하고 지나간 시간(예: 그날 처음 켠 게 오후, 또는 이 기능이
+ * 배포된 당일의 그 이전 시간들)은 저장값이 없어서 index.ts의 ncst 폴백값이 그대로 나가요 —
+ * 부정확할 순 있어도 화면에서 그 시간이 통째로 사라지진 않아요.
  */
 interface FrozenHour {
   feelsLike: number;
@@ -1542,9 +1544,11 @@ async function freezeHourly(
       byHour.set(h, hourSlotFromFrozen(h, profile, existing));
       continue;
     }
+    // 처음 관측하는 시간 — index.ts가 내려준 값(예보 있으면 예보, 없으면 ncst 폴백)을
+    // 저장해서 다음부턴 이 값을 그대로 써요. index.ts는 항상 06~23시를 다 채워서 주니까
+    // live가 없는 경우는 없어요.
     const live = byHour.get(h);
-    if (live) toFreeze[String(h)] = toFrozenHour(live); // 처음 관측 — 저장할 목록에 담아요.
-    // live도 없고 저장값도 없으면 복구 불가라 손 안 대요(index.ts가 이미 뺀 채로 나가요).
+    if (live) toFreeze[String(h)] = toFrozenHour(live);
   }
 
   if (Object.keys(toFreeze).length > 0) {
