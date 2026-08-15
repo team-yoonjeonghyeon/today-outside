@@ -19,6 +19,7 @@ import {
   uviLabel,
 } from './engine';
 import {
+  earliestTodayVilageBase,
   Env,
   estimateUvi,
   fetchHeatWarning,
@@ -152,6 +153,22 @@ export default {
         heatWarningWithTimeout(env, area, ctx),
       ]);
 
+      // 최신 발표는 발표 시각 이전 시간을 안 줘요(예: 20시 발표엔 06~19시가 없어요).
+      // 그런 지난 시간이 하나라도 있으면 오늘 새벽 첫 발표를 추가로 받아서 메꿔요 — 그
+      // 발표는 하루 전체(06~23시)를 담고 있어서, 아무도 그 시간에 들어와본 적 없는
+      // "콜드 스타트" 상황에서도 지금 날씨로 퉁치지 않고 실제 그 시간의 예보값을 쓸 수 있어요.
+      // 이미 커버되는 날(대부분)엔 이 추가 호출이 아예 안 일어나요.
+      let earlyFcst: Awaited<ReturnType<typeof fetchVilage>> | null = null;
+      const needsBackfill = Array.from({ length: Math.max(0, p.hour - 6) }, (_, i) => 6 + i).some(
+        (h) => !fcst.get(`${today}-${String(h).padStart(2, '0')}00`)
+      );
+      if (needsBackfill) {
+        // 실패해도 조용히 넘어가요 — 이 호출이 없던 시절의 지금 날씨 폴백으로 돌아갈 뿐,
+        // 이거 하나 때문에 /judge 전체가 502로 죽으면 안 돼요(부가 개선이지 필수 데이터가
+        // 아니에요).
+        earlyFcst = await fetchVilage(env, nx, ny, earliestTodayVilageBase(now)).catch(() => null);
+      }
+
       const dateParts = { year: p.year, month: p.month, day: p.day };
 
       const uviAt = (hour: number, srNorm: number): number => {
@@ -198,14 +215,13 @@ export default {
       const hourly: HourSlot[] = [];
       for (let h = 6; h <= 23; h++) {
         const key = `${today}-${String(h).padStart(2, '0')}00`;
-        const f = fcst.get(key);
-
-        // 이미 지난 시간인데 이번 예보 발표에 그 시간이 없으면(발표가 몇 시간마다 갱신되면서
-        // 지난 시간은 더 이상 안 나와요) 지금 날씨(ncst)로 대신 채워요 — 정확하진 않지만
-        // 화면에서 그 시간이 통째로 사라지는 것보단 나아요. 이 시간을 실제로 정확히 보여주는
-        // 일은 배열에서 빼는 게 아니라 lambda.ts의 시간별 판정 동결(freezeHourly)이 해요 —
-        // 그 시간이 "지금"이었을 때 계산해둔 값을 저장해뒀다가 지난 뒤엔 그 값을 그대로
-        // 돌려줘서, 여기 폴백은 아직 한 번도 관측 못 하고 지나간 시간에만 쓰여요.
+        // 최신 발표에 없으면(발표 시각 이전 시간) 오늘 새벽 첫 발표로 메꿔요 — 그것도 없어야
+        // (이론상 거의 없어요, 첫 발표가 하루를 통째로 담고 있으니까요) 지금 날씨로 대신 채워요.
+        // 지금 날씨 폴백은 정확하진 않지만 화면에서 그 시간이 통째로 사라지는 것보단 나아요.
+        // 이 시간을 실제로 정확히 보여주는 일은 배열에서 빼는 게 아니라 lambda.ts의 시간별
+        // 판정 동결(freezeHourly)이 해요 — 그 시간이 "지금"이었을 때 계산해둔 값을
+        // 저장해뒀다가 지난 뒤엔 그 값을 그대로 돌려줘요.
+        const f = fcst.get(key) ?? earlyFcst?.get(key);
         const point: WeatherPoint = {
           hour: h,
           airTemp: f?.airTemp ?? ncst.airTemp,
