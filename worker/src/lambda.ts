@@ -797,6 +797,18 @@ async function applyMoodAction(
   if (needsNewSlot) {
     values[':one'] = { N: '1' };
     addParts.push('seq :one');
+
+    // msgs는 고정 크기(MESSAGE_RING_SIZE) 링 버퍼예요. DynamoDB의 `SET msgs[i] = value`는
+    // 그 인덱스가 이미 존재할 때만 허용돼요(list_append처럼 이어붙이는 게 아니에요) — 그래서
+    // 오늘 이 지역에 msgs가 아직 없으면(첫 참여) writeMoodMessage의 SET msgs[index]가 매번
+    // ValidationException으로 실패하고, 그 실패는 조용히 삼켜져서 한마디가 하나도 안 쌓이는
+    // 버그였어요. 여기서 40칸짜리 빈 리스트로 먼저 초기화해두면 그 다음 SET msgs[index]가
+    // 항상 유효한 자리를 가리켜요. if_not_exists라 이미 있으면 손대지 않고, 여러 기기가
+    // 동시에 첫 참여해도 서로 덮어쓰지 않아요(둘 다 같은 값을 쓰려고만 해요).
+    values[':emptyMsgs'] = {
+      L: Array.from({ length: MESSAGE_RING_SIZE }, () => ({ M: { i: { S: '' } } })),
+    };
+    setParts.push('msgs = if_not_exists(msgs, :emptyMsgs)');
   }
 
   const expression =

@@ -87,6 +87,19 @@ function items(json: any): any[] {
   return Array.isArray(it) ? it : [it];
 }
 
+/**
+ * 기상청이 관측·예보값이 없을 때 흘려보내는 결측 부호(-998, -999 등)를 걸러요.
+ *
+ * 관측소가 없는 격자(주로 바다·경계 밖)에서 실제로 -999 같은 값이 그대로 응답에 섞여
+ * 나온 적이 있어요 — 그러면 기온 -999℃, 체감온도 109℃처럼 계산이 통째로 깨져요.
+ * 습도·풍속·강수량은 물리적으로 음수가 될 수 없어서 음수면 바로 결측으로 봐요. 기온은
+ * 국내에서 -60℃ 밑으로 내려갈 일이 없어서 그 아래도 결측으로 봐요.
+ */
+function kmaNumber(raw: number | undefined, min: number): number | null {
+  if (raw === undefined || !Number.isFinite(raw) || raw < min) return null;
+  return raw;
+}
+
 export interface Ncst {
   airTemp: number;
   humidity: number;
@@ -110,11 +123,11 @@ export async function fetchNcst(env: Env, nx: number, ny: number): Promise<Ncst>
   items(json).forEach((i) => (map[i.category] = Number(i.obsrValue)));
 
   return {
-    airTemp: map.T1H ?? 0,
-    humidity: map.REH ?? 60,
-    windSpeed: map.WSD ?? 1,
-    pty: map.PTY ?? 0,
-    rain: Number.isFinite(map.RN1) ? map.RN1 : 0, // '강수없음'이면 NaN → 0
+    airTemp: kmaNumber(map.T1H, -60) ?? 0,
+    humidity: kmaNumber(map.REH, 0) ?? 60,
+    windSpeed: kmaNumber(map.WSD, 0) ?? 1,
+    pty: kmaNumber(map.PTY, 0) ?? 0,
+    rain: kmaNumber(map.RN1, 0) ?? 0, // '강수없음'이면 NaN, 결측이면 -998류 → 둘 다 0
     baseDate,
     baseTime,
   };
@@ -156,12 +169,17 @@ export async function fetchVilage(
 
     const v = Number(i.fcstValue);
     switch (i.category) {
-      case 'TMP': cur.airTemp = v; break;
-      case 'REH': cur.humidity = v; break;
-      case 'WSD': cur.windSpeed = v; break;
+      // 결측이면(-998류) undefined로 남겨서, 읽는 쪽(index.ts)의 `f?.airTemp ?? ncst.airTemp`
+      // 폴백이 그대로 실황값을 쓰게 해요 — kmaNumber가 걸러낸 값을 그냥 넣으면 그 시간만
+      // 조용히 실황으로 폴백되고, 걸러내지 않으면 기온 -999℃ 같은 값이 그대로 나가요.
+      case 'TMP': { const n = kmaNumber(v, -60); if (n !== null) cur.airTemp = n; break; }
+      case 'REH': { const n = kmaNumber(v, 0); if (n !== null) cur.humidity = n; break; }
+      case 'WSD': { const n = kmaNumber(v, 0); if (n !== null) cur.windSpeed = n; break; }
       case 'SKY': cur.sky = v; break;
       case 'PTY': cur.pty = v; break;
       // PCP는 숫자가 아니라 "1.0~4.9mm" 같은 구간 문자열이라 Number()로 안 돌려요.
+      // 빈 문자열("")이어도 "그 시간엔 강수량 구간이 안 잡혔다"는 유효한 신호라 그대로 담아요
+      // — truthy 체크로 버리면 카테고리 자체가 없었던 것과 구분이 안 돼요.
       case 'PCP': cur.pcp = String(i.fcstValue ?? ''); break;
     }
     out.set(key, cur);
