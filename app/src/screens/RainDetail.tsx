@@ -98,10 +98,29 @@ export default function RainDetail() {
   }
 
   const { label } = state;
-  const { metrics, hourly } = data;
+  const { metrics, hourly: rawHourly } = data;
   // Timeline과 같은 이유로 observedAt이 아니라 generatedAt을 써요 — 실제 현재 시각과 같아요.
   const nowHour = parseKstHour(data.generatedAt);
   const nowLabel = precipitationLabel(metrics.pty);
+
+  // hourly[]의 pty·pcp는 몇 시간 전에 나온 예보예요. metrics.pty·rain은 방금 관측된 실황이라
+  // 더 정확해요 — 둘이 갈리면(예보엔 없던 비가 실제로 내리기 시작하는 경우 등) 헤드라인은
+  // "지금 비가 와요"인데 그래프의 지금 시각 막대는 비어 있는 모순이 생겨요. 그래서 지금 시각
+  // 칸만 실황값으로 덮어써서 헤드라인과 그래프가 같은 이야기를 하게 맞춰요.
+  const hourly =
+    metrics.pty === undefined
+      ? rawHourly
+      : rawHourly.map((slot) =>
+          slot.hour === nowHour
+            ? {
+                ...slot,
+                pty: metrics.pty,
+                // 예보 구간 문자열과 달리 실황은 정확한 mm을 알아서, 구간인 척하지 않고 그대로 써요.
+                pcp: metrics.rain && metrics.rain > 0 ? `${metrics.rain}mm` : undefined,
+              }
+            : slot,
+        );
+
   const upcoming = nowLabel ? null : nextWetHour(hourly, nowHour ?? hourly[0]?.hour ?? 6);
   const wetHours = hourly.filter((slot) => isWet(slot.pty));
 

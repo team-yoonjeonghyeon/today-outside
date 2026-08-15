@@ -200,6 +200,14 @@ export default {
         const key = `${today}-${String(h).padStart(2, '0')}00`;
         const f = fcst.get(key);
 
+        // 이미 지난 시간인데 이번 예보 발표에 그 시간이 없으면(발표가 몇 시간마다 갱신되면서
+        // 지난 시간은 더 이상 안 나와요) 지금 날씨(ncst)로 메꾸면 안 돼요. 그러면 아침에
+        // 위험했던 시간도 오후에 조회하는 순간 "지금 좋음"으로 덮어써져서, 이미 지난 위험한
+        // 시간이 갑자기 좋음으로 바뀌어 보이는 버그가 생겨요. 데이터가 없으면 그 시간은 아예
+        // 빼요 — 거짓으로 좋다고 하는 것보다 나아요. findBestWindow도 지금 이후만 보고,
+        // bestWindow·시간창 화면 둘 다 배열 길이에 의존하지 않아서 지장 없어요.
+        if (h < p.hour && !f) continue;
+
         const point: WeatherPoint = {
           hour: h,
           airTemp: f?.airTemp ?? ncst.airTemp,
@@ -219,6 +227,9 @@ export default {
           feelsLike: c.feelsLike,
           roadTemp: c.roadTemp,
           pty: point.pty,
+          uvi: c.uvi,
+          airTemp: round1(point.airTemp),
+          roadTempSoil: c.roadBySurface.soil,
           // 빈 문자열도 "이 시간엔 강수량 구간이 없다"는 유효한 값이라 undefined일 때만 빼요
           // (truthy 체크였으면 ""가 카테고리 자체가 없었던 것과 구분 없이 사라졌어요).
           ...(f?.pcp !== undefined ? { pcp: f.pcp } : {}),
