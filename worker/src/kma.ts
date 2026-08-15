@@ -148,12 +148,13 @@ export interface FcstHour {
 }
 
 /**
- * 오늘 06시를 확실히 커버하는 가장 이른 발표 시각(KST 02시). 단기예보 한 번 발표는
- * 그 이후 2~3일을 통째로 담고 있어서, 이 발표 하나면 오늘 06~23시 전체를 커버해요.
- * fetchVilage의 override로 넘겨서 "오늘 최초 발표" 원본을 따로 받아올 때 써요.
+ * 오늘 06시를 커버하는 가장 이른 발표 시각(KST 05시). 단기예보 한 번 발표는 그 이후
+ * 2~3일을 통째로 담고 있어서, 06시보다 이른 발표라면 뭘 써도 오늘 06~23시 전체를
+ * 커버해요 — 그중 06시에 제일 가까운 05시 발표가 가장 최신이라 더 정확해요.
+ * fetchVilage의 override로 넘겨서 "오늘 이 시각 발표" 원본을 따로 받아올 때 써요.
  */
 export function earliestTodayVilageBase(d: Date): { baseDate: string; baseTime: string } {
-  return { baseDate: yyyymmdd(d), baseTime: '0200' };
+  return { baseDate: yyyymmdd(d), baseTime: '0500' };
 }
 
 export async function fetchVilage(
