@@ -80,27 +80,48 @@ export function residual(hoursAfterSunset: number): number {
   return 5 * Math.exp(-(hoursAfterSunset * 60) / 90);
 }
 
+/**
+ * 야간 복사냉각항. 맑고 바람이 약한 밤엔 노면이 기온보다 더 차가워져요(결빙 위험의 원인).
+ * 기온이 5℃ 이하인 계절에만 적용하고, 일사가 거의 없으며 잔열이 남아 있지 않을 때만 켜요 —
+ * 그래서 여름 노면값은 그대로예요. 최대 -2.5℃, 구름·바람이 있으면 줄어요.
+ * 계수는 초안이에요 — 실측 근거 확인 필요(이슈 #49).
+ */
+export function radiativeCooling(
+  airTemp: number,
+  windSpeed: number,
+  srNorm: number,
+  hoursAfterSunset: number,
+  sky: number
+): number {
+  if (airTemp > 5 || srNorm >= 0.05 || residual(hoursAfterSunset) >= 0.5) return 0;
+  const clear = sky === 1 ? 1 : sky === 3 ? 0.5 : 0;
+  const calm = Math.max(0, 1 - windSpeed / 6);
+  return -2.5 * clear * calm;
+}
+
 export function roadTemp(
   airTemp: number,
   windSpeed: number,
   srNorm: number,
   hoursAfterSunset: number,
-  surface: Surface
+  surface: Surface,
+  sky: number = 4 // 하늘상태를 모르면 흐림(냉각 없음)으로 보는 게 안전한 쪽이에요
 ): number {
   const attenuation = Math.max(0.6, 1 - 0.03 * windSpeed); // 최대 40% 감쇠
   const dT = K_SURFACE[surface] * srNorm * attenuation + residual(hoursAfterSunset);
-  return airTemp + dT;
+  return airTemp + dT + radiativeCooling(airTemp, windSpeed, srNorm, hoursAfterSunset, sky);
 }
 
 export function roadTempAll(
   airTemp: number,
   windSpeed: number,
   srNorm: number,
-  hoursAfterSunset: number
+  hoursAfterSunset: number,
+  sky: number = 4
 ): Record<Surface, number> {
   const out = {} as Record<Surface, number>;
   (Object.keys(K_SURFACE) as Surface[]).forEach((s) => {
-    out[s] = round1(roadTemp(airTemp, windSpeed, srNorm, hoursAfterSunset, s));
+    out[s] = round1(roadTemp(airTemp, windSpeed, srNorm, hoursAfterSunset, s, sky));
   });
   return out;
 }
@@ -207,7 +228,7 @@ export function compute(
   // srOverride가 오면 이미 시간축 스무딩된 값이므로 잔열항을 따로 더하지 않음
   const srNorm = srOverride ?? solarNorm(alt, p.sky, p.pty);
   const hoursAfterSunset = srOverride !== undefined ? -1 : p.hour - sunsetHour;
-  const bySurface = roadTempAll(p.airTemp, p.windSpeed, srNorm, hoursAfterSunset);
+  const bySurface = roadTempAll(p.airTemp, p.windSpeed, srNorm, hoursAfterSunset, p.sky);
 
   return {
     feelsLike: round1(feelsLike(p.airTemp, p.humidity, p.windSpeed, month)),
@@ -257,8 +278,11 @@ export function judge(
   if (c.roadTemp >= 60) raise(5, 'ROAD_60');
   if (c.feelsLike <= -15) raise(4, 'COLD_15');
   if (pty > 0 && pty !== 3) raise(3, 'RAIN');
+  // 결빙: 노면이 0℃ 이하인데 비계열이 내리면 빙판(4), 눈이면 미끄러움(3). 눈은 RAIN 게이트에서 빠져 있어요.
+  const icy = c.roadTemp <= 0 && pty > 0;
+  if (icy) raise(pty === 3 ? 3 : 4, 'ICE_ROAD');
 
-  const { headline, reason } = sentence(profile, level, c, gate);
+  const { headline, reason } = sentence(profile, level, c, gate, icy);
 
   return { level, score: Math.round(score), headline, reason, gate };
 }
@@ -320,13 +344,16 @@ function sentence(
   profile: Profile,
   level: Level,
   c: Computed,
-  gate: string | null
+  gate: string | null,
+  icy: boolean
 ): { headline: string; reason: string } {
   const isCold = c.feelsLike < COLD_SENTENCE_BELOW;
   const headline = (isCold ? COLD_HEADLINES : HEADLINES)[profile][level];
 
   let reason: string;
-  if (c.feelsLike <= -15) {
+  if (icy) {
+    reason = `노면이 ${Math.round(c.roadTemp)}℃까지 내려가 미끄러울 수 있어요`;
+  } else if (c.feelsLike <= -15) {
     reason = `체감온도가 ${Math.round(c.feelsLike)}℃까지 내려가 매우 추워요`;
   } else if (isCold) {
     reason = `체감온도가 ${Math.round(c.feelsLike)}℃예요`;
