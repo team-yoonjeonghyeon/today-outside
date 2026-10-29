@@ -1,7 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import worker from "../src/index";
-import { hazardGate, judge, sHeat, findBestWindow } from "../src/engine";
+import { hazardGate, judge, sHeat, sCold, findBestWindow } from "../src/engine";
 import type { Computed } from "../src/engine";
 import type { Verdict } from "../src/types";
 import { extractAreaToken, heatLevelForArea, nationwideHeatLevel } from "../src/kma";
@@ -165,6 +165,66 @@ describe("engine 회귀", () => {
 		};
 		const v = judge("dog", c, 32, 0);
 		expect(v.level).toBeGreaterThanOrEqual(4);
+	});
+});
+
+/* ────────── 한파 판정 (이슈 #48) ────────── */
+describe("cold judgment", () => {
+	const cold = (feelsLike: number): Computed => ({
+		feelsLike,
+		roadTemp: feelsLike,
+		roadBySurface: { asphalt: feelsLike, pavement: feelsLike, grass: feelsLike, soil: feelsLike },
+		srNorm: 0,
+		uvi: 0,
+	});
+
+	it("sCold 경계값", () => {
+		expect(sCold(5)).toBe(0);
+		expect(sCold(20)).toBe(0);
+		expect(sCold(-5)).toBe(40);
+		expect(sCold(-10)).toBe(60);
+		expect(sCold(-15)).toBe(80);
+		expect(sCold(-20)).toBe(100);
+		expect(sCold(-30)).toBe(100);
+	});
+
+	it("체감온도가 내려갈수록 러너 등급이 올라가요", () => {
+		expect(judge("runner", cold(0), 0, 0).level).toBe(1);
+		expect(judge("runner", cold(-5), -5, 0).level).toBe(2);
+		expect(judge("runner", cold(-10), -10, 0).level).toBe(3);
+		expect(judge("runner", cold(-20), -20, 0).level).toBe(5);
+	});
+
+	it("체감 -15℃ 이하면 모든 프로필이 최소 4단계, 사유도 매우 추움으로", () => {
+		for (const p of ["runner", "worker", "dog"] as const) {
+			const v = judge(p, cold(-15), -10, 0);
+			expect(v.level).toBeGreaterThanOrEqual(4);
+			expect(v.reason).toBe("체감온도가 -15℃까지 내려가 매우 추워요");
+		}
+	});
+
+	it("추위 구간엔 추위용 문장을 써요 (더위 문장 아님)", () => {
+		const v = judge("runner", cold(-10), -10, 0);
+		expect(v.headline).toBe("따뜻하게 입고 짧게 뛰어요");
+		expect(v.reason).toBe("체감온도가 -10℃예요");
+		expect(judge("dog", cold(-10), -10, 0).reason).not.toContain("아스팔트");
+	});
+
+	it("여름 판정은 그대로예요 (회귀)", () => {
+		const hot: Computed = {
+			feelsLike: 33,
+			roadTemp: 51,
+			roadBySurface: { asphalt: 51, pavement: 46, grass: 38, soil: 37 },
+			srNorm: 0.8,
+			uvi: 8,
+		};
+		const runnerHot = judge("runner", hot, 32, 0);
+		expect(runnerHot.level).toBe(4);
+		expect(runnerHot.headline).toBe("지금은 실내가 좋아요");
+		expect(judge("runner", { ...hot, feelsLike: 24, roadTemp: 30, uvi: 2 }, 24, 0).level).toBe(1);
+		// 점수만으론 2단계지만 법정 33℃ 기준으로 3단계로 올리는 기존 게이트
+		const mild = { ...hot, roadTemp: 30, uvi: 0 };
+		expect(judge("worker", mild, 30, 0).gate).toBe("WORKER_33");
 	});
 });
 
