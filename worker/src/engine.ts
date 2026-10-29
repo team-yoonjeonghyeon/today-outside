@@ -124,6 +124,21 @@ export function sHeat(ft: number): number {
   return 100;
 }
 
+/**
+ * 추위 서브스코어. 체감온도(풍속냉각 반영)가 낮을수록 올라가요.
+ * 5℃ 이상이면 0이라 더운 계절 판정에는 영향이 없어요.
+ * 구간 값은 초안이에요 — 기상청 한파 기준·산업안전 한랭 기준과 맞춰 조정 필요(이슈 #48).
+ */
+export function sCold(ft: number): number {
+  const c = -ft; // lerp는 x가 오름차순이어야 해서 부호를 뒤집어요
+  if (c <= -5) return 0;
+  if (c <= 5) return lerp(c, -5, 5, 0, 40);
+  if (c <= 10) return lerp(c, 5, 10, 40, 60);
+  if (c <= 15) return lerp(c, 10, 15, 60, 80);
+  if (c <= 20) return lerp(c, 15, 20, 80, 100);
+  return 100;
+}
+
 export function sUv(uvi: number): number {
   if (uvi <= 2) return lerp(uvi, 0, 2, 0, 15);
   if (uvi <= 5) return lerp(uvi, 3, 5, 20, 40);
@@ -149,6 +164,19 @@ const WEIGHTS: Record<Profile, { heat: number; uv: number; road: number }> = {
   worker: { heat: 0.65, uv: 0.25, road: 0.1 },
   dog: { heat: 0.4, uv: 0.1, road: 0.5 },
 };
+
+/**
+ * 추위 점수의 프로필별 가중치. 더위 가중치(WEIGHTS.heat)는 자외선·노면과 나눠 쓰도록 잡힌 값이라
+ * 겨울엔 자외선·노면이 0점이 되어 추위가 지나치게 약하게 반영돼요 — 그래서 추위는 따로 둬요.
+ */
+const COLD_WEIGHT: Record<Profile, number> = {
+  runner: 0.9,
+  worker: 0.9,
+  dog: 0.8,
+};
+
+/** 체감온도가 이 값 미만이면 추위용 문장을 써요 (sCold가 0을 넘기 시작하는 지점) */
+const COLD_SENTENCE_BELOW = 5;
 
 function scoreToLevel(score: number): Level {
   if (score < 20) return 1;
@@ -205,8 +233,11 @@ export function judge(
     profile === 'dog' ? dogFeltTemp(airTemp, c.roadTemp, c.feelsLike) : c.feelsLike;
 
   const w = WEIGHTS[profile];
-  const score =
+  const heatScore =
     w.heat * sHeat(heatInput) + w.uv * sUv(c.uvi) + w.road * sRoad(c.roadTemp);
+  // 더위와 추위는 동시에 일어나지 않으므로 max로 합쳐요. 5℃ 이상이면 sCold=0이라 여름 결과는 그대로예요.
+  const coldScore = COLD_WEIGHT[profile] * sCold(c.feelsLike);
+  const score = Math.max(heatScore, coldScore);
 
   let level = scoreToLevel(score);
   let gate: string | null = null;
@@ -224,6 +255,7 @@ export function judge(
   if (profile === 'dog' && c.roadTemp >= 52) raise(4, 'DOG_ROAD_52');
   if (c.feelsLike >= 35) raise(4, 'HEAT_35');
   if (c.roadTemp >= 60) raise(5, 'ROAD_60');
+  if (c.feelsLike <= -15) raise(4, 'COLD_15');
   if (pty > 0 && pty !== 3) raise(3, 'RAIN');
 
   const { headline, reason } = sentence(profile, level, c, gate);
@@ -259,16 +291,46 @@ const HEADLINES: Record<Profile, Record<Level, string>> = {
   },
 };
 
+/** 추위용 헤드라인. 의료·진단 표현 없이 옷차림·시간 조절 같은 생활 안내만 */
+const COLD_HEADLINES: Record<Profile, Record<Level, string>> = {
+  runner: {
+    1: '지금 나가기 좋아요',
+    2: '가볍게 몸을 풀고 나가요',
+    3: '따뜻하게 입고 짧게 뛰어요',
+    4: '지금은 실내가 좋아요',
+    5: '오늘은 실내에서 운동해요',
+  },
+  worker: {
+    1: '지금 작업하기 좋아요',
+    2: '따뜻하게 입고 작업해요',
+    3: '틈틈이 따뜻한 곳에서 쉬어요',
+    4: '작업 시간을 줄이고 자주 쉬어요',
+    5: '야외 작업은 최소한으로 해요',
+  },
+  dog: {
+    1: '지금 산책하기 좋아요',
+    2: '짧게 걷고 몸을 따뜻하게 해요',
+    3: '발이 시리지 않게 짧게 다녀와요',
+    4: '배변 위주로 짧게 다녀와요',
+    5: '오늘은 실내에서 놀아줘요',
+  },
+};
+
 function sentence(
   profile: Profile,
   level: Level,
   c: Computed,
   gate: string | null
 ): { headline: string; reason: string } {
-  const headline = HEADLINES[profile][level];
+  const isCold = c.feelsLike < COLD_SENTENCE_BELOW;
+  const headline = (isCold ? COLD_HEADLINES : HEADLINES)[profile][level];
 
   let reason: string;
-  if (gate === 'ROAD_60' || gate === 'DOG_ROAD_52' || (profile === 'dog' && c.roadTemp >= 45)) {
+  if (c.feelsLike <= -15) {
+    reason = `체감온도가 ${Math.round(c.feelsLike)}℃까지 내려가 매우 추워요`;
+  } else if (isCold) {
+    reason = `체감온도가 ${Math.round(c.feelsLike)}℃예요`;
+  } else if (gate === 'ROAD_60' || gate === 'DOG_ROAD_52' || (profile === 'dog' && c.roadTemp >= 45)) {
     reason = `아스팔트가 ${Math.round(c.roadTemp)}℃까지 올라 발바닥에 무리가 갈 수 있어요`;
   } else if (profile === 'dog') {
     reason = `아스팔트 ${Math.round(c.roadTemp)}℃, 흙길은 ${Math.round(c.roadBySurface.soil)}℃예요`;
