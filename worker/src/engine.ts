@@ -5,6 +5,7 @@ import type {
   Verdict,
   WeatherPoint,
 } from './types';
+import type { DailyRange } from './types';
 import { solarAltitude } from './geo';
 
 /* ────────────────────────────────────────────────
@@ -387,4 +388,55 @@ export function smoothSolar(sr: number[]): number[] {
     out.push(carry);
   }
   return out;
+}
+
+/* ────────────────────────────────────────────────
+   8. 일교차
+   판정 등급에는 반영하지 않는 안내용 정보. 규칙 기반 문장(LLM 미사용).
+   임계값(10℃·15℃, 최저 15℃)은 초안이에요 — 근거 확인 필요(이슈 #51).
+   ──────────────────────────────────────────────── */
+
+/** 일교차 안내 문장. 안내할 상황이 아니면 null. 의료·진단 표현 없이 옷차림만 안내해요. */
+export function dailyRangeAdvice(min: number, max: number): string | null {
+  // 아침저녁이 쌀쌀하지 않은 더운 계절엔 겉옷 안내가 의미 없어요.
+  if (min > 15) return null;
+  const diff = max - min;
+  if (diff >= 15) return `일교차가 ${Math.round(diff)}℃로 커요. 겹쳐 입고 겉옷을 챙겨요`;
+  if (diff >= 10) return `일교차가 ${Math.round(diff)}℃예요. 얇은 겉옷을 챙겨요`;
+  return null;
+}
+
+/**
+ * 오늘 최저·최고기온과 일교차.
+ * 단기예보의 일 최저(TMN)·최고(TMX)가 둘 다 있고 말이 되면(최고 ≥ 최저) 그 값을 쓰고
+ * (`basis: 'forecast'`), 아니면 06~23시 시간별 기온에서 뽑아요(`basis: 'hourly'` —
+ * 06시 이전 새벽 최저가 빠져 있을 수 있어서 출처를 구분해서 알려줘요). 둘 다 없으면 null.
+ */
+export function buildDailyRange(
+  extremes: { tmn?: number; tmx?: number },
+  hourlyTemps: number[]
+): DailyRange | null {
+  let min: number;
+  let max: number;
+  let basis: DailyRange['basis'];
+
+  if (extremes.tmn !== undefined && extremes.tmx !== undefined && extremes.tmx >= extremes.tmn) {
+    min = extremes.tmn;
+    max = extremes.tmx;
+    basis = 'forecast';
+  } else if (hourlyTemps.length > 0) {
+    min = Math.min(...hourlyTemps);
+    max = Math.max(...hourlyTemps);
+    basis = 'hourly';
+  } else {
+    return null;
+  }
+
+  return {
+    min: round1(min),
+    max: round1(max),
+    diff: round1(max - min),
+    basis,
+    advice: dailyRangeAdvice(min, max),
+  };
 }

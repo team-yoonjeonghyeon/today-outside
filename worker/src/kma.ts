@@ -141,6 +141,9 @@ export interface FcstHour {
   windSpeed?: number;
   sky?: number;
   pty?: number;
+  /** 일 최저기온(TMN, 보통 06시 행)·일 최고기온(TMX, 보통 15시 행). 그 시각 행에만 붙어 있어요. */
+  tmn?: number;
+  tmx?: number;
   /** 1시간 강수량(PCP). 기상청이 이미 구간으로 뭉뚱그려 주는 문자열이에요(예: "1.0~4.9mm",
    * "50.0mm 이상", "강수없음") — 정확한 mm이 아니라 그대로 통과시켜요. 화면에서 정확한 숫자인
    * 척 보여주면 안 되니, 막대 높이 계산은 프론트가 이 구간에서 대표값만 뽑아 써요. */
@@ -188,12 +191,34 @@ export async function fetchVilage(
       case 'WSD': { const n = kmaNumber(v, 0); if (n !== null) cur.windSpeed = n; break; }
       case 'SKY': cur.sky = v; break;
       case 'PTY': cur.pty = v; break;
+      case 'TMN': { const n = kmaNumber(v, -60); if (n !== null) cur.tmn = n; break; }
+      case 'TMX': { const n = kmaNumber(v, -60); if (n !== null) cur.tmx = n; break; }
       // PCP는 숫자가 아니라 "1.0~4.9mm" 같은 구간 문자열이라 Number()로 안 돌려요.
       // 빈 문자열("")이어도 "그 시간엔 강수량 구간이 안 잡혔다"는 유효한 신호라 그대로 담아요
       // — truthy 체크로 버리면 카테고리 자체가 없었던 것과 구분이 안 돼요.
       case 'PCP': cur.pcp = String(i.fcstValue ?? ''); break;
     }
     out.set(key, cur);
+  }
+  return out;
+}
+
+/**
+ * 여러 발표의 예보 맵에서 `date`(YYYYMMDD) 하루의 최저(TMN)·최고(TMX)기온을 찾아요.
+ * 맵이 앞에 있을수록 우선해요(최신 발표를 먼저 넘기세요). 날짜가 다른 행(내일 TMN 등)은 무시해요.
+ */
+export function pickDailyExtremes(
+  date: string,
+  ...maps: (Map<string, FcstHour> | null | undefined)[]
+): { tmn?: number; tmx?: number } {
+  const out: { tmn?: number; tmx?: number } = {};
+  for (const m of maps) {
+    if (!m) continue;
+    for (const f of m.values()) {
+      if (f.date !== date) continue;
+      if (out.tmn === undefined && f.tmn !== undefined) out.tmn = f.tmn;
+      if (out.tmx === undefined && f.tmx !== undefined) out.tmx = f.tmx;
+    }
   }
   return out;
 }

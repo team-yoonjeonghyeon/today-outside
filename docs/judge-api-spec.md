@@ -169,6 +169,7 @@ GET /judge?nx=57&ny=127&profile=dog&area=고양시%20일산동구
   "now": { /* Verdict */ },
   "metrics": { /* Metrics */ },
   "hourly": [ /* HourSlot × 18 (06~23시) */ ],
+  "dailyRange": { /* DailyRange (선택 — 예전 서버엔 없음) */ },
   "bestWindow": { /* BestWindow | null */ },
   "alert": null,                               // Alert | null
   "source": "기상청"
@@ -257,6 +258,24 @@ GET /judge?nx=57&ny=127&profile=dog&area=고양시%20일산동구
 ```
 
 각 슬롯은 `hour`(6–23), `level`(1–5), `feelsLike`(℃), `roadTemp`(아스팔트 ℃)만 담아요. `headline`/`reason`은 시간별로 주지 않아요 — 프론트가 등급 색으로만 칠하고, 탭 시 지표를 툴팁으로 보여줄 수 있어요.
+
+### `dailyRange` — `DailyRange` (선택)
+
+오늘 최저·최고기온과 일교차예요. **판정 등급(`level`)에는 반영되지 않는 안내용 정보**예요.
+
+```jsonc
+{
+  "min": 3,                     // 오늘 최저기온(℃)
+  "max": 15,                    // 오늘 최고기온(℃)
+  "diff": 12,                   // max - min
+  "basis": "forecast",          // "forecast" | "hourly" — 값의 출처
+  "advice": "일교차가 12℃예요. 얇은 겉옷을 챙겨요"   // 안내 문장, 안내할 일교차가 아니면 null
+}
+```
+
+- `basis: "forecast"`는 기상청 단기예보의 일 최저(TMN)·최고(TMX)예요. 응답에 이 값이 없으면 `basis: "hourly"`로, 06~23시 시간별 기온에서 직접 뽑아요 — 이때는 **06시 이전 새벽 최저가 빠져 있을 수 있어요.** 화면에서 "오늘 최저"라고 단정하기보다 `basis`로 표현을 가려 쓰세요.
+- `advice`는 규칙 기반 문장이에요(LLM 미사용). 일교차 10℃ 이상이면 "얇은 겉옷", 15℃ 이상이면 "겹쳐 입고 겉옷"을 안내하고, 최저가 15℃를 넘는 더운 계절엔 `null`이에요. 기준은 초안이에요.
+- 예전 서버 응답에는 이 필드가 없을 수 있어요. **없으면 일교차 영역을 그리지 않으면 돼요.**
 
 ### `bestWindow` — `BestWindow | null`
 
