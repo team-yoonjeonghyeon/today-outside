@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Paragraph } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { MINT, type Profile } from "../constants/judge";
+import { weatherMode } from "../constants/weatherMode";
 import {
   MOOD_OPTIONS,
   MOOD_ORDER,
@@ -43,11 +44,14 @@ export default function MoodVote({
   nx,
   ny,
   profile,
+  feelsLike,
 }: {
   label: string;
   nx: number;
   ny: number;
   profile: Profile;
+  /** 지금 체감온도 — 한마디 선택지를 더운·중간·추운 날 목록으로 나누는 데 써요. 없으면 더운 날 목록(예전 동작). */
+  feelsLike?: number;
 }) {
   const [summary, setSummary] = useState<MoodSummary | null>(null);
   const [available, setAvailable] = useState(true);
@@ -96,7 +100,7 @@ export default function MoodVote({
 
   if (!available || !summary) return null;
 
-  const presets = moodPresetsFor(profile);
+  const presets = moodPresetsFor(profile, feelsLike === undefined ? "warm" : weatherMode(feelsLike));
 
   return (
     <div style={{ padding: "0 24px" }}>
