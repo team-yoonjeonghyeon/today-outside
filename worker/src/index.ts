@@ -9,6 +9,7 @@ import type {
 } from './types';
 import { isValidGrid, kstParts, nowKst, solarAltitude, toLatLon, yyyymmdd } from './geo';
 import {
+  buildDailyRange,
   compute,
   findBestWindow,
   hazardGate,
@@ -27,6 +28,7 @@ import {
   fetchNcst,
   fetchUvi,
   fetchVilage,
+  pickDailyExtremes,
 } from './kma';
 
 const CORS = {
@@ -270,6 +272,13 @@ export default {
         rain: ncst.rain,
       };
 
+      // 일교차 — 최신 발표 → 새벽 첫 발표 순으로 오늘 TMN/TMX를 찾고, 없으면 시간별 기온으로 계산해요.
+      // 추가 KMA 호출은 없어요(earlyFcst는 지난 시간을 메꾸려고 이미 받아온 것만 써요).
+      const dailyRange = buildDailyRange(
+        pickDailyExtremes(today, fcst, earlyFcst),
+        hourly.map((h) => h.airTemp)
+      );
+
       const body: JudgeResponse = {
         generatedAt: isoKst(now),
         observedAt: `${ncst.baseDate.slice(0, 4)}-${ncst.baseDate.slice(4, 6)}-${ncst.baseDate.slice(6, 8)}T${ncst.baseTime.slice(0, 2)}:00:00+09:00`,
@@ -278,6 +287,7 @@ export default {
         now: verdict,
         metrics,
         hourly,
+        ...(dailyRange ? { dailyRange } : {}),
         bestWindow,
         alert: heatWarn,
         source: '기상청',

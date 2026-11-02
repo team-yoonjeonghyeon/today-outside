@@ -62,6 +62,21 @@ export interface BestWindow {
   label: string;
 }
 
+/** 오늘 최저·최고기온과 일교차. 판정 등급에는 반영하지 않는 안내용 정보예요. */
+export interface DailyRange {
+  min: number;
+  max: number;
+  /** max - min */
+  diff: number;
+  /**
+   * 값의 출처. `forecast`는 기상청 단기예보의 일 최저(TMN)·최고(TMX)고, `hourly`는 그 값이
+   * 응답에 없어서 06~23시 시간별 기온에서 직접 뽑은 값이에요 — 06시 이전 새벽 최저는 빠져 있을 수 있어요.
+   */
+  basis: 'forecast' | 'hourly';
+  /** 규칙 기반 안내 문장. 안내할 일교차가 아니면 null. */
+  advice: string | null;
+}
+
 export interface Alert {
   type: string;
   text: string;
@@ -75,6 +90,8 @@ export interface JudgeResponse {
   now: Verdict;
   metrics: Metrics;
   hourly: HourSlot[];
+  /** 오늘 최저·최고기온과 일교차. 예전 서버 응답에는 없을 수 있어요. */
+  dailyRange?: DailyRange;
   bestWindow: BestWindow | null;
   alert: Alert | null;
   source: string;
