@@ -1,4 +1,5 @@
 import type {
+  BestWindow,
   Level,
   Profile,
   Surface,
@@ -327,10 +328,16 @@ export function hazardGate(
    6. 시간창 계산
    ──────────────────────────────────────────────── */
 
+/**
+ * 어느 시간창을 고를지는 일몰과 무관해요(여름엔 한낮이 더워서 좋은 시간이 해진 뒤 저녁에 잡히는 게
+ * 정상이고, 푸시 알림도 이 값의 start를 써요). `sunsetHour`(소수 시각, 예: 17.7)를 넘기면
+ * 고른 시간창에 일몰 정보(afterSunset·daylightEnd)만 덧붙여요 — 넘기지 않으면 결과는 기존과 같아요.
+ */
 export function findBestWindow(
   hourly: { hour: number; level: Level }[],
-  currentHour: number
-): { start: number; end: number; label: string } | null {
+  currentHour: number,
+  sunsetHour?: number
+): BestWindow | null {
   const after = hourly.filter((h) => h.hour > currentHour);
   let runStart = -1;
 
@@ -339,7 +346,7 @@ export function findBestWindow(
     if (ok && runStart < 0) runStart = after[i].hour;
     if (!ok && runStart >= 0) {
       if (after[i].hour - runStart >= 2) {
-        return { start: runStart, end: after[i].hour - 1, label: label(runStart) };
+        return withSunset({ start: runStart, end: after[i].hour - 1, label: label(runStart) }, sunsetHour);
       }
       runStart = -1;
     }
@@ -347,10 +354,25 @@ export function findBestWindow(
   if (runStart >= 0) {
     const last = after[after.length - 1].hour;
     if (last - runStart >= 1) {
-      return { start: runStart, end: last, label: label(runStart) };
+      return withSunset({ start: runStart, end: last, label: label(runStart) }, sunsetHour);
     }
   }
   return null;
+}
+
+function withSunset(w: BestWindow, sunsetHour?: number): BestWindow {
+  if (sunsetHour === undefined) return w;
+  // 한 칸(h)은 h시~h+1시라서, 일몰 전에 시작한 칸까지가 해가 떠 있는 칸이에요.
+  if (w.start >= sunsetHour) return { ...w, afterSunset: true };
+  return { ...w, afterSunset: false, daylightEnd: Math.min(w.end, Math.ceil(sunsetHour) - 1) };
+}
+
+/** 소수 시각(17.75)을 "17:45"로 */
+export function formatHourMinute(hour: number): string {
+  const total = Math.round(hour * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function label(hour: number): string {

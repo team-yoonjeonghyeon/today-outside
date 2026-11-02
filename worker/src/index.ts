@@ -11,6 +11,7 @@ import { isValidGrid, kstParts, nowKst, solarAltitude, toLatLon, yyyymmdd } from
 import {
   compute,
   findBestWindow,
+  formatHourMinute,
   hazardGate,
   judge,
   round1,
@@ -252,7 +253,8 @@ export default {
 
       const bestWindow = findBestWindow(
         hourly.map((h) => ({ hour: h.hour, level: h.level as Level })),
-        p.hour
+        p.hour,
+        sunset
       );
 
       const metrics: Metrics = {
@@ -280,6 +282,7 @@ export default {
         hourly,
         bestWindow,
         alert: heatWarn,
+        sunset: formatHourMinute(sunset),
         source: '기상청',
       };
 
