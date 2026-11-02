@@ -11,6 +11,7 @@ import {
 } from "../constants/judge";
 import { isWet, precipitationLabel } from "../constants/rain";
 import { fetchJudge, JudgeApiError, type HourSlot, type JudgeResponse } from "../lib/judgeApi";
+import { sunsetNote, sunsetOnly } from "../lib/sunsetNote";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
 import { setStoredJSON, STORAGE_KEYS } from "../lib/storage";
@@ -121,6 +122,7 @@ export default function Timeline() {
   // 6시부터 마지막 슬롯까지 4칸 간격으로 눈금을 뽑아요 — 목업의 '24시'는 실제 응답에 없는
   // 시각이라 마지막 실제 슬롯(23시)으로 대체해요.
   const axisTicks = hourly.filter((_, i) => i % 4 === 0 || i === hourly.length - 1);
+  const sunsetLine = sunsetNote(bestWindow, data.sunset)?.long ?? sunsetOnly(data.sunset);
 
   return (
     <>
@@ -206,6 +208,15 @@ export default function Timeline() {
           <Paragraph.Text color={MINT[900]} fontWeight="bold">
             {bestWindow ? bestWindow.label : "오늘은 조건에 맞는 좋은 시간이 없어요"}
           </Paragraph.Text>
+          {/* 일몰 — 시간창이 해진 뒤이거나 일몰을 넘겨 이어질 때는 그 사실을, 아니면(좋은 시간이 없는
+              날 포함) 일몰 시각만 알려줘요. 서버가 일몰 정보를 안 내려주면 아무것도 안 그려요. */}
+          {sunsetLine && (
+            <div style={{ marginTop: 2 }}>
+              <Paragraph.Text color={MINT[700]} typography="t7">
+                {sunsetLine}
+              </Paragraph.Text>
+            </div>
+          )}
         </div>
       </div>
 
