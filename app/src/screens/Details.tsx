@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { Loader, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { LEVEL_COLORS, METRIC_LABELS, MINT, type MetricKey, type Profile } from "../constants/judge";
-import { fetchJudge, JudgeApiError, type JudgeResponse, type Metrics } from "../lib/judgeApi";
+import { fetchJudge, JudgeApiError, type DailyRange, type JudgeResponse, type Metrics } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
 import { setStoredJSON, STORAGE_KEYS } from "../lib/storage";
@@ -52,13 +52,23 @@ function subCopy(metricKey: MetricKey, profile: Profile, metrics: Metrics): stri
   return "아스팔트 기준이에요";
 }
 
-function calcRows(metricKey: MetricKey, metrics: Metrics): CalcRow[] {
+function calcRows(metricKey: MetricKey, metrics: Metrics, dailyRange?: DailyRange): CalcRow[] {
   if (metricKey === "feelsLike") {
-    return [
+    const rows: CalcRow[] = [
       { label: "지금 기온", value: `${metrics.airTemp}℃` },
       { label: "습도", value: `${metrics.humidity}%` },
       { label: "바람", value: `${metrics.windSpeed}m/s` },
     ];
+    // 하루 최저·최고 — 서버가 안 내려주면(배포 전) 행을 안 그려요. basis가 hourly면 06시 이전
+    // 새벽 최저가 빠져 있을 수 있어서 "오늘 최저" 대신 "낮 동안 최저"라고 말해요(정직성 원칙).
+    if (dailyRange) {
+      const prefix = dailyRange.basis === "forecast" ? "오늘" : "낮 동안";
+      rows.push(
+        { label: `${prefix} 최저`, value: `${dailyRange.min}℃` },
+        { label: `${prefix} 최고`, value: `${dailyRange.max}℃` },
+      );
+    }
+    return rows;
   }
   if (metricKey === "uv") return [];
   return [
@@ -76,6 +86,19 @@ function surfaceRows(metrics: Metrics) {
     { label: "잔디", value: metrics.roadBySurface.grass },
     { label: "흙길", value: metrics.roadBySurface.soil },
   ];
+}
+
+/**
+ * 표면별 노면온도 막대 폭(%). 전부 0℃ 이상이면 예전과 똑같이 최댓값 대비 비율이에요.
+ * 영하가 섞이면 `value / max`가 음수·무한대로 깨져서(막대가 사라지거나 넘쳐요), 가장 낮은 값을
+ * 최소 폭, 가장 높은 값을 100%로 하는 범위 비율로 그려요 — 따뜻할수록 길다는 규칙은 같아요.
+ */
+function surfaceBarWidth(value: number, values: number[]): number {
+  const hi = Math.max(...values);
+  const lo = Math.min(...values);
+  if (lo >= 0) return Math.max(6, (value / hi) * 100);
+  if (hi === lo) return 100;
+  return 6 + 94 * ((value - lo) / (hi - lo));
 }
 
 function SectionHeader({ children }: { children: string }) {
@@ -168,9 +191,13 @@ export default function Details() {
   const { metrics } = data;
   const levelColor = LEVEL_COLORS[data.now.level];
   const isRoad = metricKey === "road";
-  const rows = calcRows(metricKey, metrics);
+  const rows = calcRows(metricKey, metrics, data.dailyRange);
   const totalLabel = isRoad ? "아스팔트 표면" : METRIC_LABELS[metricKey];
-  const surfaceMax = Math.max(...surfaceRows(metrics).map((r) => r.value));
+  const surfaceValues = surfaceRows(metrics).map((r) => r.value);
+  // 노면이 0℃ 이하로 추정될 때만 — 비·눈이 있는지는 여기서 모르니 "젖은 곳은"이라고 조건을 달아 말해요.
+  const isFreezing = isRoad && metrics.roadTemp <= 0;
+  // 추운 날의 반려견 노면 안내 기준. 5℃는 홈·서버의 추위 기준과 같은 값이에요.
+  const isColdRoad = metrics.roadTemp <= 5;
   // 체감·자외선 상세의 "이렇게 준비해요" 조언. 자외선은 서버 uviLabel이 기상청 5단계 표현과
   // 정확히 일치할 때만 보여줘요(다른 문자열이면 지어내지 않고 건너뜀 — 정직성 원칙).
   // 노면은 표면 비교·손등7초 등 자체 상세가 있어 조언을 두지 않아요.
@@ -181,7 +208,13 @@ export default function Details() {
     }
     if (metricKey === "feelsLike") {
       const band = feelsLikeBand(metrics.feelsLike);
-      return { headline: FEELS_ADVICE[band].headline, tips: feelsTips(band, profile) };
+      const tips = feelsTips(band, profile);
+      // 서버가 일교차를 안내할 만하다고 한 날엔 그 문장도 팁으로 같이 보여줘요(없으면 그대로).
+      const rangeAdvice = data.dailyRange?.advice;
+      return {
+        headline: FEELS_ADVICE[band].headline,
+        tips: rangeAdvice ? [...tips, rangeAdvice] : tips,
+      };
     }
     return null;
   })();
@@ -293,6 +326,21 @@ export default function Details() {
         </>
       )}
 
+      {isFreezing && (
+        <div style={{ margin: "16px 24px 0" }}>
+          {/* 홈의 stale 안내와 같은 앰버 톤 — 위험 표시가 아니라 주의 환기예요. */}
+          <div style={{ background: "#FFF8EC", border: "1px solid #FCE3B4", borderRadius: 12, padding: 14 }}>
+            <Paragraph.Text color="#8A5A0B" fontWeight="bold" typography="t7">
+              노면이 0℃ 아래로 추정돼요
+            </Paragraph.Text>
+            <Spacing size={2} />
+            <Paragraph.Text color="#8A5A0B" typography="t7">
+              젖은 곳은 얼어서 미끄러울 수 있어요. 그늘진 길과 다리 위는 특히 조심해요.
+            </Paragraph.Text>
+          </div>
+        </div>
+      )}
+
       {isRoad && (
         <>
           <SectionHeader>바닥 재질에 따라 달라져요</SectionHeader>
@@ -309,7 +357,7 @@ export default function Details() {
                       display: "block",
                       height: "100%",
                       borderRadius: 6,
-                      width: `${Math.max(6, (row.value / surfaceMax) * 100)}%`,
+                      width: `${surfaceBarWidth(row.value, surfaceValues)}%`,
                       background: levelColor,
                     }}
                   />
@@ -334,7 +382,9 @@ export default function Details() {
                 </Paragraph.Text>
                 <Spacing size={2} />
                 <Paragraph.Text color={MINT[900]} typography="t7">
-                  손등을 바닥에 7초 대보고 뜨거우면 강아지 발에도 뜨거워요. 그때는 흙길이나 잔디로 돌아가요.
+                  {isColdRoad
+                    ? "바닥이 얼었거나 젖어 있으면 미끄러워요. 발이 시리면 오래 걷지 않고, 잔디나 흙길로 천천히 걸어요."
+                    : "손등을 바닥에 7초 대보고 뜨거우면 강아지 발에도 뜨거워요. 그때는 흙길이나 잔디로 돌아가요."}
                 </Paragraph.Text>
               </div>
             </div>

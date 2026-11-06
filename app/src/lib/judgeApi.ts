@@ -60,6 +60,24 @@ export interface BestWindow {
   start: number;
   end: number;
   label: string;
+  /**
+   * 이 시간창이 해가 진 뒤에 시작하는지, 해지기 전에 시작할 때 구간 안에서 해가 떠 있는 마지막
+   * 시간(시). 서버가 일몰 정보를 내려주기 시작한 게 화면보다 나중이라 옵션이에요 — 없으면
+   * 일몰 안내를 아예 안 그려요(모르는 걸 단정하지 않아요).
+   */
+  afterSunset?: boolean;
+  daylightEnd?: number;
+}
+
+/** 오늘 최저·최고기온과 일교차. 판정 등급과는 별개인 안내용 정보예요. */
+export interface DailyRange {
+  min: number;
+  max: number;
+  diff: number;
+  /** `forecast`는 기상청 일 최저·최고, `hourly`는 06~23시 시간별 기온에서 뽑은 값(새벽 최저가 빠질 수 있어요). */
+  basis: "forecast" | "hourly";
+  /** 서버가 규칙으로 만든 안내 문장. 안내할 일교차가 아니면 null. */
+  advice: string | null;
 }
 
 export interface JudgeAlert {
@@ -75,8 +93,12 @@ export interface JudgeResponse {
   now: Verdict;
   metrics: Metrics;
   hourly: HourSlot[];
+  /** 서버가 아직 안 내려주면(배포 전) 없어요. */
+  dailyRange?: DailyRange;
   bestWindow: BestWindow | null;
   alert: JudgeAlert | null;
+  /** 오늘 일몰 시각(KST "HH:MM"). 서버가 아직 안 내려주면 없어요. */
+  sunset?: string;
   source: string;
 }
 

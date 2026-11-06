@@ -34,6 +34,7 @@ import {
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { isWet, nextWetHour, precipitationLabel, RAIN_ICON } from "../constants/rain";
+import { sunsetNote } from "../lib/sunsetNote";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import { useReviewPrompt } from "../hooks/useReviewPrompt";
@@ -72,6 +73,22 @@ const WCTA_COPY: Record<Profile, { icon: string; caption: string }> = {
     icon: "https://static.toss.im/2d-icons/emoji/png/4x/u23F3.png",
     caption: "그늘이나 냉방 공간에서 잠깐 쉬어요",
   },
+};
+
+// 위 캡션은 더운 날 기준이에요. 체감온도 구간별로 나눠요 — 5℃ 미만은 추위용, 25℃ 이상은 위
+// 더위용, 그 사이(가을·초봄)는 중립 문구. 5℃는 서버(worker engine)가 판정 문장을 추위용으로 바꾸는
+// 기준, 25℃는 체감온도 조언의 "쾌적" 상한(feelsLikeAdvice)과 같은 값이에요. 근거 없는 수치는 안 넣어요.
+const COLD_BELOW = 5;
+const WARM_FROM = 25;
+const WCTA_COLD_CAPTION: Record<Profile, string> = {
+  runner: "따뜻하게 입고 무리하지 않게 움직여요",
+  dog: "발이 시리지 않게 짧게 걸어요",
+  worker: "틈틈이 따뜻한 곳에서 쉬어요",
+};
+const WCTA_MILD_CAPTION: Record<Profile, string> = {
+  runner: WCTA_COPY.runner.caption, // 원래부터 날씨와 무관한 문구예요
+  dog: "편한 코스로 천천히 걸어요",
+  worker: "틈틈이 쉬면서 해요",
 };
 
 interface MetricCard {
@@ -287,6 +304,20 @@ export default function Home() {
   const showData = data && data.profile === profile ? data : null;
   const levelColor = showData ? LEVEL_COLORS[showData.now.level] : adaptive.grey900;
   const metricCards = showData ? buildMetricCards(profile, showData) : [];
+
+  // 다음 행동 카드 캡션 — 추우면 추위용 문구, 시간창이 일몰과 만나면 그 사실을 덧붙여요.
+  const wctaCaption = (() => {
+    if (!showData) return "";
+    const feels = showData.metrics.feelsLike;
+    const base =
+      feels < COLD_BELOW
+        ? WCTA_COLD_CAPTION[profile]
+        : feels < WARM_FROM
+          ? WCTA_MILD_CAPTION[profile]
+          : WCTA_COPY[profile].caption;
+    const note = sunsetNote(showData.bestWindow, showData.sunset)?.short;
+    return note ? `${base} · ${note}` : base;
+  })();
 
   useReviewPrompt(Boolean(showData));
 
@@ -511,6 +542,31 @@ export default function Home() {
             </div>
           )}
 
+          {/* 일교차 안내 — 서버가 안내할 만한 일교차라고 판단했을 때(advice가 있을 때)만 그려요.
+              값이 없거나 안내할 게 없으면 아무것도 안 그려요. 판정 등급과는 별개인 참고 정보예요.
+              basis가 hourly면 06시 이전 새벽 최저가 빠져 있을 수 있어서 "오늘" 대신 "낮 동안"이라고 말해요. */}
+          {showData.dailyRange?.advice && (
+            <div style={{ margin: "0 24px 16px" }}>
+              <div
+                style={{
+                  background: adaptive.grey50,
+                  border: `1px solid ${adaptive.grey200}`,
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                }}
+              >
+                <Paragraph.Text color={adaptive.grey800} fontWeight="bold">
+                  {`${showData.dailyRange.basis === "forecast" ? "오늘" : "낮 동안"} ${showData.dailyRange.min}℃ ~ ${showData.dailyRange.max}℃`}
+                </Paragraph.Text>
+                <div style={{ marginTop: 2 }}>
+                  <Paragraph.Text color={adaptive.grey700} typography="t7">
+                    {showData.dailyRange.advice}
+                  </Paragraph.Text>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 다음 행동 카드 — 최적 시간창(bestWindow)이 있으면 민트로 강조, 없어도 시간창
               화면(Timeline)으로 들어가는 유일한 입구라 카드 자체는 남기고 담백하게 안내해요
               (기획서 §3-7). */}
@@ -538,7 +594,7 @@ export default function Home() {
                     type="2RowTypeA"
                     top={showData.bestWindow.label}
                     topProps={{ color: MINT[900], fontWeight: "bold" }}
-                    bottom={WCTA_COPY[profile].caption}
+                    bottom={wctaCaption}
                     bottomProps={{ color: MINT[700] }}
                   />
                 ) : (
