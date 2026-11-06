@@ -60,6 +60,16 @@ export interface BestWindow {
   start: number;
   end: number;
   label: string;
+  /**
+   * 이 시간창이 해가 진 뒤에 시작하는지. 일몰 시각을 알 때만 채워져요.
+   * 시간창을 고르는 규칙은 일몰과 무관하고, 화면이 "어두워진 뒤"를 안내할 수 있게 정보만 얹어요.
+   */
+  afterSunset?: boolean;
+  /**
+   * 시간창이 해지기 전에 시작할 때, 그 안에서 해가 떠 있는 마지막 시간(시). 예: 일몰 17:42면
+   * 17시 칸까지. 해가 진 뒤에 시작하는 시간창엔 없어요.
+   */
+  daylightEnd?: number;
 }
 
 export interface Alert {
@@ -77,6 +87,8 @@ export interface JudgeResponse {
   hourly: HourSlot[];
   bestWindow: BestWindow | null;
   alert: Alert | null;
+  /** 오늘 일몰 시각(KST, "HH:MM"). 태양고도 기반 근사라 몇 분 오차가 있어요. */
+  sunset?: string;
   source: string;
 }
 
