@@ -6,6 +6,7 @@
  * (constants/rain.ts의 RAIN_ICON과 같은 이유예요).
  */
 import type { Profile } from "./judge";
+import type { WeatherMode } from "./weatherMode";
 
 export type Mood = "good" | "soso" | "bad";
 
@@ -97,15 +98,77 @@ const PROFILE_PRESETS: Record<Profile, MoodPreset[]> = {
   ],
 };
 
-export function moodPresetsFor(profile: Profile): MoodPreset[] {
+/* ────────── 날씨 성격별 목록 (가을·겨울) ────────── */
+
+/**
+ * 위 COMMON_PRESETS·PROFILE_PRESETS는 **더운 날(warm)** 목록이에요 — "생각보다 더 더워요", "물 많이
+ * 챙기세요", "햇볕이 따가워요" 같은 문장이 한파에도 그대로 떠서, 체감온도(constants/weatherMode)로
+ * 목록을 나눠요. 더운 날 목록은 예전과 똑같아요.
+ *
+ * 서버는 한마디의 문장이 아니라 id만 받고 형식(영소문자·숫자·밑줄 24자 이내)만 검사해서, 아래 새 id는
+ * 서버 변경 없이 쓸 수 있어요. 기존 id는 하나도 바꾸거나 지우지 않았어요(위 주의 참고).
+ */
+const MILD_COMMON_PRESETS: MoodPreset[] = [
+  { id: "nice_today", text: "오늘 너무 좋아요" },
+  { id: "windy_cool", text: "바람 시원해요" },
+  { id: "windy_strong", text: "바람이 너무 세요" },
+  { id: "cooler_than_looks", text: "보기보다 시원해요" },
+  { id: "bring_jacket", text: "겉옷 챙기세요" },
+  { id: "bring_umbrella", text: "우산 챙기세요" },
+  { id: "dusty", text: "공기가 좀 답답해요" },
+];
+
+const MILD_PROFILE_PRESETS: Record<Profile, MoodPreset[]> = {
+  runner: [{ id: "good_pace", text: "오늘 페이스 잘 나와요" }],
+  dog: [{ id: "leaves_slippery", text: "낙엽 위는 미끄러워요" }],
+  worker: [{ id: "need_break", text: "자주 쉬어가세요" }],
+};
+
+const COLD_COMMON_PRESETS: MoodPreset[] = [
+  { id: "colder_than_looks", text: "보기보다 추워요" },
+  { id: "bundle_up", text: "따뜻하게 입으세요" },
+  { id: "icy_watch", text: "길이 얼었어요, 조심하세요" },
+  { id: "windy_cold", text: "바람이 차요" },
+  { id: "sunny_warm", text: "햇볕 아래는 따뜻해요" },
+  { id: "bring_umbrella", text: "우산 챙기세요" },
+  { id: "dusty", text: "공기가 좀 답답해요" },
+];
+
+const COLD_PROFILE_PRESETS: Record<Profile, MoodPreset[]> = {
+  runner: [{ id: "warmup_long", text: "몸 푸는 데 오래 걸려요" }],
+  dog: [
+    { id: "paw_cold", text: "발이 시려 보여요" },
+    { id: "short_walk", text: "짧게만 다녀왔어요" },
+  ],
+  worker: [
+    { id: "hands_cold", text: "손이 시려요" },
+    { id: "warm_break", text: "따뜻한 곳에서 쉬세요" },
+  ],
+};
+
+/** 날씨 성격에 맞는 한마디 목록. mode를 안 주면 더운 날 목록(예전 동작)이에요. */
+export function moodPresetsFor(profile: Profile, mode: WeatherMode = "warm"): MoodPreset[] {
+  if (mode === "cold") return [...COLD_PROFILE_PRESETS[profile], ...COLD_COMMON_PRESETS];
+  if (mode === "mild") return [...MILD_PROFILE_PRESETS[profile], ...MILD_COMMON_PRESETS];
   return [...PROFILE_PRESETS[profile], ...COMMON_PRESETS];
 }
 
-/** 서버가 내려준 id를 문장으로. 앱이 모르는 id면 null이라 화면에서 건너뛰어요. */
+/**
+ * 서버가 내려준 id를 문장으로. 앱이 모르는 id면 null이라 화면에서 건너뛰어요.
+ * 어떤 날씨의 목록에서 남겼든 모든 id를 알아요 — 같은 날 다른 사람이 남긴 한마디가 내 화면에서
+ * 목록이 달라도 사라지지 않게요.
+ */
 export function moodPresetText(id: string): string | null {
   return ALL_PRESETS.get(id) ?? null;
 }
 
 const ALL_PRESETS = new Map<string, string>(
-  [...COMMON_PRESETS, ...Object.values(PROFILE_PRESETS).flat()].map((p) => [p.id, p.text]),
+  [
+    ...COMMON_PRESETS,
+    ...Object.values(PROFILE_PRESETS).flat(),
+    ...MILD_COMMON_PRESETS,
+    ...Object.values(MILD_PROFILE_PRESETS).flat(),
+    ...COLD_COMMON_PRESETS,
+    ...Object.values(COLD_PROFILE_PRESETS).flat(),
+  ].map((p) => [p.id, p.text]),
 );

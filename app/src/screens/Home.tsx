@@ -34,6 +34,7 @@ import {
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { isWet, nextWetHour, precipitationLabel, RAIN_ICON } from "../constants/rain";
+import { weatherMode } from "../constants/weatherMode";
 import { sunsetNote } from "../lib/sunsetNote";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
@@ -75,11 +76,8 @@ const WCTA_COPY: Record<Profile, { icon: string; caption: string }> = {
   },
 };
 
-// 위 캡션은 더운 날 기준이에요. 체감온도 구간별로 나눠요 — 5℃ 미만은 추위용, 25℃ 이상은 위
-// 더위용, 그 사이(가을·초봄)는 중립 문구. 5℃는 서버(worker engine)가 판정 문장을 추위용으로 바꾸는
-// 기준, 25℃는 체감온도 조언의 "쾌적" 상한(feelsLikeAdvice)과 같은 값이에요. 근거 없는 수치는 안 넣어요.
-const COLD_BELOW = 5;
-const WARM_FROM = 25;
+// 위 캡션은 더운 날 기준이에요. 체감온도 구간(constants/weatherMode)별로 나눠요 — 추위용 / 중립
+// (가을·초봄) / 위 더위용. 근거 없는 수치는 안 넣어요.
 const WCTA_COLD_CAPTION: Record<Profile, string> = {
   runner: "따뜻하게 입고 무리하지 않게 움직여요",
   dog: "발이 시리지 않게 짧게 걸어요",
@@ -308,11 +306,11 @@ export default function Home() {
   // 다음 행동 카드 캡션 — 추우면 추위용 문구, 시간창이 일몰과 만나면 그 사실을 덧붙여요.
   const wctaCaption = (() => {
     if (!showData) return "";
-    const feels = showData.metrics.feelsLike;
+    const mode = weatherMode(showData.metrics.feelsLike);
     const base =
-      feels < COLD_BELOW
+      mode === "cold"
         ? WCTA_COLD_CAPTION[profile]
-        : feels < WARM_FROM
+        : mode === "mild"
           ? WCTA_MILD_CAPTION[profile]
           : WCTA_COPY[profile].caption;
     const note = sunsetNote(showData.bestWindow, showData.sunset)?.short;
@@ -687,7 +685,13 @@ export default function Home() {
           {/* 동네 기분 투표 — 기상청 값 다음에 "그래서 사람들은 어땠는데?"가 오는 순서예요.
               지표 카드 위로 올리면 판정을 밀어내니까 아래에 둬요. 서버가 이 기능을 안 켰거나
               조회에 실패하면 컴포넌트가 스스로 아무것도 안 그려요. */}
-          <MoodVote label={region.label} nx={region.nx} ny={region.ny} profile={profile} />
+          <MoodVote
+            label={region.label}
+            nx={region.nx}
+            ny={region.ny}
+            profile={profile}
+            feelsLike={showData.metrics.feelsLike}
+          />
 
           <Spacing size={16} />
 

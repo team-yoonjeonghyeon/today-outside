@@ -103,7 +103,7 @@ export default function Onboarding() {
         }
         subtitleBottom={
           <Top.SubtitleParagraph>
-            동네마다 햇빛과 바람이 달라서, 위치를 알면 노면온도까지 정확해져요.
+            동네마다 기온과 바람, 햇빛이 달라서, 위치를 알면 체감온도와 노면온도까지 정확해져요.
           </Top.SubtitleParagraph>
         }
         upper={
