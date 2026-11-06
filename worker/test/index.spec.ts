@@ -1,7 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import worker from "../src/index";
-import { hazardGate, judge, sHeat, sCold, findBestWindow } from "../src/engine";
+import { hazardGate, judge, sHeat, sCold, findBestWindow, roadTemp, roadTempAll } from "../src/engine";
 import type { Computed } from "../src/engine";
 import type { Verdict } from "../src/types";
 import { extractAreaToken, heatLevelForArea, nationwideHeatLevel } from "../src/kma";
@@ -225,6 +225,54 @@ describe("cold judgment", () => {
 		// 점수만으론 2단계지만 법정 33℃ 기준으로 3단계로 올리는 기존 게이트
 		const mild = { ...hot, roadTemp: 30, uvi: 0 };
 		expect(judge("worker", mild, 30, 0).gate).toBe("WORKER_33");
+	});
+});
+
+/* ────────── 빙판·결빙 (이슈 #49) ────────── */
+describe("ice road", () => {
+	it("맑고 바람 약한 영하의 밤엔 노면이 기온보다 낮아요", () => {
+		// 기온 -2℃, 무풍, 일사 0, 잔열 없음(hoursAfterSunset -1), 맑음(1)
+		expect(roadTemp(-2, 0, 0, -1, "asphalt", 1)).toBe(-4.5);
+	});
+
+	it("구름·바람이 있으면 냉각이 줄거나 없어요", () => {
+		expect(roadTemp(-2, 0, 0, -1, "asphalt", 3)).toBe(-3.25); // 구름 많음: 절반
+		expect(roadTemp(-2, 0, 0, -1, "asphalt", 4)).toBe(-2); // 흐림: 없음
+		expect(roadTemp(-2, 6, 0, -1, "asphalt", 1)).toBe(-2); // 바람 6m/s: 없음
+	});
+
+	it("낮(일사 있음)이나 5℃ 초과면 냉각이 없어요 — 여름 노면값은 그대로", () => {
+		expect(roadTemp(-2, 0, 0.5, -1, "asphalt", 1)).toBeGreaterThan(-2); // 낮엔 오히려 데워짐
+		expect(roadTemp(20, 0, 0, -1, "asphalt", 1)).toBe(20);
+		expect(roadTempAll(25, 2, 0.8, -1, 1).asphalt).toBe(roadTempAll(25, 2, 0.8, -1).asphalt);
+	});
+
+	const icy = (road: number, feelsLike = road): Computed => ({
+		feelsLike,
+		roadTemp: road,
+		roadBySurface: { asphalt: road, pavement: road, grass: road, soil: road },
+		srNorm: 0,
+		uvi: 0,
+	});
+
+	it("노면 0℃ 이하 + 비면 빙판 위험 — 최소 4단계 ICE_ROAD", () => {
+		for (const p of ["runner", "worker", "dog"] as const) {
+			const v = judge(p, icy(-1, 3), -1, 1);
+			expect(v.level).toBeGreaterThanOrEqual(4);
+			expect(v.gate).toBe("ICE_ROAD");
+			expect(v.reason).toBe("노면이 -1℃까지 내려가 미끄러울 수 있어요");
+		}
+	});
+
+	it("노면 0℃ 이하 + 눈이면 최소 3단계 (눈은 RAIN 게이트에서 빠져 있었어요)", () => {
+		const v = judge("runner", icy(-1, 3), -1, 3);
+		expect(v.level).toBe(3);
+		expect(v.gate).toBe("ICE_ROAD");
+	});
+
+	it("노면이 0℃ 넘거나 강수가 없으면 결빙 게이트는 안 걸려요", () => {
+		expect(judge("runner", icy(3, 3), 3, 1).gate).toBe("RAIN"); // 비만 — 기존 게이트
+		expect(judge("runner", icy(-3, -3), -3, 0).gate).toBeNull(); // 맑은 영하 — 점수만
 	});
 });
 
