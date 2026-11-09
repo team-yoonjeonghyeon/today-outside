@@ -5,6 +5,12 @@
  * 안 보였어요. 여기서 코드 → 사람이 읽는 말로 한 번만 바꿔서 홈·시간창이 같이 써요.
  */
 export const RAIN_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u2614.png"; // ☔
+export const SNOW_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u2744.png"; // ❄
+
+/** 안내 줄 아이콘 — 눈·비/눈이면 ❄, 그 밖(비·소나기·없음)은 ☔. precipitationLabel의 결과를 받아요. */
+export function precipitationIcon(label: string | null | undefined): string {
+  return label === "눈" || label === "비/눈" ? SNOW_ICON : RAIN_ICON;
+}
 
 /** 비/눈이 오는 중인지. 값이 없으면(서버 미배포) null — "안 온다"와 구분해요. */
 export function isWet(pty: number | undefined): boolean | null {
@@ -26,6 +32,17 @@ export function precipitationLabel(pty: number | undefined): string | null {
     default:
       return null;
   }
+}
+
+/**
+ * "지금 비가 와요" / "지금 눈이 와요" — 이름 끝 글자에 받침이 있으면 "이", 없으면 "가"를 붙여요.
+ * 예전엔 "가"로 고정이라 눈 오는 날 "지금 눈가 와요"가 떴어요.
+ */
+export function fallingNowText(label: string): string {
+  const last = label.charCodeAt(label.length - 1);
+  const isHangul = last >= 0xac00 && last <= 0xd7a3;
+  const hasBatchim = isHangul && (last - 0xac00) % 28 !== 0;
+  return `지금 ${label}${hasBatchim ? "이" : "가"} 와요`;
 }
 
 /**

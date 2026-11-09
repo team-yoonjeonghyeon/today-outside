@@ -383,7 +383,7 @@ export default function Details() {
                 <Spacing size={2} />
                 <Paragraph.Text color={MINT[900]} typography="t7">
                   {isColdRoad
-                    ? "바닥이 얼었거나 젖어 있으면 미끄러워요. 발이 시리면 오래 걷지 않고, 잔디나 흙길로 천천히 걸어요."
+                    ? "바닥이 얼었거나 젖어 있으면 미끄러워요. 발이 시리면 오래 걷지 않고, 잔디나 흙길로 천천히 걸어요. 다녀와서 발을 미지근한 물로 닦아주면 길에 뿌린 제설제가 남지 않아요."
                     : "손등을 바닥에 7초 대보고 뜨거우면 강아지 발에도 뜨거워요. 그때는 흙길이나 잔디로 돌아가요."}
                 </Paragraph.Text>
               </div>

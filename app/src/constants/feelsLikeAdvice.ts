@@ -5,6 +5,7 @@
  * 판정 한 줄(now.headline)이 이미 말하는 것과 겹치지 않게, 구체 행동으로 채웠어요.
  */
 import type { Profile } from "./judge";
+import { COLD_BELOW } from "./weatherMode";
 
 export type FeelsBand =
   | "매우추움"
@@ -18,13 +19,13 @@ export type FeelsBand =
 
 /**
  * 체감온도(℃) → 밴드. 더운 쪽 경계는 법정 31/33/35℃에 맞췄어요.
- * 추운 쪽은 서버(worker engine)가 추위용 문장으로 바꾸는 5℃ 미만부터 나눠요 — 이 구간을 "쾌적"으로
- * 두면 체감 -8℃에도 "활동하기 좋은 온도예요"가 떠요. 경계(0/-10℃)는 초안이에요(이슈 #48).
+ * 추운 쪽은 weatherMode의 추위 기준(COLD_BELOW, 10℃) 미만부터 나눠요 — 이 구간을 "쾌적"으로
+ * 두면 체감 7℃에도 "활동하기 좋은 온도예요"가 떠요. 경계(0/-10℃)는 초안이에요(이슈 #48).
  */
 export function feelsLikeBand(feelsLike: number): FeelsBand {
   if (feelsLike < -10) return "매우추움";
   if (feelsLike < 0) return "추움";
-  if (feelsLike < 5) return "쌀쌀";
+  if (feelsLike < COLD_BELOW) return "쌀쌀";
   if (feelsLike < 25) return "쾌적";
   if (feelsLike < 31) return "보통";
   if (feelsLike < 33) return "주의";
@@ -53,6 +54,7 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
     dog: [
       "배변 위주로 짧게 다녀와요",
       "오래 걷지 않고, 필요하면 안고 이동해도 좋아요",
+      "다녀와서 발을 미지근한 물로 닦아줘요. 길에 뿌린 제설제가 묻어 있을 수 있어요",
     ],
   },
   추움: {
@@ -66,6 +68,7 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
     dog: [
       "산책은 짧게, 발이 시리지 않게 해요",
       "털이 짧거나 작은 아이는 옷을 입혀도 좋아요",
+      "다녀와서 발을 미지근한 물로 닦아줘요. 길에 뿌린 제설제가 묻어 있을 수 있어요",
     ],
   },
   쌀쌀: {

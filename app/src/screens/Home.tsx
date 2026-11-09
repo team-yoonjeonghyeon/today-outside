@@ -15,6 +15,7 @@ import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import MoodVote from "../components/MoodVote";
 import { ProfileTabs } from "../components/ProfileTabs";
+import SeasonalEffect from "../components/SeasonalEffect";
 import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import {
   HERO_TINTS,
@@ -33,8 +34,9 @@ import {
   type Metrics,
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
-import { isWet, nextWetHour, precipitationLabel, RAIN_ICON } from "../constants/rain";
+import { fallingNowText, isWet, nextWetHour, precipitationIcon, precipitationLabel } from "../constants/rain";
 import { weatherMode } from "../constants/weatherMode";
+import { seasonalEffectKind } from "../lib/seasonalEffect";
 import { sunsetNote } from "../lib/sunsetNote";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
@@ -167,7 +169,15 @@ function buildMetricCards(profile: Profile, data: JudgeResponse): MetricCard[] {
   };
 
   // 반려견은 노면이 히어로, 러너·야외 작업은 체감온도가 히어로예요 (기획서 §5-2 [F3]).
-  const ordered = profile === "dog" ? [roadCard, feelsLikeCard, uvCard] : [feelsLikeCard, uvCard, roadCard];
+  // 노면 히어로는 여름 발바닥 화상을 보려는 거라, 추운 날엔 체감온도를 올려요. 노면이 0℃ 이하로
+  // 추정되면(결빙 가능) 다시 노면이 히어로예요.
+  const dogRoadFirst = weatherMode(metrics.feelsLike) !== "cold" || metrics.roadTemp <= 0;
+  const ordered =
+    profile === "dog"
+      ? dogRoadFirst
+        ? [roadCard, feelsLikeCard, uvCard]
+        : [feelsLikeCard, roadCard, uvCard]
+      : [feelsLikeCard, uvCard, roadCard];
   ordered[0].hero = true;
   return ordered;
 }
@@ -321,21 +331,30 @@ export default function Home() {
 
   // 비 안내 문구. 지금 오는 중이면 그걸 우선 보여주고, 아니면 오늘 안에 비가 시작하는 첫
   // 시각을 알려줘요. 서버가 강수 필드를 안 내려주면(배포 전) null이라 아무것도 안 그려요.
-  const rainNotice = (() => {
+  // 아이콘은 그 안내가 말하는 강수 종류를 따라가요 — 눈이면 ❄, 비면 ☔.
+  const rainNotice = ((): { text: string; icon: string } | null => {
     if (!showData) return null;
     const nowLabel = precipitationLabel(showData.metrics.pty);
     if (nowLabel) {
       const mm = showData.metrics.rain;
-      return mm && mm > 0 ? `지금 ${nowLabel}가 와요 · 1시간 ${mm}mm` : `지금 ${nowLabel}가 와요`;
+      const text = mm && mm > 0 ? `${fallingNowText(nowLabel)} · 1시간 ${mm}mm` : fallingNowText(nowLabel);
+      return { text, icon: precipitationIcon(nowLabel) };
     }
     if (isWet(showData.metrics.pty) === null) return null; // 서버가 아직 안 내려줘요.
     const upcoming = nextWetHour(showData.hourly, parseKstHourValue(showData.generatedAt));
     if (!upcoming) return null;
-    return `${upcoming.hour}시부터 ${upcoming.label} 소식이 있어요`;
+    return {
+      text: `${upcoming.hour}시부터 ${upcoming.label} 소식이 있어요`,
+      icon: precipitationIcon(upcoming.label),
+    };
   })();
 
   return (
     <>
+      {/* 눈 오는 날엔 눈, 가을 맑은 날엔 낙엽 — 진입 때 잠깐만, 터치는 막지 않아요. */}
+      <SeasonalEffect
+        kind={showData ? seasonalEffectKind(showData.metrics.pty, showData.generatedAt) : null}
+      />
       <div style={{ padding: "6px 24px 0" }}>
         <ProfileTabs value={profile} onChange={setProfile} />
       </div>
@@ -531,19 +550,20 @@ export default function Home() {
                   textAlign: "left",
                 }}
               >
-                <img src={RAIN_ICON} alt="" width={22} height={22} style={{ display: "block" }} />
+                <img src={rainNotice.icon} alt="" width={22} height={22} style={{ display: "block" }} />
                 <Paragraph.Text color="#1B4B8F" fontWeight="bold" style={{ flex: 1 }}>
-                  {rainNotice}
+                  {rainNotice.text}
                 </Paragraph.Text>
                 <span style={{ color: "#1B4B8F", fontSize: 16, fontWeight: 700, lineHeight: 1 }}>›</span>
               </button>
             </div>
           )}
 
-          {/* 일교차 안내 — 서버가 안내할 만한 일교차라고 판단했을 때(advice가 있을 때)만 그려요.
-              값이 없거나 안내할 게 없으면 아무것도 안 그려요. 판정 등급과는 별개인 참고 정보예요.
+          {/* 일교차 안내 — 서버가 범위를 내려주면 최저~최고는 항상 보여주고, 안내할 만한 일교차라고
+              판단했을 때(advice가 있을 때)만 아래 문장을 붙여요. 가을·겨울엔 아침저녁과 낮의 차이가
+              커서 문장이 없어도 범위 자체가 쓸모 있어요. 판정 등급과는 별개인 참고 정보예요.
               basis가 hourly면 06시 이전 새벽 최저가 빠져 있을 수 있어서 "오늘" 대신 "낮 동안"이라고 말해요. */}
-          {showData.dailyRange?.advice && (
+          {showData.dailyRange && (
             <div style={{ margin: "0 24px 16px" }}>
               <div
                 style={{
@@ -556,11 +576,13 @@ export default function Home() {
                 <Paragraph.Text color={adaptive.grey800} fontWeight="bold">
                   {`${showData.dailyRange.basis === "forecast" ? "오늘" : "낮 동안"} ${showData.dailyRange.min}℃ ~ ${showData.dailyRange.max}℃`}
                 </Paragraph.Text>
-                <div style={{ marginTop: 2 }}>
-                  <Paragraph.Text color={adaptive.grey700} typography="t7">
-                    {showData.dailyRange.advice}
-                  </Paragraph.Text>
-                </div>
+                {showData.dailyRange.advice && (
+                  <div style={{ marginTop: 2 }}>
+                    <Paragraph.Text color={adaptive.grey700} typography="t7">
+                      {showData.dailyRange.advice}
+                    </Paragraph.Text>
+                  </div>
+                )}
               </div>
             </div>
           )}
