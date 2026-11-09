@@ -34,7 +34,7 @@ import {
   type Metrics,
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
-import { isWet, nextWetHour, precipitationLabel, RAIN_ICON } from "../constants/rain";
+import { fallingNowText, isWet, nextWetHour, precipitationLabel, RAIN_ICON } from "../constants/rain";
 import { weatherMode } from "../constants/weatherMode";
 import { seasonalEffectKind } from "../lib/seasonalEffect";
 import { sunsetNote } from "../lib/sunsetNote";
@@ -336,7 +336,7 @@ export default function Home() {
     const nowLabel = precipitationLabel(showData.metrics.pty);
     if (nowLabel) {
       const mm = showData.metrics.rain;
-      return mm && mm > 0 ? `지금 ${nowLabel}가 와요 · 1시간 ${mm}mm` : `지금 ${nowLabel}가 와요`;
+      return mm && mm > 0 ? `${fallingNowText(nowLabel)} · 1시간 ${mm}mm` : fallingNowText(nowLabel);
     }
     if (isWet(showData.metrics.pty) === null) return null; // 서버가 아직 안 내려줘요.
     const upcoming = nextWetHour(showData.hourly, parseKstHourValue(showData.generatedAt));

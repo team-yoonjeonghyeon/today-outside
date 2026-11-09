@@ -30,7 +30,8 @@ const ICONS: Record<EffectKind, string[]> = {
   ],
 };
 
-const PARTICLE_COUNT = 14;
+// 눈송이는 작고 색이 연해서 낙엽보다 많이, 크게 내려야 "눈 오는 날"처럼 보여요.
+const PARTICLE_COUNT: Record<EffectKind, number> = { snow: 22, leaves: 14 };
 const MAX_DELAY_S = 2.5;
 // 작은 낙엽도 손가락으로 집기 쉽게 이미지 둘레에 투명한 터치 여백을 둬요.
 const HIT_PAD = 10;
@@ -51,10 +52,10 @@ interface Particle {
 
 function makeParticles(kind: EffectKind): Particle[] {
   const icons = ICONS[kind];
-  return Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+  return Array.from({ length: PARTICLE_COUNT[kind] }, (_, i) => ({
     src: icons[i % icons.length],
     left: Math.random() * 100,
-    size: kind === "snow" ? 12 + Math.random() * 10 : 18 + Math.random() * 10,
+    size: kind === "snow" ? 18 + Math.random() * 12 : 18 + Math.random() * 10,
     delay: Math.random() * MAX_DELAY_S,
     duration: (kind === "snow" ? 4.5 : 4) + Math.random() * 2,
     sway: (Math.random() < 0.5 ? -1 : 1) * (20 + Math.random() * 40),

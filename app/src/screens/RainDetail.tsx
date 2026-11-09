@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { List, ListRow, Loader, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { MINT, type Profile } from "../constants/judge";
-import { isWet, nextWetHour, parsePcpMm, precipitationLabel, RAIN_ICON } from "../constants/rain";
+import { fallingNowText, isWet, nextWetHour, parsePcpMm, precipitationLabel, RAIN_ICON } from "../constants/rain";
 import { fetchJudge, JudgeApiError, type HourSlot, type JudgeResponse } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
@@ -126,8 +126,8 @@ export default function RainDetail() {
 
   const headline = nowLabel
     ? metrics.rain && metrics.rain > 0
-      ? `지금 ${nowLabel}가 와요 · 1시간 ${metrics.rain}mm`
-      : `지금 ${nowLabel}가 와요`
+      ? `${fallingNowText(nowLabel)} · 1시간 ${metrics.rain}mm`
+      : fallingNowText(nowLabel)
     : upcoming
       ? `${upcoming.hour}시부터 ${upcoming.label} 소식이 있어요`
       : "오늘은 비 소식이 없어요";

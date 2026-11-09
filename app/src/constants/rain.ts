@@ -29,6 +29,17 @@ export function precipitationLabel(pty: number | undefined): string | null {
 }
 
 /**
+ * "지금 비가 와요" / "지금 눈이 와요" — 이름 끝 글자에 받침이 있으면 "이", 없으면 "가"를 붙여요.
+ * 예전엔 "가"로 고정이라 눈 오는 날 "지금 눈가 와요"가 떴어요.
+ */
+export function fallingNowText(label: string): string {
+  const last = label.charCodeAt(label.length - 1);
+  const isHangul = last >= 0xac00 && last <= 0xd7a3;
+  const hasBatchim = isHangul && (last - 0xac00) % 28 !== 0;
+  return `지금 ${label}${hasBatchim ? "이" : "가"} 와요`;
+}
+
+/**
  * 1시간 강수량(PCP) 원문 구간 문자열에서 막대 높이 계산용 대표값(mm)을 뽑아요.
  *
  * 기상청이 애초에 "1.0~4.9mm"·"50.0mm 이상" 같은 구간으로만 줘서 정확한 mm은 몰라요. 여기서
