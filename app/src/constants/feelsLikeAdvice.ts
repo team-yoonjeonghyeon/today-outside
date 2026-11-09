@@ -84,7 +84,7 @@ export const FEELS_ADVICE: Record<FeelsBand, FeelsAdvice> = {
   쾌적: {
     headline: "활동하기 좋은 온도예요",
     tips: ["가볍게 물만 챙기면 충분해요"],
-    dog: ["시원해서 산책하기 좋아요"],
+    dog: ["걷기 좋은 날씨예요"],
   },
   보통: {
     headline: "덥지만 견딜 만해요. 수분을 미리 챙겨요",

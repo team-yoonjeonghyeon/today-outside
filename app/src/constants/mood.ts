@@ -108,11 +108,13 @@ const PROFILE_PRESETS: Record<Profile, MoodPreset[]> = {
  * 서버는 한마디의 문장이 아니라 id만 받고 형식(영소문자·숫자·밑줄 24자 이내)만 검사해서, 아래 새 id는
  * 서버 변경 없이 쓸 수 있어요. 기존 id는 하나도 바꾸거나 지우지 않았어요(위 주의 참고).
  */
+// "시원해요"는 더운 날의 반가운 바람이라, 가을·초봄엔 "선선/쌀쌀"로 말해요. 더운 날 목록의 id는 그대로
+// 두고(이미 남겨진 한마디가 사라지지 않게) 여기엔 새 id를 써요.
 const MILD_COMMON_PRESETS: MoodPreset[] = [
   { id: "nice_today", text: "오늘 너무 좋아요" },
-  { id: "windy_cool", text: "바람 시원해요" },
+  { id: "breeze_crisp", text: "바람이 선선해요" },
   { id: "windy_strong", text: "바람이 너무 세요" },
-  { id: "cooler_than_looks", text: "보기보다 시원해요" },
+  { id: "chilly_than_looks", text: "보기보다 쌀쌀해요" },
   { id: "bring_jacket", text: "겉옷 챙기세요" },
   { id: "bring_umbrella", text: "우산 챙기세요" },
   { id: "dusty", text: "공기가 좀 답답해요" },

@@ -10,6 +10,7 @@ import { setStoredJSON, STORAGE_KEYS } from "../lib/storage";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { UV_ADVICE, uvTips, type UvLabel } from "../constants/uvAdvice";
 import { FEELS_ADVICE, feelsTips, feelsLikeBand } from "../constants/feelsLikeAdvice";
+import { weatherMode } from "../constants/weatherMode";
 
 // F5 지표 상세 — 왜 이 판정인가. docs/오늘나가도되나_디자인프레임.html F5 참고.
 // 이 화면의 스타일(.sect-h/.calc/.calcrow/.surf/.notice/.badge)은 그 파일 <style> 블록의
@@ -196,8 +197,9 @@ export default function Details() {
   const surfaceValues = surfaceRows(metrics).map((r) => r.value);
   // 노면이 0℃ 이하로 추정될 때만 — 비·눈이 있는지는 여기서 모르니 "젖은 곳은"이라고 조건을 달아 말해요.
   const isFreezing = isRoad && metrics.roadTemp <= 0;
-  // 추운 날의 반려견 노면 안내 기준. 5℃는 홈·서버의 추위 기준과 같은 값이에요.
-  const isColdRoad = metrics.roadTemp <= 5;
+  // 반려견 노면 안내를 계절에 맞춰 골라요. 노면 5℃ 이하거나 추운 날이면 추위용, 더운 날에만 손등 7초,
+  // 그 사이(가을·초봄)는 선선한 날 문구예요 — 노면 11℃에 "뜨거우면"을 말하지 않게요.
+  const roadTipMode = metrics.roadTemp <= 5 ? "cold" : weatherMode(metrics.feelsLike);
   // 체감·자외선 상세의 "이렇게 준비해요" 조언. 자외선은 서버 uviLabel이 기상청 5단계 표현과
   // 정확히 일치할 때만 보여줘요(다른 문자열이면 지어내지 않고 건너뜀 — 정직성 원칙).
   // 노면은 표면 비교·손등7초 등 자체 상세가 있어 조언을 두지 않아요.
@@ -382,9 +384,11 @@ export default function Details() {
                 </Paragraph.Text>
                 <Spacing size={2} />
                 <Paragraph.Text color={MINT[900]} typography="t7">
-                  {isColdRoad
+                  {roadTipMode === "cold"
                     ? "바닥이 얼었거나 젖어 있으면 미끄러워요. 발이 시리면 오래 걷지 않고, 잔디나 흙길로 천천히 걸어요. 다녀와서 발을 미지근한 물로 닦아주면 길에 뿌린 제설제가 남지 않아요."
-                    : "손등을 바닥에 7초 대보고 뜨거우면 강아지 발에도 뜨거워요. 그때는 흙길이나 잔디로 돌아가요."}
+                    : roadTipMode === "warm"
+                      ? "손등을 바닥에 7초 대보고 뜨거우면 강아지 발에도 뜨거워요. 그때는 흙길이나 잔디로 돌아가요."
+                      : "바닥이 뜨겁지도 차갑지도 않은 날이에요. 젖은 낙엽 위는 미끄러우니 천천히 걸어요."}
                 </Paragraph.Text>
               </div>
             </div>

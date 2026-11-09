@@ -8,12 +8,13 @@ import {
 import type { EffectKind } from "../lib/seasonalEffect";
 
 /**
- * 홈 진입 때 잠깐 떨어지는 계절 효과 — 눈 오는 날엔 눈송이, 가을(9~11월) 맑은 날엔 낙엽.
+ * 홈 계절 효과 — 눈 오는 날엔 눈송이, 가을(9~11월) 맑은 날엔 낙엽.
  *
  * - 지금 실제로 눈(PTY 3)·비/눈(PTY 2)이 올 때만 눈을 내려요. 겨울이라고 맑은 날에 눈을 뿌리면
  *   날씨 앱으로서 거짓말이 돼요.
  * - 낙엽은 계절 연출이라 날짜(KST 월)로 정하고, 비·눈이 올 땐 안 띄워요.
- * - 한 번 몇 초 재생하고 사라져요. 탭 전환·뒤로가기로 홈이 다시 그려져도 같은 효과는 세션당 한 번만.
+ * - 낙엽은 홈에 있는 동안 천천히 계속 내려요 — 한 장이 바닥에 닿거나 치워지면 위에서 새 낙엽이 떨어져요.
+ * - 눈은 진입 때 한 번 몇 초만 내려요. 탭 전환·뒤로가기로 홈이 다시 그려져도 세션당 한 번만.
  * - 낙엽은 집어서 치울 수 있어요 — 톡 치면 옆으로 날아가고, 끌었다 놓으면 던진 방향으로 날아가요.
  *   낙엽 조각만 터치를 받고 나머지 영역은 pointer-events: none이라 화면 조작을 막지 않아요.
  *   눈송이는 터치를 받지 않아요. 스크린 리더엔 효과 전체를 숨겨요.
@@ -30,17 +31,24 @@ const ICONS: Record<EffectKind, string[]> = {
   ],
 };
 
-// 눈송이는 작고 색이 연해서 낙엽보다 많이, 크게 내려야 "눈 오는 날"처럼 보여요.
-const PARTICLE_COUNT: Record<EffectKind, number> = { snow: 22, leaves: 14 };
-const MAX_DELAY_S = 2.5;
+// 눈송이는 작고 색이 연해서 많이, 크게 내려야 "눈 오는 날"처럼 보여요.
+// 낙엽은 계속 내리니까 한 화면에 너무 많지 않게 — 천천히 떨어져서 12장이면 충분히 차요.
+const PARTICLE_COUNT: Record<EffectKind, number> = { snow: 22, leaves: 12 };
 // 작은 낙엽도 손가락으로 집기 쉽게 이미지 둘레에 투명한 터치 여백을 둬요.
 const HIT_PAD = 10;
 const TOSS_MS = 450;
 
-// 세션(앱 실행) 동안 이미 보여준 효과. 모듈 변수라 새로고침 전까지 유지돼요.
+// 세션(앱 실행) 동안 이미 보여준 한 번짜리 효과(눈). 모듈 변수라 새로고침 전까지 유지돼요.
 const played = new Set<EffectKind>();
 
+// 낙엽처럼 계속 이어지는 효과인지. 계속 효과는 세션 제한 없이 홈에 있는 동안 돌아요.
+const isContinuous = (kind: EffectKind) => kind === "leaves";
+
+let nextParticleId = 0;
+
 interface Particle {
+  id: number;
+  anim: string; // keyframes 이름
   src: string;
   left: number; // vw
   size: number; // px
@@ -50,17 +58,37 @@ interface Particle {
   spin: number; // deg
 }
 
-function makeParticles(kind: EffectKind): Particle[] {
+/**
+ * 조각 하나. `first`는 처음 깔리는 조각 — 낙엽은 시작 시점을 넓게 흩어서 한꺼번에 쏟아지지 않고
+ * 처음부터 띄엄띄엄 내리게 해요. 다시 생기는 낙엽은 곧바로(0~2초 안에) 떨어지기 시작해요.
+ */
+function makeParticle(kind: EffectKind, first: boolean): Particle {
   const icons = ICONS[kind];
-  return Array.from({ length: PARTICLE_COUNT[kind] }, (_, i) => ({
-    src: icons[i % icons.length],
+  const base = {
+    id: nextParticleId++,
+    src: icons[Math.floor(Math.random() * icons.length)],
     left: Math.random() * 100,
-    size: kind === "snow" ? 18 + Math.random() * 12 : 18 + Math.random() * 10,
-    delay: Math.random() * MAX_DELAY_S,
-    duration: (kind === "snow" ? 4.5 : 4) + Math.random() * 2,
-    sway: (Math.random() < 0.5 ? -1 : 1) * (20 + Math.random() * 40),
-    spin: kind === "snow" ? 90 + Math.random() * 90 : 180 + Math.random() * 360,
-  }));
+  };
+  if (kind === "snow") {
+    return {
+      ...base,
+      anim: "seasonal-fall",
+      size: 18 + Math.random() * 12,
+      delay: Math.random() * 2.5,
+      duration: 4.5 + Math.random() * 2,
+      sway: (Math.random() < 0.5 ? -1 : 1) * (20 + Math.random() * 40),
+      spin: 90 + Math.random() * 90,
+    };
+  }
+  return {
+    ...base,
+    anim: "seasonal-drift",
+    size: 18 + Math.random() * 10,
+    delay: first ? Math.random() * 9 : Math.random() * 2,
+    duration: 9 + Math.random() * 4,
+    sway: (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 40),
+    spin: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 240),
+  };
 }
 
 function prefersReducedMotion(): boolean {
@@ -87,6 +115,15 @@ const KEYFRAMES = `
   10%  { opacity: 0.9; }
   50%  { transform: translate3d(var(--sway), 50vh, 0) rotate(calc(var(--spin) / 2)); }
   90%  { opacity: 0.9; }
+  100% { transform: translate3d(0, 110vh, 0) rotate(var(--spin)); opacity: 0; }
+}
+@keyframes seasonal-drift {
+  0%   { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.9; }
+  25%  { transform: translate3d(var(--sway), 18vh, 0) rotate(calc(var(--spin) * 0.25)); }
+  50%  { transform: translate3d(calc(var(--sway) * -0.6), 46vh, 0) rotate(calc(var(--spin) * 0.5)); }
+  75%  { transform: translate3d(calc(var(--sway) * 0.8), 76vh, 0) rotate(calc(var(--spin) * 0.75)); }
+  92%  { opacity: 0.9; }
   100% { transform: translate3d(0, 110vh, 0) rotate(var(--spin)); opacity: 0; }
 }`;
 
@@ -196,7 +233,7 @@ function Piece({ p, grabbable, onDone }: { p: Particle; grabbable: boolean; onDo
           top: 0,
           left: `calc(${p.left}vw - ${HIT_PAD}px)`,
           opacity: 0,
-          animation: `seasonal-fall ${p.duration}s ease-in ${p.delay}s 1 both`,
+          animation: `${p.anim} ${p.duration}s ${p.anim === "seasonal-drift" ? "ease-in-out" : "ease-in"} ${p.delay}s 1 both`,
           "--sway": `${p.sway}px`,
           "--spin": `${p.spin}deg`,
         } as CSSProperties)
@@ -237,24 +274,32 @@ export default function SeasonalEffect({ kind }: { kind: EffectKind | null }) {
   const finished = useRef(false);
 
   useEffect(() => {
-    if (!kind || played.has(kind) || prefersReducedMotion()) return;
-    played.add(kind);
+    if (!kind || prefersReducedMotion()) return;
+    const continuous = isContinuous(kind);
+    if (!continuous) {
+      if (played.has(kind)) return;
+      played.add(kind);
+    }
     doneCount.current = 0;
     finished.current = false;
-    setParticles(makeParticles(kind));
+    setParticles(Array.from({ length: PARTICLE_COUNT[kind] }, () => makeParticle(kind, true)));
     setActive(kind);
     return () => {
-      // 다 보여주기 전에 끊겼으면(StrictMode 이중 실행 포함) 다음에 다시 보여줄 수 있게 되돌려요.
-      if (!finished.current) {
-        played.delete(kind);
-        setActive(null);
-      }
+      // 한 번짜리 효과를 다 보여주기 전에 끊겼으면(StrictMode 이중 실행 포함) 다음에 다시 보여줄 수 있게 되돌려요.
+      if (!continuous && !finished.current) played.delete(kind);
+      setActive(null);
     };
   }, [kind]);
 
-  // 조각이 바닥까지 떨어졌거나 치워지면 하나씩 세고, 다 끝나면 효과를 내려요.
-  // 누가 낙엽을 잡고 있는 동안엔 끝나지 않아요.
-  const handleDone = () => {
+  // 조각이 바닥까지 떨어졌거나 치워졌을 때.
+  // - 낙엽(계속 효과): 그 자리에 새 낙엽을 하나 만들어 위에서 다시 떨어뜨려요.
+  // - 눈(한 번짜리): 하나씩 세고, 다 끝나면 효과를 내려요.
+  const handleDone = (id: number) => {
+    if (active && isContinuous(active)) {
+      const kindNow = active;
+      setParticles((ps) => ps.map((p) => (p.id === id ? makeParticle(kindNow, false) : p)));
+      return;
+    }
     doneCount.current += 1;
     if (doneCount.current >= particles.length) {
       finished.current = true;
@@ -270,8 +315,8 @@ export default function SeasonalEffect({ kind }: { kind: EffectKind | null }) {
       style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 1000 }}
     >
       <style>{KEYFRAMES}</style>
-      {particles.map((p, i) => (
-        <Piece key={i} p={p} grabbable={active === "leaves"} onDone={handleDone} />
+      {particles.map((p) => (
+        <Piece key={p.id} p={p} grabbable={active === "leaves"} onDone={() => handleDone(p.id)} />
       ))}
     </div>
   );
