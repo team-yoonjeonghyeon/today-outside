@@ -5,6 +5,12 @@
  * 안 보였어요. 여기서 코드 → 사람이 읽는 말로 한 번만 바꿔서 홈·시간창이 같이 써요.
  */
 export const RAIN_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u2614.png"; // ☔
+export const SNOW_ICON = "https://static.toss.im/2d-icons/emoji/png/4x/u2744.png"; // ❄
+
+/** 안내 줄 아이콘 — 눈·비/눈이면 ❄, 그 밖(비·소나기·없음)은 ☔. precipitationLabel의 결과를 받아요. */
+export function precipitationIcon(label: string | null | undefined): string {
+  return label === "눈" || label === "비/눈" ? SNOW_ICON : RAIN_ICON;
+}
 
 /** 비/눈이 오는 중인지. 값이 없으면(서버 미배포) null — "안 온다"와 구분해요. */
 export function isWet(pty: number | undefined): boolean | null {

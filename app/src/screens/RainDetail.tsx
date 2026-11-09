@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { List, ListRow, Loader, Paragraph, Result, Spacing, Text } from "@toss/tds-mobile";
 import { adaptive } from "@toss/tds-colors";
 import { MINT, type Profile } from "../constants/judge";
-import { fallingNowText, isWet, nextWetHour, parsePcpMm, precipitationLabel, RAIN_ICON } from "../constants/rain";
+import { fallingNowText, isWet, nextWetHour, parsePcpMm, precipitationIcon, precipitationLabel } from "../constants/rain";
 import { fetchJudge, JudgeApiError, type HourSlot, type JudgeResponse } from "../lib/judgeApi";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 import { useDisablePullToRefresh } from "../hooks/useDisablePullToRefresh";
@@ -132,6 +132,8 @@ export default function RainDetail() {
       ? `${upcoming.hour}시부터 ${upcoming.label} 소식이 있어요`
       : "오늘은 비 소식이 없어요";
 
+  const headlineIcon = precipitationIcon(nowLabel ?? upcoming?.label);
+
   const amounts = hourly.map((slot) => parsePcpMm(slot.pcp));
   const maxMm = Math.max(1, ...amounts);
   const firstHour = hourly[0]?.hour ?? 6;
@@ -146,7 +148,7 @@ export default function RainDetail() {
         </Paragraph.Text>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-          <img src={RAIN_ICON} alt="" width={28} height={28} style={{ display: "block" }} />
+          <img src={headlineIcon} alt="" width={28} height={28} style={{ display: "block" }} />
           <Text color={adaptive.grey900} typography="t3" fontWeight="bold">
             {headline}
           </Text>

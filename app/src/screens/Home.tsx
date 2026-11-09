@@ -34,7 +34,7 @@ import {
   type Metrics,
 } from "../lib/judgeApi";
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
-import { fallingNowText, isWet, nextWetHour, precipitationLabel, RAIN_ICON } from "../constants/rain";
+import { fallingNowText, isWet, nextWetHour, precipitationIcon, precipitationLabel } from "../constants/rain";
 import { weatherMode } from "../constants/weatherMode";
 import { seasonalEffectKind } from "../lib/seasonalEffect";
 import { sunsetNote } from "../lib/sunsetNote";
@@ -331,17 +331,22 @@ export default function Home() {
 
   // 비 안내 문구. 지금 오는 중이면 그걸 우선 보여주고, 아니면 오늘 안에 비가 시작하는 첫
   // 시각을 알려줘요. 서버가 강수 필드를 안 내려주면(배포 전) null이라 아무것도 안 그려요.
-  const rainNotice = (() => {
+  // 아이콘은 그 안내가 말하는 강수 종류를 따라가요 — 눈이면 ❄, 비면 ☔.
+  const rainNotice = ((): { text: string; icon: string } | null => {
     if (!showData) return null;
     const nowLabel = precipitationLabel(showData.metrics.pty);
     if (nowLabel) {
       const mm = showData.metrics.rain;
-      return mm && mm > 0 ? `${fallingNowText(nowLabel)} · 1시간 ${mm}mm` : fallingNowText(nowLabel);
+      const text = mm && mm > 0 ? `${fallingNowText(nowLabel)} · 1시간 ${mm}mm` : fallingNowText(nowLabel);
+      return { text, icon: precipitationIcon(nowLabel) };
     }
     if (isWet(showData.metrics.pty) === null) return null; // 서버가 아직 안 내려줘요.
     const upcoming = nextWetHour(showData.hourly, parseKstHourValue(showData.generatedAt));
     if (!upcoming) return null;
-    return `${upcoming.hour}시부터 ${upcoming.label} 소식이 있어요`;
+    return {
+      text: `${upcoming.hour}시부터 ${upcoming.label} 소식이 있어요`,
+      icon: precipitationIcon(upcoming.label),
+    };
   })();
 
   return (
@@ -545,9 +550,9 @@ export default function Home() {
                   textAlign: "left",
                 }}
               >
-                <img src={RAIN_ICON} alt="" width={22} height={22} style={{ display: "block" }} />
+                <img src={rainNotice.icon} alt="" width={22} height={22} style={{ display: "block" }} />
                 <Paragraph.Text color="#1B4B8F" fontWeight="bold" style={{ flex: 1 }}>
-                  {rainNotice}
+                  {rainNotice.text}
                 </Paragraph.Text>
                 <span style={{ color: "#1B4B8F", fontSize: 16, fontWeight: 700, lineHeight: 1 }}>›</span>
               </button>
