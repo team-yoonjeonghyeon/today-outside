@@ -167,7 +167,15 @@ function buildMetricCards(profile: Profile, data: JudgeResponse): MetricCard[] {
   };
 
   // 반려견은 노면이 히어로, 러너·야외 작업은 체감온도가 히어로예요 (기획서 §5-2 [F3]).
-  const ordered = profile === "dog" ? [roadCard, feelsLikeCard, uvCard] : [feelsLikeCard, uvCard, roadCard];
+  // 노면 히어로는 여름 발바닥 화상을 보려는 거라, 추운 날엔 체감온도를 올려요. 노면이 0℃ 이하로
+  // 추정되면(결빙 가능) 다시 노면이 히어로예요.
+  const dogRoadFirst = weatherMode(metrics.feelsLike) !== "cold" || metrics.roadTemp <= 0;
+  const ordered =
+    profile === "dog"
+      ? dogRoadFirst
+        ? [roadCard, feelsLikeCard, uvCard]
+        : [feelsLikeCard, roadCard, uvCard]
+      : [feelsLikeCard, uvCard, roadCard];
   ordered[0].hero = true;
   return ordered;
 }
@@ -540,10 +548,11 @@ export default function Home() {
             </div>
           )}
 
-          {/* 일교차 안내 — 서버가 안내할 만한 일교차라고 판단했을 때(advice가 있을 때)만 그려요.
-              값이 없거나 안내할 게 없으면 아무것도 안 그려요. 판정 등급과는 별개인 참고 정보예요.
+          {/* 일교차 안내 — 서버가 범위를 내려주면 최저~최고는 항상 보여주고, 안내할 만한 일교차라고
+              판단했을 때(advice가 있을 때)만 아래 문장을 붙여요. 가을·겨울엔 아침저녁과 낮의 차이가
+              커서 문장이 없어도 범위 자체가 쓸모 있어요. 판정 등급과는 별개인 참고 정보예요.
               basis가 hourly면 06시 이전 새벽 최저가 빠져 있을 수 있어서 "오늘" 대신 "낮 동안"이라고 말해요. */}
-          {showData.dailyRange?.advice && (
+          {showData.dailyRange && (
             <div style={{ margin: "0 24px 16px" }}>
               <div
                 style={{
@@ -556,11 +565,13 @@ export default function Home() {
                 <Paragraph.Text color={adaptive.grey800} fontWeight="bold">
                   {`${showData.dailyRange.basis === "forecast" ? "오늘" : "낮 동안"} ${showData.dailyRange.min}℃ ~ ${showData.dailyRange.max}℃`}
                 </Paragraph.Text>
-                <div style={{ marginTop: 2 }}>
-                  <Paragraph.Text color={adaptive.grey700} typography="t7">
-                    {showData.dailyRange.advice}
-                  </Paragraph.Text>
-                </div>
+                {showData.dailyRange.advice && (
+                  <div style={{ marginTop: 2 }}>
+                    <Paragraph.Text color={adaptive.grey700} typography="t7">
+                      {showData.dailyRange.advice}
+                    </Paragraph.Text>
+                  </div>
+                )}
               </div>
             </div>
           )}

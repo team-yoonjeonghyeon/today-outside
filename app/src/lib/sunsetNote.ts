@@ -13,10 +13,13 @@ export function sunsetNote(
 ): { short: string; long: string } | null {
   if (!bestWindow || bestWindow.afterSunset === undefined) return null;
 
+  // 해 진 뒤엔 "어둡다"는 사실에 더해 밝은 옷·반사되는 걸 챙기라는 생활 안내를 붙여요.
   if (bestWindow.afterSunset) {
     return {
-      short: "해가 진 뒤예요",
-      long: sunset ? `일몰 ${sunset} · 해가 진 뒤 시간대예요` : "해가 진 뒤 시간대예요",
+      short: "해 진 뒤라 밝은 옷을 챙겨요",
+      long: sunset
+        ? `일몰 ${sunset} · 해가 진 뒤라 밝은 옷이나 반사되는 걸 챙겨요`
+        : "해가 진 뒤라 밝은 옷이나 반사되는 걸 챙겨요",
     };
   }
 
