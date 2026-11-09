@@ -8,13 +8,13 @@ import {
 import type { EffectKind } from "../lib/seasonalEffect";
 
 /**
- * 홈 계절 효과 — 눈 오는 날엔 눈송이, 가을(9~11월) 맑은 날엔 낙엽.
+ * 홈 계절 효과 — 눈 오는 날엔 눈송이, 비 오는 날엔 빗줄기, 가을(9~11월) 맑은 날엔 낙엽.
  *
  * - 지금 실제로 눈(PTY 3)·비/눈(PTY 2)이 올 때만 눈을 내려요. 겨울이라고 맑은 날에 눈을 뿌리면
  *   날씨 앱으로서 거짓말이 돼요.
  * - 낙엽은 계절 연출이라 날짜(KST 월)로 정하고, 비·눈이 올 땐 안 띄워요.
  * - 낙엽은 홈에 있는 동안 천천히 계속 내려요 — 한 장이 바닥에 닿거나 치워지면 위에서 새 낙엽이 떨어져요.
- * - 눈은 진입 때 한 번 몇 초만 내려요. 탭 전환·뒤로가기로 홈이 다시 그려져도 세션당 한 번만.
+ * - 눈·비는 진입 때 한 번 몇 초만 내려요(계속 내리면 글 읽기를 방해해요). 탭 전환·뒤로가기로 홈이 다시 그려져도 세션당 한 번만.
  * - 낙엽은 집어서 치울 수 있어요 — 톡 치면 옆으로 날아가고, 끌었다 놓으면 던진 방향으로 날아가요.
  *   낙엽 조각만 터치를 받고 나머지 영역은 pointer-events: none이라 화면 조작을 막지 않아요.
  *   눈송이는 터치를 받지 않아요. 스크린 리더엔 효과 전체를 숨겨요.
@@ -23,7 +23,9 @@ import type { EffectKind } from "../lib/seasonalEffect";
  * 흰 눈은 라이트 배경에서 안 보여서 유니코드 대신 토스 2d 이모지 PNG를 써요(앱 다른 아이콘과 같은 스타일).
  */
 
+// 빗줄기는 이미지 대신 가는 선으로 그려서 아이콘이 없어요.
 const ICONS: Record<EffectKind, string[]> = {
+  rain: [],
   snow: ["https://static.toss.im/2d-icons/emoji/png/4x/u2744.png"], // ❄
   leaves: [
     "https://static.toss.im/2d-icons/emoji/png/4x/u1F342.png", // 🍂
@@ -33,7 +35,8 @@ const ICONS: Record<EffectKind, string[]> = {
 
 // 눈송이는 작고 색이 연해서 많이, 크게 내려야 "눈 오는 날"처럼 보여요.
 // 낙엽은 계속 내리니까 한 화면에 너무 많지 않게 — 천천히 떨어져서 12장이면 충분히 차요.
-const PARTICLE_COUNT: Record<EffectKind, number> = { snow: 22, leaves: 12 };
+// 빗줄기는 가늘어서 많이 내려야 비처럼 보여요.
+const PARTICLE_COUNT: Record<EffectKind, number> = { snow: 22, rain: 46, leaves: 12 };
 // 작은 낙엽도 손가락으로 집기 쉽게 이미지 둘레에 투명한 터치 여백을 둬요.
 const HIT_PAD = 10;
 const TOSS_MS = 450;
@@ -49,6 +52,7 @@ let nextParticleId = 0;
 interface Particle {
   id: number;
   anim: string; // keyframes 이름
+  repeat: number; // 같은 조각이 몇 번 떨어지는지(빗줄기는 짧게 여러 번)
   src: string;
   left: number; // vw
   size: number; // px
@@ -66,12 +70,27 @@ function makeParticle(kind: EffectKind, first: boolean): Particle {
   const icons = ICONS[kind];
   const base = {
     id: nextParticleId++,
-    src: icons[Math.floor(Math.random() * icons.length)],
-    left: Math.random() * 100,
+    src: icons.length ? icons[Math.floor(Math.random() * icons.length)] : "",
+    left: Math.random() * 110, // 빗줄기는 왼쪽으로 기울며 떨어져서 오른쪽 밖에서도 시작해요
+    repeat: 1,
   };
+  if (kind === "rain") {
+    // 빗줄기 하나가 0.6~0.9초에 화면을 지나고 7번 반복 → 6초 남짓 내리다 그쳐요.
+    return {
+      ...base,
+      anim: "seasonal-rain",
+      repeat: 7,
+      size: 16 + Math.random() * 12, // 빗줄기 길이
+      delay: Math.random() * 1.2,
+      duration: 0.6 + Math.random() * 0.3,
+      sway: 0,
+      spin: 0,
+    };
+  }
   if (kind === "snow") {
     return {
       ...base,
+      left: Math.random() * 100,
       anim: "seasonal-fall",
       size: 18 + Math.random() * 12,
       delay: Math.random() * 2.5,
@@ -82,6 +101,7 @@ function makeParticle(kind: EffectKind, first: boolean): Particle {
   }
   return {
     ...base,
+    left: Math.random() * 100,
     anim: "seasonal-drift",
     size: 18 + Math.random() * 10,
     delay: first ? Math.random() * 9 : Math.random() * 2,
@@ -116,6 +136,11 @@ const KEYFRAMES = `
   50%  { transform: translate3d(var(--sway), 50vh, 0) rotate(calc(var(--spin) / 2)); }
   90%  { opacity: 0.9; }
   100% { transform: translate3d(0, 110vh, 0) rotate(var(--spin)); opacity: 0; }
+}
+@keyframes seasonal-rain {
+  0%   { transform: translate3d(0, -10vh, 0) rotate(15deg); opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translate3d(-32vh, 110vh, 0) rotate(15deg); opacity: 1; }
 }
 @keyframes seasonal-drift {
   0%   { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 0; }
@@ -233,7 +258,9 @@ function Piece({ p, grabbable, onDone }: { p: Particle; grabbable: boolean; onDo
           top: 0,
           left: `calc(${p.left}vw - ${HIT_PAD}px)`,
           opacity: 0,
-          animation: `${p.anim} ${p.duration}s ${p.anim === "seasonal-drift" ? "ease-in-out" : "ease-in"} ${p.delay}s 1 both`,
+          animation: `${p.anim} ${p.duration}s ${
+            p.anim === "seasonal-drift" ? "ease-in-out" : p.anim === "seasonal-rain" ? "linear" : "ease-in"
+          } ${p.delay}s ${p.repeat} both`,
           "--sway": `${p.sway}px`,
           "--spin": `${p.spin}deg`,
         } as CSSProperties)
@@ -262,7 +289,20 @@ function Piece({ p, grabbable, onDone }: { p: Particle; grabbable: boolean; onDo
       onAnimationEnd={() => state.mode === "fall" && onDone()}
       onTransitionEnd={(e) => state.mode === "toss" && e.propertyName === "opacity" && onDone()}
     >
-      <img src={p.src} alt="" draggable={false} style={{ display: "block", width: "100%", height: "100%" }} />
+      {p.src ? (
+        <img src={p.src} alt="" draggable={false} style={{ display: "block", width: "100%", height: "100%" }} />
+      ) : (
+        // 빗줄기: 위는 투명, 아래로 갈수록 진해지는 가는 선. 라이트 배경에서 보이게 푸른 회색이에요.
+        <div
+          style={{
+            width: 2,
+            height: "100%",
+            margin: "0 auto",
+            borderRadius: 1,
+            background: "linear-gradient(to bottom, rgba(90,130,190,0), rgba(90,130,190,0.6))",
+          }}
+        />
+      )}
     </div>
   );
 }
