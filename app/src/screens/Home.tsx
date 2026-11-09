@@ -15,6 +15,7 @@ import { adaptive } from "@toss/tds-colors";
 import { Accuracy, getCurrentLocation } from "@apps-in-toss/web-framework";
 import MoodVote from "../components/MoodVote";
 import { ProfileTabs } from "../components/ProfileTabs";
+import SeasonalEffect from "../components/SeasonalEffect";
 import ShareToUnlockSheet from "../components/ShareToUnlockSheet";
 import {
   HERO_TINTS,
@@ -35,6 +36,7 @@ import {
 import { ESTIMATED_BADGE_STYLE } from "../constants/theme";
 import { isWet, nextWetHour, precipitationLabel, RAIN_ICON } from "../constants/rain";
 import { weatherMode } from "../constants/weatherMode";
+import { seasonalEffectKind } from "../lib/seasonalEffect";
 import { sunsetNote } from "../lib/sunsetNote";
 import { useLastProfile } from "../hooks/useLastProfile";
 import { useNotificationPrefs } from "../hooks/useNotificationPrefs";
@@ -344,6 +346,10 @@ export default function Home() {
 
   return (
     <>
+      {/* 눈 오는 날엔 눈, 가을 맑은 날엔 낙엽 — 진입 때 잠깐만, 터치는 막지 않아요. */}
+      <SeasonalEffect
+        kind={showData ? seasonalEffectKind(showData.metrics.pty, showData.generatedAt) : null}
+      />
       <div style={{ padding: "6px 24px 0" }}>
         <ProfileTabs value={profile} onChange={setProfile} />
       </div>
